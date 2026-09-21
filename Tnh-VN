@@ -1,0 +1,333 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local LP = Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "TnhVN"
+gui.ResetOnSpawn = false
+gui.Parent = LP:WaitForChild("PlayerGui")
+
+local function corner(obj,r)
+	local c=Instance.new("UICorner")
+	c.CornerRadius=UDim.new(0,r)
+	c.Parent=obj
+end
+
+local function stroke(obj)
+	local s=Instance.new("UIStroke")
+	s.Thickness=1.5
+	s.Transparency=.35
+	s.Parent=obj
+end
+
+local tButton=Instance.new("TextButton")
+tButton.Size=UDim2.fromOffset(58,58)
+tButton.Position=UDim2.new(1,-75,.5,-29)
+tButton.BackgroundColor3=Color3.fromRGB(20,25,30)
+tButton.Text="T"
+tButton.TextColor3=Color3.new(1,1,1)
+tButton.TextSize=28
+tButton.Font=Enum.Font.GothamBold
+tButton.Parent=gui
+corner(tButton,30)
+stroke(tButton)
+
+local dragging=false
+local dragStart
+local startPos
+
+tButton.InputBegan:Connect(function(input)
+	if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+		dragging=true
+		dragStart=input.Position
+		startPos=tButton.Position
+	end
+end)
+
+tButton.InputEnded:Connect(function(input)
+	if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+		dragging=false
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if not dragging then return end
+	if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then
+		local delta=input.Position-dragStart
+		tButton.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+	end
+end)
+
+local menu=Instance.new("Frame")
+menu.Size=UDim2.fromOffset(650,420)
+menu.Position=UDim2.new(.5,-325,.5,-210)
+menu.BackgroundColor3=Color3.fromRGB(18,23,27)
+menu.Visible=false
+menu.Parent=gui
+corner(menu,16)
+stroke(menu)
+
+local title=Instance.new("TextLabel")
+title.Size=UDim2.new(1,0,0,65)
+title.BackgroundTransparency=1
+title.Text="Tnh-VN"
+title.TextColor3=Color3.new(1,1,1)
+title.TextSize=30
+title.Font=Enum.Font.GothamBold
+title.Parent=menu
+
+local side=Instance.new("Frame")
+side.Size=UDim2.fromOffset(170,355)
+side.Position=UDim2.fromOffset(10,60)
+side.BackgroundTransparency=1
+side.Parent=menu
+
+local content=Instance.new("Frame")
+content.Size=UDim2.new(1,-195,1,-75)
+content.Position=UDim2.fromOffset(185,65)
+content.BackgroundTransparency=1
+content.Parent=menu
+
+local pages={}
+local tabs={}
+
+local function makePage()
+	local p=Instance.new("Frame")
+	p.Size=UDim2.fromScale(1,1)
+	p.BackgroundTransparency=1
+	p.Visible=false
+	p.Parent=content
+	table.insert(pages,p)
+	return p
+end
+
+local function makeTab(text,y,page)
+	local b=Instance.new("TextButton")
+	b.Size=UDim2.new(1,-10,0,58)
+	b.Position=UDim2.fromOffset(5,y)
+	b.BackgroundColor3=Color3.fromRGB(35,42,47)
+	b.Text=text
+	b.TextColor3=Color3.new(1,1,1)
+	b.TextSize=17
+	b.Font=Enum.Font.GothamMedium
+	b.Parent=side
+	corner(b,10)
+
+	b.MouseButton1Click:Connect(function()
+		for _,p in ipairs(pages) do p.Visible=false end
+		for _,x in ipairs(tabs) do x.BackgroundColor3=Color3.fromRGB(35,42,47) end
+		page.Visible=true
+		b.BackgroundColor3=Color3.fromRGB(0,150,220)
+	end)
+
+	table.insert(tabs,b)
+end
+
+local function label(parent,text,y)
+	local l=Instance.new("TextLabel")
+	l.Size=UDim2.new(1,-10,0,45)
+	l.Position=UDim2.fromOffset(5,y)
+	l.BackgroundTransparency=1
+	l.Text=text
+	l.TextColor3=Color3.new(1,1,1)
+	l.TextSize=20
+	l.TextXAlignment=Enum.TextXAlignment.Left
+	l.Font=Enum.Font.GothamBold
+	l.Parent=parent
+end
+
+local function boxButton(parent,text,y)
+	local b=Instance.new("TextButton")
+	b.Size=UDim2.new(1,-10,0,65)
+	b.Position=UDim2.fromOffset(5,y)
+	b.BackgroundColor3=Color3.fromRGB(28,35,39)
+	b.Text=text
+	b.TextColor3=Color3.new(1,1,1)
+	b.TextSize=17
+	b.TextXAlignment=Enum.TextXAlignment.Left
+	b.Font=Enum.Font.GothamMedium
+	b.Parent=parent
+	corner(b,12)
+	stroke(b)
+	return b
+end
+
+local locatePage=makePage()
+local flyPage=makePage()
+local jumpPage=makePage()
+local langPage=makePage()
+
+makeTab("Định Vị",0,locatePage)
+makeTab("Fly",65,flyPage)
+makeTab("Jumpower",130,jumpPage)
+makeTab("Ngôn ngữ",195,langPage)
+
+label(locatePage,"Định Vị",5)
+local locate=boxButton(locatePage,"Hiện Box : OFF",60)
+local locateOn=false
+
+local function updateLocate()
+	for _,p in ipairs(Players:GetPlayers()) do
+		if p~=LP and p.Character then
+			local old=p.Character:FindFirstChild("TnhVN_Box")
+			if old then old:Destroy() end
+
+			if locateOn then
+				local h=Instance.new("Highlight")
+				h.Name="TnhVN_Box"
+				h.FillColor=Color3.fromRGB(0,170,255)
+				h.FillTransparency=.75
+				h.OutlineColor=Color3.fromRGB(0,200,255)
+				h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+				h.Parent=p.Character
+			end
+		end
+	end
+end
+
+locate.MouseButton1Click:Connect(function()
+	locateOn=not locateOn
+	locate.Text="Hiện Box : "..(locateOn and "ON" or "OFF")
+	updateLocate()
+end)
+
+Players.PlayerAdded:Connect(function(p)
+	p.CharacterAdded:Connect(function()
+		task.wait(.5)
+		updateLocate()
+	end)
+end)
+
+label(flyPage,"Fly",5)
+local flyToggle=boxButton(flyPage,"Bật Fly : OFF",60)
+
+local flySpeedBox=Instance.new("TextBox")
+flySpeedBox.Size=UDim2.new(1,-10,0,55)
+flySpeedBox.Position=UDim2.fromOffset(5,135)
+flySpeedBox.BackgroundColor3=Color3.fromRGB(28,35,39)
+flySpeedBox.Text="50"
+flySpeedBox.PlaceholderText="Tốc độ 1 - 400"
+flySpeedBox.TextColor3=Color3.new(1,1,1)
+flySpeedBox.TextSize=18
+flySpeedBox.Font=Enum.Font.Gotham
+flySpeedBox.ClearTextOnFocus=false
+flySpeedBox.Parent=flyPage
+corner(flySpeedBox,10)
+
+local flyOn=false
+local flySpeed=50
+local flyVelocity
+
+flySpeedBox.FocusLost:Connect(function()
+	local n=tonumber(flySpeedBox.Text) or 50
+	flySpeed=math.clamp(n,1,400)
+	flySpeedBox.Text=tostring(flySpeed)
+end)
+
+flyToggle.MouseButton1Click:Connect(function()
+	flyOn=not flyOn
+	flyToggle.Text="Bật Fly : "..(flyOn and "ON" or "OFF")
+
+	local char=LP.Character
+	local root=char and char:FindFirstChild("HumanoidRootPart")
+
+	if flyOn and root then
+		flyVelocity=Instance.new("BodyVelocity")
+		flyVelocity.MaxForce=Vector3.new(math.huge,math.huge,math.huge)
+		flyVelocity.Velocity=Vector3.zero
+		flyVelocity.Parent=root
+	else
+		if flyVelocity then
+			flyVelocity:Destroy()
+			flyVelocity=nil
+		end
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if flyOn and flyVelocity then
+		local char=LP.Character
+		local hum=char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			flyVelocity.Velocity=hum.MoveDirection*flySpeed
+		end
+	end
+end)
+
+label(jumpPage,"Jumpower",5)
+local jumpToggle=boxButton(jumpPage,"Bật Jumpower : OFF",60)
+
+local jumpBox=Instance.new("TextBox")
+jumpBox.Size=UDim2.new(1,-10,0,55)
+jumpBox.Position=UDim2.fromOffset(5,135)
+jumpBox.BackgroundColor3=Color3.fromRGB(28,35,39)
+jumpBox.Text="50"
+jumpBox.PlaceholderText="Jumpower 1 - 400"
+jumpBox.TextColor3=Color3.new(1,1,1)
+jumpBox.TextSize=18
+jumpBox.Font=Enum.Font.Gotham
+jumpBox.ClearTextOnFocus=false
+jumpBox.Parent=jumpPage
+corner(jumpBox,10)
+
+local jumpOn=false
+local jumpPower=50
+
+jumpBox.FocusLost:Connect(function()
+	local n=tonumber(jumpBox.Text) or 50
+	jumpPower=math.clamp(n,1,400)
+	jumpBox.Text=tostring(jumpPower)
+
+	if jumpOn then
+		local hum=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.UseJumpPower=true
+			hum.JumpPower=jumpPower
+		end
+	end
+end)
+
+jumpToggle.MouseButton1Click:Connect(function()
+	jumpOn=not jumpOn
+	jumpToggle.Text="Bật Jumpower : "..(jumpOn and "ON" or "OFF")
+
+	local hum=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.UseJumpPower=true
+		hum.JumpPower=jumpOn and jumpPower or 50
+	end
+end)
+
+label(langPage,"Ngôn ngữ",5)
+
+local languages={
+	"🇻🇳 Tiếng Việt",
+	"🇬🇧 English",
+	"🇹🇭 ภาษาไทย",
+	"🇨🇳 中文",
+	"🇰🇷 한국어"
+}
+
+local langY=60
+
+for _,name in ipairs(languages) do
+	local b=boxButton(langPage,name,langY)
+	langY+=65
+
+	b.MouseButton1Click:Connect(function()
+		title.Text=name.." | Tnh-VN"
+	end)
+end
+
+tButton.MouseButton1Click:Connect(function()
+	menu.Visible=not menu.Visible
+end)
+
+locatePage.Visible=true
+tabs[1].BackgroundColor3=Color3.fromRGB(0,150,220)
+
+if UIS.TouchEnabled then
+	menu.Size=UDim2.new(.92,0,.78,0)
+	menu.Position=UDim2.new(.04,0,.11,0)
+end
