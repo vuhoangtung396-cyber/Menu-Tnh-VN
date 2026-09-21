@@ -1596,6 +1596,5 @@ end)
 
 -- Init
 OpenPg("Main")
-Side.Visible=false
 
 print("[Tnh-VN] MENU Loaded — Key: Tnh-VN")
