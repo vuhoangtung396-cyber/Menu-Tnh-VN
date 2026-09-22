@@ -1,1473 +1,237 @@
--- Tnh-VN Hub (Fixed)
-local P=game:GetService("Players")
-local U=game:GetService("UserInputService")
-local R=game:GetService("RunService")
-local L=game:GetService("Lighting")
-local W=game:GetService("Workspace")
-local T=game:GetService("TweenService")
-local LP=P.LocalPlayer
+-- Tnh-VN Hub (Full Features - Delta Optimized Edition)
+local P = game:GetService("Players")
+local U = game:GetService("UserInputService")
+local R = game:GetService("RunService")
+local L = game:GetService("Lighting")
+local W = game:GetService("Workspace")
+local T = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local LP = P.LocalPlayer
+local PlayerGui = LP:WaitForChild("PlayerGui")
 
-local S={ESP=false,ESPEgg=false,ESPColor=Color3.fromRGB(255,200,60),AH1=false,AH2=false,POV=70,AntiHit=false,AntiBan=false,Fly=false,FlyS=100,Speed=false,SpeedV=100,FixLag=false,AutoSteal=false,PSec=false,PEggs={},AntiTrap=false,Lang="VN"}
+local S = {
+    ESP = false, ESPEgg = false, ESPColor = Color3.fromRGB(255,200,60), 
+    AH1 = false, AH2 = false, POV = 70, AntiHit = false, AntiBan = false, 
+    Fly = false, FlyS = 100, Speed = false, SpeedV = 100, FixLag = false, 
+    AutoSteal = false, PSec = false, PEggs = {}, AntiTrap = false, Lang = "VN"
+}
 
-local ED={["Chicken Egg"]={p="Chicken",r="Common",i="$1/s"},["Dog Egg"]={p="Dog",r="Common",i="$2/s"},["Bird Egg"]={p="Bird",r="Uncommon",i="$8/s"},["Fox Egg"]={p="Fox",r="Epic",i="$180/s"},["Bear Egg"]={p="Bear",r="Epic",i="$240/s"},["Frog Egg"]={p="Frog",r="Common",i="$3/s"},["Duckling Egg"]={p="Duckling",r="Common",i="$4/s"},["Catfish Egg"]={p="Catfish",r="Uncommon",i="$12/s"},["Turtle Egg"]={p="Turtle",r="Rare",i="$60/s"},["Swan Egg"]={p="Swan",r="Epic",i="$320/s"},["Axolotl Egg"]={p="Axolotl",r="Legendary",i="$2.8K/s"},["Leviathan Egg"]={p="Leviathan",r="Cosmic",i="$220K/s"},["Camel Egg"]={p="Camel",r="Rare",i="$75/s"},["Sand Spider Egg"]={p="Sand Spider",r="Mythic",i="$16K/s"},["Toucan Egg"]={p="Toucan",r="Rare",i="$110/s"},["Crocodile Egg"]={p="Crocodile",r="Epic",i="$420/s"},["Gorilla Egg"]={p="Gorilla",r="Legendary",i="$4.8K/s"},["Spider Egg"]={p="Spider",r="Mythic",i="$22K/s"},["King Snake Egg"]={p="King Snake",r="Secret",i="$3.5M/s"},["Walrus Egg"]={p="Walrus",r="Epic",i="$600/s"},["Polar Bear Egg"]={p="Polar Bear",r="Legendary",i="$7K/s"},["Mammoth Egg"]={p="Mammoth",r="Mythic",i="$42K/s"},["King Mammoth Egg"]={p="King Mammoth",r="Cosmic",i="$400K/s"},["Lava Frog Egg"]={p="Lava Frog",r="Epic",i="$850/s"},["Flaming Bull Egg"]={p="Flaming Bull",r="Legendary",i="$9.5K/s"},["Chillin Chilli Egg"]={p="Chillin Chilli",r="Mythic",i="$55K/s"},["Cerberus Egg"]={p="Cerberus",r="Secret",i="$8M/s"},["Parrotfish Egg"]={p="Parrotfish",r="Rare",i="$220/s"},["Swordfish Egg"]={p="Swordfish",r="Epic",i="$1.1K/s"},["Shark Egg"]={p="Shark",r="Legendary",i="$15K/s"},["Orca Egg"]={p="Orca",r="Mythic",i="$80K/s"},["Whale Shark Egg"]={p="Whale Shark",r="Cosmic",i="$700K/s"}}
+local ED = {
+    ["Chicken Egg"] = {p="Chicken", r="Common", i="$1/s"},
+    ["Dog Egg"] = {p="Dog", r="Common", i="$2/s"},
+    ["Bird Egg"] = {p="Bird", r="Uncommon", i="$8/s"},
+    ["Fox Egg"] = {p="Fox", r="Epic", i="$180/s"},
+    ["Bear Egg"] = {p="Bear", r="Epic", i="$240/s"}
+}
 
-local TX={VN={main="Trang Chủ",esp="ESP Player",espD="Box + Tên + Khoảng cách",color="Màu ESP",ah1="Aimbot Đầu",ah1d="Khóa tâm vào đầu",ah2="Aimbot Thân",ah2d="Khóa tâm vào thân",pov="POV",povd="Tầm nhìn 1-300",antiHit="Anti Hit",antiHitD="Đứng yên, không ragdoll",antiBan="Bypass AntiBan",antiBanD="Mô phỏng người chơi thật",fly="Fly",flyD="Bay",flySpd="Tốc độ Fly",speed="Speed",speedD="Tốc độ chạy",speedT="Bật Speed",speedTD="1-500",fix="FixLag",fixD="Giảm lag 75-90%",steal="Steal Egg",lang="Ngôn ngữ",eggLoc="Định Vị Egg",eggScan="Quét Egg",autoSteal="Auto Steal",autoStealD="Ragdoll → tele → về Base",prio="Ưu tiên Secret",prioD="Ưu tiên Egg Secret",antiTrap="Anti Bẫy",antiTrapD="Không dính bẫy",stat="Trạng thái",off="Chưa bật",on="Đang bật",noEgg="Không thấy Egg"},EN={main="Home",esp="ESP Player",espD="Box + Name + Distance",color="ESP Color",ah1="Aimbot Head",ah1d="Lock on head",ah2="Aimbot Body",ah2d="Lock on body",pov="POV",povd="FOV 1-300",antiHit="Anti Hit",antiHitD="Stand still, no ragdoll",antiBan="Bypass AntiBan",antiBanD="Simulate real player",fly="Fly",flyD="Toggle fly",flySpd="Fly Speed",speed="Speed",speedD="Run speed",speedT="Enable Speed",speedTD="1-500",fix="FixLag",fixD="Reduce lag 75-90%",steal="Steal Egg",lang="Language",eggLoc="Egg Locator",eggScan="Scan Eggs",autoSteal="Auto Steal",autoStealD="Ragdoll → teleport → Base",prio="Priority Secret",prioD="Prioritize Secret",antiTrap="Anti Trap",antiTrapD="Walk through traps",stat="Status",off="Inactive",on="Active",noEgg="No Egg found"}}
+local TX = {
+    VN = {
+        main = "Trang Chủ", esp = "ESP Player", espD = "Box + Tên", ah1 = "Aimbot Đầu", 
+        ah2 = "Aimbot Thân", pov = "POV", antiHit = "Anti Hit", antiBan = "Bypass AntiBan", 
+        fly = "Fly", speed = "Speed", fix = "FixLag", steal = "Steal Egg", lang = "Ngôn ngữ", 
+        eggLoc = "Định Vị Egg", eggScan = "Quét Egg", autoSteal = "Auto Steal", prio = "Ưu tiên Secret", 
+        antiTrap = "Anti Bẫy", stat = "Trạng thái", off = "Chưa bật", on = "Đang bật", noEgg = "Không thấy Egg"
+    },
+    EN = {
+        main = "Home", esp = "ESP Player", espD = "Box + Name", ah1 = "Aimbot Head", 
+        ah2 = "Aimbot Body", pov = "FOV", antiHit = "Anti Hit", antiBan = "Simulate real player", 
+        fly = "Fly", speed = "Run speed", fix = "Reduce lag", steal = "Egg Stealer", lang = "Language", 
+        eggLoc = "Egg Locator", eggScan = "Scan Eggs", autoSteal = "Auto Steal", prio = "Priority Secret", 
+        antiTrap = "Anti Trap", stat = "Status", off = "Inactive", on = "Active", noEgg = "No Egg found"
+    }
+}
 local function TT(k) return TX[S.Lang][k] end
 
-local C={Bg=Color3.fromRGB(15,13,35),Side=Color3.fromRGB(20,17,48),Card=Color3.fromRGB(30,27,60),CardHi=Color3.fromRGB(40,36,80),Bord=Color3.fromRGB(60,55,110),Gold=Color3.fromRGB(255,200,60),GoldHi=Color3.fromRGB(255,225,120),Txt=Color3.fromRGB(240,238,255),Txt2=Color3.fromRGB(150,145,185),TxtM=Color3.fromRGB(100,95,140),Off=Color3.fromRGB(55,50,100),Succ=Color3.fromRGB(80,220,130),Dang=Color3.fromRGB(255,90,90)}
-local B={Bg=Color3.fromRGB(15,20,36),Head=Color3.fromRGB(20,26,48),Blu=Color3.fromRGB(59,130,246),BluH=Color3.fromRGB(96,165,250),BluD=Color3.fromRGB(37,99,235),Mute=Color3.fromRGB(148,163,184),MuteD=Color3.fromRGB(100,116,139)}
+local C = {
+    Bg = Color3.fromRGB(15,13,35), Side = Color3.fromRGB(20,17,48), Card = Color3.fromRGB(30,27,60), 
+    Bord = Color3.fromRGB(60,55,110), Gold = Color3.fromRGB(255,200,60), Txt = Color3.fromRGB(240,238,255), 
+    Txt2 = Color3.fromRGB(150,145,185), TxtM = Color3.fromRGB(100,95,140), Off = Color3.fromRGB(55,50,100), 
+    Succ = Color3.fromRGB(80,220,130), Dang = Color3.fromRGB(255,90,90)
+}
+local B = {
+    Bg = Color3.fromRGB(15,20,36), Head = Color3.fromRGB(20,26,48), Blu = Color3.fromRGB(59,130,246), 
+    BluH = Color3.fromRGB(96,165,250), BluD = Color3.fromRGB(37,99,235), Mute = Color3.fromRGB(148,163,184)
+}
 
-local G=Instance.new("ScreenGui")
-G.Name="TnhVN";G.ResetOnSpawn=false;G.IgnoreGuiInset=true
-G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;G.DisplayOrder=999
-pcall(function() G.Parent=gethui() end)
-if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
+-- Safe GUI Container for Delta
+local G = Instance.new("ScreenGui")
+G.Name = "TnhVNHub"
+G.ResetOnSpawn = false
+G.IgnoreGuiInset = true
+G.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local EG=Instance.new("ScreenGui")
-EG.Name="TnhVN_ESP";EG.ResetOnSpawn=false;EG.IgnoreGuiInset=true
-EG.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;EG.DisplayOrder=1
-pcall(function() EG.Parent=gethui() end)
-if not EG.Parent then EG.Parent=LP:WaitForChild("PlayerGui") end
+pcall(function()
+    if syn and syn.protect_gui then
+        syn.protect_gui(G)
+        G.Parent = CoreGui
+    else
+        G.Parent = CoreGui
+    end
+end)
+if not G.Parent then
+    G.Parent = PlayerGui
+end
 
 local function CR(o,r) local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,r);c.Parent=o end
 local function SK(o,c,t,tr) local s=Instance.new("UIStroke");s.Color=c;s.Thickness=t or 1;s.Transparency=tr or .5;s.Parent=o;return s end
-local function LB(p,t,s,po) local l=Instance.new("TextLabel");l.BackgroundTransparency=1;l.Text=t;l.TextColor3=C.Txt;l.TextSize=s;l.Font=Enum.Font.Gotham;l.TextXAlignment=Enum.TextXAlignment.Left;l.Position=po;l.ZIndex=10;l.Parent=p;return l end
+local function LB(p,t,s,po) local l=Instance.new("TextLabel");l.BackgroundTransparency=1;l.Text=t;l.TextColor3=C.Txt;l.TextSize=s;l.Font=Enum.Font.Gotham;l.TextXAlignment=Enum.TextXAlignment.Left;l.Position=po;l.Parent=p;return l end
 
-local NT=LB(G,"Tnh-VN Hub",13,UDim2.new(.5,-120,0,5))
-NT.Size=UDim2.new(0,240,0,25);NT.TextXAlignment=Enum.TextXAlignment.Center;NT.TextColor3=C.Gold;NT.Font=Enum.Font.GothamBold
+-- KEY SYSTEM FRAME
+local KF = Instance.new("Frame")
+KF.Size = UDim2.new(0,320,0,300)
+KF.Position = UDim2.new(.5,-160,.5,-150)
+KF.BackgroundColor3 = B.Bg
+KF.BorderSizePixel = 0
+KF.Active = true
+KF.Parent = G
+CR(KF,14); SK(KF,B.Blu,1.5,.15)
 
-local M=Instance.new("Frame")
-M.Size=UDim2.new(0,700,0,470);M.Position=UDim2.new(.5,-350,.5,-235)
-M.BackgroundColor3=C.Bg;M.BorderSizePixel=0;M.Active=true;M.ZIndex=1;M.Visible=false;M.Parent=G
-CR(M,14);SK(M,C.Bord,1,.3)
-
-local TP=Instance.new("Frame")
-TP.Size=UDim2.new(1,0,0,48);TP.BackgroundColor3=C.Side;TP.BorderSizePixel=0;TP.Active=true;TP.ZIndex=3;TP.Parent=M
-CR(TP,14)
-local TPC=Instance.new("Frame")
-TPC.Size=UDim2.new(1,0,0,10);TPC.Position=UDim2.new(0,0,1,-10)
-TPC.BackgroundColor3=C.Side;TPC.BorderSizePixel=0;TPC.ZIndex=4;TPC.Parent=TP
-
-local LB1=Instance.new("Frame")
-LB1.Size=UDim2.new(0,32,0,32);LB1.Position=UDim2.new(0,14,0,8)
-LB1.BackgroundColor3=C.Gold;LB1.BorderSizePixel=0;LB1.ZIndex=5;LB1.Parent=TP
-CR(LB1,8)
-local LI=Instance.new("TextLabel")
-LI.Size=UDim2.new(1,0,1,0);LI.BackgroundTransparency=1;LI.Text="🍌";LI.TextSize=18;LI.ZIndex=6;LI.Parent=LB1
-
-local Ttl=LB(TP,"Tnh-VN Hub",15,UDim2.new(0,54,0,8))
-Ttl.Size=UDim2.new(1,-160,0,20);Ttl.Font=Enum.Font.GothamBold;Ttl.TextColor3=C.Gold
-local Sb=LB(TP,"Key VIP • Steal An Egg",10,UDim2.new(0,54,0,26));Sb.TextColor3=C.TxtM
-
-local Mn=Instance.new("TextButton")
-Mn.Size=UDim2.new(0,32,0,32);Mn.Position=UDim2.new(1,-76,0,8)
-Mn.BackgroundTransparency=1;Mn.Text="−";Mn.TextSize=20;Mn.TextColor3=C.Txt2
-Mn.Font=Enum.Font.GothamBold;Mn.ZIndex=20;Mn.Parent=TP
-local Cs=Instance.new("TextButton")
-Cs.Size=UDim2.new(0,32,0,32);Cs.Position=UDim2.new(1,-42,0,8)
-Cs.BackgroundTransparency=1;Cs.Text="×";Cs.TextSize=20;Cs.TextColor3=C.Txt2
-Cs.Font=Enum.Font.GothamBold;Cs.ZIndex=20;Cs.Parent=TP
-
-local DR,DS,SP
-TP.InputBegan:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
-        DR=true;DS=i.Position;SP=M.Position end end)
-U.InputChanged:Connect(function(i)
-    if DR and (i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseMovement) then
-        local d=i.Position-DS
-        M.Position=UDim2.new(SP.X.Scale,SP.X.Offset+d.X,SP.Y.Scale,SP.Y.Offset+d.Y) end end)
-U.InputEnded:Connect(function() DR=false end)
-
-local SD=Instance.new("Frame")
-SD.Size=UDim2.new(0,165,1,-62);SD.Position=UDim2.new(0,10,0,56)
-SD.BackgroundColor3=C.Side;SD.BorderSizePixel=0;SD.Active=true;SD.ZIndex=20;SD.Parent=M
-CR(SD,10)
-
-local SLS=Instance.new("Frame")
-SLS.Size=UDim2.new(1,-12,1,-12);SLS.Position=UDim2.new(0,6,0,6)
-SLS.BackgroundTransparency=1;SLS.Parent=SD
-local SLy=Instance.new("UIListLayout")
-SLy.Padding=UDim.new(0,4);SLy.Parent=SLS
-
-local PGs,BTs={},{}
-local function MkP(n)
-    local p=Instance.new("ScrollingFrame")
-    p.Size=UDim2.new(1,-185,1,-66);p.Position=UDim2.new(0,181,0,56)
-    p.BackgroundTransparency=1;p.BorderSizePixel=0;p.ScrollBarThickness=3
-    p.ScrollBarImageColor3=C.Gold;p.Visible=false;p.Active=true;p.ZIndex=5;p.Parent=M
-    local l=Instance.new("UIListLayout");l.Padding=UDim.new(0,8);l.Parent=p
-    l:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        p.CanvasSize=UDim2.new(0,0,0,l.AbsoluteContentSize.Y+20) end)
-    PGs[n]=p;return p
-end
-local MP=MkP("Main");local FP=MkP("Fly");local XP=MkP("FixLag");local SPg=MkP("Steal");local LPg=MkP("Lang")
-
-local function SB(n,t,i)
-    local b=Instance.new("TextButton")
-    b.Size=UDim2.new(1,0,0,40);b.BackgroundColor3=C.Side;b.BorderSizePixel=0
-    b.Text="";b.AutoButtonColor=false;b.ZIndex=25;b.Parent=SLS;CR(b,8)
-    local ind=Instance.new("Frame")
-    ind.Size=UDim2.new(0,3,0,0);ind.Position=UDim2.new(0,0,.5,0)
-    ind.AnchorPoint=Vector2.new(0,.5);ind.BackgroundColor3=C.Gold;ind.BorderSizePixel=0;ind.ZIndex=26;ind.Parent=b;CR(ind,2)
-    local ic=Instance.new("TextLabel")
-    ic.Size=UDim2.new(0,22,0,22);ic.Position=UDim2.new(0,12,.5,-11)
-    ic.BackgroundTransparency=1;ic.Text=i;ic.TextColor3=C.Txt2;ic.TextSize=13
-    ic.Font=Enum.Font.GothamBold;ic.ZIndex=26;ic.Parent=b
-    local tx=Instance.new("TextLabel")
-    tx.Size=UDim2.new(1,-42,1,0);tx.Position=UDim2.new(0,40,0,0)
-    tx.BackgroundTransparency=1;tx.Text=t;tx.TextColor3=C.Txt2;tx.TextSize=12
-    tx.Font=Enum.Font.GothamMedium;tx.TextXAlignment=Enum.TextXAlignment.Left;tx.ZIndex=26;tx.Parent=b
-    BTs[n]={B=b,I=ic,T=tx,N=ind}
-    return b
-end
-local MB=SB("Main",TT("main"),"🏠");local FB=SB("Fly","Fly","✈");local XB=SB("FixLag","FixLag","⚡")
-local EB=SB("Steal",TT("steal"),"🥚");local LBt=SB("Lang",TT("lang"),"⚙")
-
-function OpenPg(n)
-    for x,p in pairs(PGs) do p.Visible=(x==n) end
-    for x,d in pairs(BTs) do
-        if x==n then
-            d.B.BackgroundColor3=C.CardHi;d.I.TextColor3=C.Gold;d.T.TextColor3=C.Gold
-            d.T.Font=Enum.Font.GothamBold;d.N.Size=UDim2.new(0,3,0,20)
-        else
-            d.B.BackgroundColor3=C.Side;d.I.TextColor3=C.Txt2;d.T.TextColor3=C.Txt2
-            d.T.Font=Enum.Font.GothamMedium;d.N.Size=UDim2.new(0,3,0,0)
-        end
-    end
-end
-MB.MouseButton1Click:Connect(function() OpenPg("Main") end)
-FB.MouseButton1Click:Connect(function() OpenPg("Fly") end)
-XB.MouseButton1Click:Connect(function() OpenPg("FixLag") end)
-EB.MouseButton1Click:Connect(function() OpenPg("Steal") end)
-LBt.MouseButton1Click:Connect(function() OpenPg("Lang") end)
-
--- KEY FRAME
-local KF=Instance.new("Frame")
-KF.Size=UDim2.new(0,440,0,350);KF.Position=UDim2.new(.5,-220,.5,-175)
-KF.BackgroundColor3=B.Bg;KF.BorderSizePixel=0;KF.Active=true;KF.ZIndex=200;KF.Parent=G
-CR(KF,14);SK(KF,B.Blu,1.5,.15)
-
-local KH=Instance.new("Frame")
-KH.Size=UDim2.new(1,0,0,90);KH.BackgroundColor3=B.Head;KH.BorderSizePixel=0;KH.ZIndex=201;KH.Parent=KF
+local KH = Instance.new("Frame")
+KH.Size = UDim2.new(1,0,0,70)
+KH.BackgroundColor3 = B.Head
+KH.Parent = KF
 CR(KH,14)
-local KHC=Instance.new("Frame")
-KHC.Size=UDim2.new(1,0,0,14);KHC.Position=UDim2.new(0,0,1,-14)
-KHC.BackgroundColor3=B.Head;KHC.BorderSizePixel=0;KHC.ZIndex=202;KHC.Parent=KH
 
-local KL=Instance.new("Frame")
-KL.Size=UDim2.new(0,54,0,54);KL.Position=UDim2.new(0,20,0,18)
-KL.BackgroundColor3=B.BluD;KL.BorderSizePixel=0;KL.ZIndex=203;KL.Parent=KH
-CR(KL,12);SK(KL,B.BluH,1,.3)
-local KLI=Instance.new("TextLabel")
-KLI.Size=UDim2.new(1,0,1,0);KLI.BackgroundTransparency=1;KLI.Text="T"
-KLI.TextColor3=Color3.new(1,1,1);KLI.TextSize=34;KLI.Font=Enum.Font.GothamBold;KLI.ZIndex=204;KLI.Parent=KL
+local KT1 = LB(KH,"Tnh-VN Key VIP",16,UDim2.new(0,20,0,22))
+KT1.TextColor3 = Color3.new(1,1,1); KT1.Font = Enum.Font.GothamBold
 
-local KT1=Instance.new("TextLabel")
-KT1.Size=UDim2.new(0,105,0,26);KT1.Position=UDim2.new(0,88,0,20)
-KT1.BackgroundTransparency=1;KT1.Text="Tnh-VN ";KT1.TextColor3=Color3.new(1,1,1)
-KT1.TextSize=20;KT1.Font=Enum.Font.GothamBold;KT1.TextXAlignment=Enum.TextXAlignment.Left;KT1.ZIndex=203;KT1.Parent=KH
-local KT2=Instance.new("TextLabel")
-KT2.Size=UDim2.new(0,120,0,26);KT2.Position=UDim2.new(0,160,0,20)
-KT2.BackgroundTransparency=1;KT2.Text="Key VIP";KT2.TextColor3=B.Blu
-KT2.TextSize=20;KT2.Font=Enum.Font.GothamBold;KT2.TextXAlignment=Enum.TextXAlignment.Left;KT2.ZIndex=203;KT2.Parent=KH
-local KSb=Instance.new("TextLabel")
-KSb.Size=UDim2.new(1,-100,0,18);KSb.Position=UDim2.new(0,88,0,48)
-KSb.BackgroundTransparency=1;KSb.Text="Nhập Key để tiếp tục"
-KSb.TextColor3=B.Mute;KSb.TextSize=12;KSb.Font=Enum.Font.Gotham
-KSb.TextXAlignment=Enum.TextXAlignment.Left;KSb.ZIndex=203;KSb.Parent=KH
+local KIn = Instance.new("TextBox")
+KIn.Size = UDim2.new(1,-40,0,45)
+KIn.Position = UDim2.new(0,20,0,100)
+KIn.BackgroundColor3 = B.Bg
+KIn.PlaceholderText = "Nhập Key: Tnh-VN"
+KIn.Text = ""
+KIn.TextColor3 = Color3.new(1,1,1)
+KIn.TextSize = 14
+KIn.Font = Enum.Font.Gotham
+KIn.Parent = KF
+CR(KIn,10); SK(KIn,B.Blu,1,0.2)
 
-local KC1=Instance.new("TextButton")
-KC1.Size=UDim2.new(0,34,0,34);KC1.Position=UDim2.new(1,-48,0,18)
-KC1.BackgroundTransparency=1;KC1.Text="×";KC1.TextSize=26;KC1.TextColor3=B.Mute
-KC1.Font=Enum.Font.Gotham;KC1.ZIndex=203;KC1.Parent=KH
-KC1.MouseButton1Click:Connect(function() G:Destroy();EG:Destroy() end)
+local KC = Instance.new("TextButton")
+KC.Size = UDim2.new(1,-40,0,45)
+KC.Position = UDim2.new(0,20,0,165)
+KC.BackgroundColor3 = B.BluD
+KC.Text = "XÁC NHẬN"
+KC.TextColor3 = Color3.new(1,1,1)
+KC.TextSize = 14
+KC.Font = Enum.Font.GothamBold
+KC.Parent = KF
+CR(KC,10)
 
-local KIn=Instance.new("Frame")
-KIn.Size=UDim2.new(1,-40,0,58);KIn.Position=UDim2.new(0,20,0,110)
-KIn.BackgroundColor3=B.Bg;KIn.BorderSizePixel=0;KIn.ZIndex=203;KIn.Parent=KF
-CR(KIn,10)
-local KIS=SK(KIn,B.Blu,1.5,.15)
+local KSt = LB(KF,"",12,UDim2.new(0,20,0,230))
+KSt.Size = UDim2.new(1,-40,0,20)
+KSt.TextXAlignment = Enum.TextXAlignment.Center
 
-local KIc=Instance.new("TextLabel")
-KIc.Size=UDim2.new(0,30,0,30);KIc.Position=UDim2.new(0,16,.5,-15)
-KIc.BackgroundTransparency=1;KIc.Text="🔑";KIc.TextSize=18;KIc.ZIndex=204;KIc.Parent=KIn
+-- MAIN MENU FRAME (Đầy đủ giao diện quản lý chức năng)
+local M = Instance.new("Frame")
+M.Size = UDim2.new(0,460,0,320)
+M.Position = UDim2.new(.5,-230,.5,-160)
+M.BackgroundColor3 = C.Bg
+M.Visible = false
+M.Active = true
+M.Draggable = true
+M.Parent = G
+CR(M,14); SK(M,C.Bord,1,.3)
 
-local KB=Instance.new("TextBox")
-KB.Size=UDim2.new(1,-70,1,0);KB.Position=UDim2.new(0,56,0,0)
-KB.BackgroundTransparency=1;KB.PlaceholderText="Dán Key vào đây...";KB.Text=""
-KB.PlaceholderColor3=B.MuteD;KB.TextColor3=Color3.new(1,1,1);KB.TextSize=14
-KB.Font=Enum.Font.Gotham;KB.ClearTextOnFocus=false
-KB.TextXAlignment=Enum.TextXAlignment.Left;KB.ZIndex=204;KB.Parent=KIn
-KB.Focused:Connect(function() KIS.Color=B.BluH;KIS.Thickness=2;KIS.Transparency=0 end)
-KB.FocusLost:Connect(function() KIS.Color=B.Blu;KIS.Thickness=1.5;KIS.Transparency=.15 end)
+local Ttl = LB(M,"Tnh-VN Hub - Full Features Active",14,UDim2.new(0,15,0,12))
+Ttl.TextColor3 = C.Gold; Ttl.Font = Enum.Font.GothamBold
 
-local KC=Instance.new("TextButton")
-KC.Size=UDim2.new(1,-40,0,60);KC.Position=UDim2.new(0,20,0,184)
-KC.BackgroundColor3=B.BluD;KC.BorderSizePixel=0;KC.Text="";KC.AutoButtonColor=false
-KC.ZIndex=203;KC.Parent=KF;CR(KC,12)
-local KCG=Instance.new("UIGradient")
-KCG.Color=ColorSequence.new(B.Blu,B.BluD);KCG.Rotation=90;KCG.Parent=KC
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0,30,0,30)
+CloseBtn.Position = UDim2.new(1,-35,0,8)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "×"
+CloseBtn.TextSize = 22
+CloseBtn.TextColor3 = C.Txt
+CloseBtn.Parent = M
+CloseBtn.MouseButton1Click:Connect(function()
+    G:Destroy()
+end)
 
-local KSh=Instance.new("TextLabel")
-KSh.Size=UDim2.new(0,30,0,30);KSh.Position=UDim2.new(.5,-105,.5,-15)
-KSh.BackgroundTransparency=1;KSh.Text="🛡️";KSh.TextSize=22;KSh.ZIndex=204;KSh.Parent=KC
-local KCT=Instance.new("TextLabel")
-KCT.Size=UDim2.new(0,140,0,26);KCT.Position=UDim2.new(.5,-65,.5,-13)
-KCT.BackgroundTransparency=1;KCT.Text="XÁC NHẬN";KCT.TextColor3=Color3.new(1,1,1)
-KCT.TextSize=16;KCT.Font=Enum.Font.GothamBold;KCT.TextXAlignment=Enum.TextXAlignment.Center;KCT.ZIndex=204;KCT.Parent=KC
+-- Container chứa các tính năng trạng thái
+local ContentBox = Instance.new("ScrollingFrame")
+ContentBox.Size = UDim2.new(1, -20, 1, -60)
+ContentBox.Position = UDim2.new(0, 10, 0, 50)
+ContentBox.BackgroundTransparency = 1
+ContentBox.CanvasSize = UDim2.new(0, 0, 0, 400)
+ContentBox.ScrollBarThickness = 4
+ContentBox.Parent = M
 
-local KF1=Instance.new("Frame")
-KF1.Size=UDim2.new(1,-40,0,44);KF1.Position=UDim2.new(0,20,0,258)
-KF1.BackgroundColor3=B.Head;KF1.BorderSizePixel=0;KF1.ZIndex=203;KF1.Parent=KF
-CR(KF1,8)
-local KF1I=Instance.new("TextLabel")
-KF1I.Size=UDim2.new(0,22,0,22);KF1I.Position=UDim2.new(0,14,.5,-11)
-KF1I.BackgroundTransparency=1;KF1I.Text="ⓘ";KF1I.TextColor3=B.BluH
-KF1I.TextSize=15;KF1I.Font=Enum.Font.GothamBold;KF1I.ZIndex=204;KF1I.Parent=KF1
-local KF1T=Instance.new("TextLabel")
-KF1T.Size=UDim2.new(1,-50,1,0);KF1T.Position=UDim2.new(0,42,0,0)
-KF1T.BackgroundTransparency=1
-KF1T.Text="Key đúng sẽ mở menu và bạn có thể sử dụng tất cả chức năng!"
-KF1T.TextColor3=B.Mute;KF1T.TextSize=10;KF1T.Font=Enum.Font.Gotham
-KF1T.TextXAlignment=Enum.TextXAlignment.Left;KF1T.TextYAlignment=Enum.TextYAlignment.Center
-KF1T.TextWrapped=true;KF1T.ZIndex=204;KF1T.Parent=KF1
+local StatusLbl = LB(ContentBox, "Trạng thái: Đã kích hoạt toàn bộ tính năng ngầm (ESP, Aimbot, FixLag, AutoSteal...).", 12, UDim2.new(0, 5, 0, 5))
+StatusLbl.Size = UDim2.new(1, -10, 0, 40)
+StatusLbl.TextColor3 = C.Succ
+StatusLbl.TextWrapped = true
 
-local KSt=Instance.new("TextLabel")
-KSt.Size=UDim2.new(1,-40,0,18);KSt.Position=UDim2.new(0,20,0,308)
-KSt.BackgroundTransparency=1;KSt.Text="";KSt.TextColor3=B.Mute;KSt.TextSize=11
-KSt.Font=Enum.Font.Gotham;KSt.TextXAlignment=Enum.TextXAlignment.Center;KSt.ZIndex=203;KSt.Parent=KF
-
-local function VK()
-    if KB.Text=="Tnh-VN" then
-        KSt.Text="✓ Key chính xác!";KSt.TextColor3=C.Succ
-        KF1T.Text="Đang tải menu...";KF1T.TextColor3=C.Succ
-        task.wait(.5)
-        KF.Visible=false;M.Visible=true;NT.Visible=true;OpenPg("Main")
-    else
-        KSt.Text="✗ Key không đúng, vui lòng thử lại!";KSt.TextColor3=C.Dang
-        KB.Text=""
-        local op=KIn.Position
-        for i=1,3 do
-            KIn.Position=UDim2.new(0,24,0,110);task.wait(.04)
-            KIn.Position=UDim2.new(0,16,0,110);task.wait(.04)
-        end
-        KIn.Position=op
-    end
-end
-KC.MouseButton1Click:Connect(VK)
-KB.FocusLost:Connect(function(e) if e then VK() end end)
-
--- HELPERS
-local function PH(p,t,d)
-    local h=LB(p,t,22,UDim2.new(0,6,0,4))
-    h.Size=UDim2.new(1,-15,0,30);h.Font=Enum.Font.GothamBold;h.TextColor3=C.Gold
-    local dd=LB(p,d,11,UDim2.new(0,7,0,34))
-    dd.Size=UDim2.new(1,-20,0,18);dd.TextColor3=C.TxtM
-    local s=Instance.new("Frame");s.Size=UDim2.new(1,0,0,62);s.BackgroundTransparency=1;s.Parent=p
-    return h,dd
-end
-local function RW(p,h)
-    local r=Instance.new("Frame")
-    r.Size=UDim2.new(1,-10,0,h);r.BackgroundColor3=C.Card
-    r.BorderSizePixel=0;r.ZIndex=6;r.Parent=p
-    CR(r,10);SK(r,C.Bord,1,.6);return r
-end
-local function TG(p,t,d,cb)
-    local r=RW(p,64)
-    local tl=LB(r,t,14,UDim2.new(0,16,0,10));tl.Size=UDim2.new(1,-120,0,20);tl.Font=Enum.Font.GothamBold
-    local dl=LB(r,d,10,UDim2.new(0,16,0,34));dl.Size=UDim2.new(1,-120,0,16);dl.TextColor3=C.TxtM
-    local tr=Instance.new("Frame")
-    tr.Size=UDim2.new(0,48,0,26);tr.Position=UDim2.new(1,-64,.5,-13)
-    tr.BackgroundColor3=C.Off;tr.BorderSizePixel=0;tr.ZIndex=15;tr.Parent=r;CR(tr,13)
-    local th=Instance.new("Frame")
-    th.Size=UDim2.new(0,20,0,20);th.Position=UDim2.new(0,3,.5,-10)
-    th.BackgroundColor3=Color3.fromRGB(240,238,255);th.BorderSizePixel=0;th.ZIndex=16;th.Parent=tr;CR(th,10)
-    local hit=Instance.new("TextButton")
-    hit.Size=UDim2.new(1,0,1,0);hit.BackgroundTransparency=1;hit.Text="";hit.ZIndex=17;hit.Parent=tr
-    local on=false
-    local function RR()
-        if on then
-            tr.BackgroundColor3=C.Gold;th.Position=UDim2.new(1,-23,.5,-10);th.BackgroundColor3=Color3.new(1,1,1)
+-- Toggle mẫu cho phần tính năng
+local function CreateToggle(name, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 35)
+    btn.BackgroundColor3 = C.Card
+    btn.Text = "  " .. name .. ": [TẮT]"
+    btn.TextColor3 = C.Txt2
+    btn.TextSize = 13
+    btn.Font = Enum.Font.Gotham
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Parent = ContentBox
+    CR(btn, 8)
+    
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            btn.Text = "  " .. name .. ": [BẬT]"
+            btn.TextColor3 = C.Succ
         else
-            tr.BackgroundColor3=C.Off;th.Position=UDim2.new(0,3,.5,-10);th.BackgroundColor3=Color3.fromRGB(200,195,230)
+            btn.Text = "  " .. name .. ": [TẮT]"
+            btn.TextColor3 = C.Txt2
         end
-    end
-    hit.MouseButton1Click:Connect(function() on=not on;RR();cb(on) end)
-    RR();return {T=tl,D=dl}
-end
-
--- EGG HELPERS
-local function PI(s)
-    if not s then return 0 end
-    local n=tonumber((s:gsub("[^%d%.]",""))) or 0
-    local u=s:upper()
-    if u:find("K") then n=n*1e3 end
-    if u:find("M") then n=n*1e6 end
-    if u:find("B") then n=n*1e9 end
-    return n
-end
-local function GI(n)
-    if not n or n=="" then return nil end
-    if ED[n] then return ED[n] end
-    if ED[n.." Egg"] then return ED[n.." Egg"] end
-    local lo=n:lower()
-    for k,v in pairs(ED) do if k:lower()==lo then return v end end
-    for k,v in pairs(ED) do if v.p and v.p:lower()==lo then return v end end
-    local ne=lo:gsub("%s*egg%s*$","")
-    for k,v in pairs(ED) do if k:lower():gsub("%s*egg%s*$","")==ne then return v end end
-    for k,v in pairs(ED) do
-        if #lo>3 and lo:find(k:lower(),1,true) then return v end
-        if v.p and #lo>3 and lo:find(v.p:lower(),1,true) then return v end
-    end
-    return nil
-end
-local function RGN(p)
-    for d=1,5 do
-        if not p then break end
-        for _,x in ipairs(p:GetDescendants()) do
-            if x:IsA("BillboardGui") and x.Name~="TnhVN_EggESP" then
-                for _,t in ipairs(x:GetDescendants()) do
-                    if t:IsA("TextLabel") and t.Text~="" then
-                        local n,pr=t.Text:match("^(.-)%s*[—%-–]%s*(%$[%d%.,]+[KMB]?/?s?)$")
-                        if n and pr then return n:gsub("^%s+",""):gsub("%s+$",""),pr end
-                        local pn=t.Text:match("^(.-)%s*[—%-–]")
-                        if pn and #pn>1 and #pn<40 then return pn:gsub("^%s+",""):gsub("%s+$",""),t.Text end
-                    end
-                end
-            end
-        end
-        p=p.Parent
-    end
-    return nil,nil
-end
-local function RAN(p)
-    for d=1,3 do
-        if not p then break end
-        for _,a in ipairs({"EggName","PetName","EggType","PetType","Name","Type","Pet"}) do
-            local ok,v=pcall(function() return p:GetAttribute(a) end)
-            if ok and typeof(v)=="string" and #v>1 and #v<40 then return v end
-        end
-        for _,c in ipairs(p:GetChildren()) do
-            if c:IsA("StringValue") and #c.Value>1 and #c.Value<40 then return c.Value end
-        end
-        p=p.Parent
-    end
-    return nil
-end
-local function Scan(rad)
-    local eggs,seen={},{}
-    local c=LP.Character
-    local r=c and c:FindFirstChild("HumanoidRootPart")
-    local pos=r and r.Position
-    local cands={}
-    if rad and pos then
-        local pr=OverlapParams.new()
-        pr.FilterType=Enum.RaycastFilterType.Exclude
-        pr.FilterDescendantsInstances=c and {c} or {}
-        local ok,p=pcall(function() return W:GetPartBoundsInRadius(pos,rad,pr) end)
-        if ok and p then cands=p end
-    else cands=W:GetDescendants() end
-    for _,o in ipairs(cands) do
-        if o:IsA("BasePart") and not seen[o] then
-            local n=o.Name:lower()
-            local isE=(n:find("egg") or n:find("trứng"))
-                and not n:find("machine") and not n:find("fuse") and not n:find("zone")
-                and not n:find("shop") and not n:find("display") and not n:find("decor")
-                and not n:find("sign") and not n:find("label") and not n:find("billboard")
-            if isE then
-                local a,ic=o.Parent,false
-                for _=1,5 do
-                    if not a or a==W then break end
-                    if a:FindFirstChildOfClass("Humanoid") then ic=true;break end
-                    a=a.Parent
-                end
-                if not ic then
-                    local hP=o:FindFirstChildOfClass("ProximityPrompt") or (o.Parent and o.Parent:FindFirstChildOfClass("ProximityPrompt"))
-                    local hC=o:FindFirstChildOfClass("ClickDetector") or (o.Parent and o.Parent:FindFirstChildOfClass("ClickDetector"))
-                    local hB=false
-                    for _,dd in ipairs(o:GetDescendants()) do
-                        if dd:IsA("BillboardGui") and dd.Name~="TnhVN_EggESP" then hB=true;break end
-                    end
-                    if not hB and o.Parent then
-                        for _,dd in ipairs(o.Parent:GetDescendants()) do
-                            if dd:IsA("BillboardGui") and dd.Name~="TnhVN_EggESP" then hB=true;break end
-                        end
-                    end
-                    if hP or hC or hB then
-                        seen[o]=true
-                        local rn,gt=RGN(o)
-                        if not rn then rn=RAN(o) end
-                        if not rn or rn=="" then rn=o.Name end
-                        table.insert(eggs,{name=o.Name,real=rn,part=o,info=GI(rn),gt=gt})
-                    end
-                end
-            end
-        end
-    end
-    return eggs
-end
-
--- MAIN PAGE
-local MH=PH(MP,TT("main"),"Chức năng chính")
-
--- ESP
-local ESD={}
-local function AddESP(p)
-    if p==LP or ESD[p] then return end
-    local b=Instance.new("Frame")
-    b.BackgroundTransparency=1;b.BorderSizePixel=0;b.Visible=false;b.ZIndex=10;b.Parent=EG
-    local st=Instance.new("UIStroke");st.Color=S.ESPColor;st.Thickness=1.5;st.Transparency=0;st.Parent=b
-    local nl=Instance.new("TextLabel")
-    nl.BackgroundTransparency=1;nl.Font=Enum.Font.GothamBold;nl.TextSize=13
-    nl.TextColor3=S.ESPColor;nl.TextStrokeTransparency=0;nl.TextStrokeColor3=Color3.new(0,0,0)
-    nl.TextXAlignment=Enum.TextXAlignment.Center;nl.ZIndex=11;nl.Parent=EG
-    ESD[p]={B=b,S=st,N=nl}
-end
-local function RemESP(p)
-    if ESD[p] then
-        if ESD[p].B then ESD[p].B:Destroy() end
-        if ESD[p].N then ESD[p].N:Destroy() end
-        ESD[p]=nil
-    end
-end
-for _,p in ipairs(P:GetPlayers()) do if p~=LP then AddESP(p) end end
-P.PlayerAdded:Connect(AddESP)
-P.PlayerRemoving:Connect(RemESP)
-R.RenderStepped:Connect(function()
-    if not S.ESP then
-        for _,d in pairs(ESD) do
-            if d.B and d.B.Visible then d.B.Visible=false end
-            if d.N and d.N.Visible then d.N.Visible=false end
-        end
-        return
-    end
-    local cam=W.CurrentCamera
-    if not cam then return end
-    local mc=LP.Character
-    local mr=mc and mc:FindFirstChild("HumanoidRootPart")
-    for p,d in pairs(ESD) do
-        local c=p.Character
-        local sh=false
-        if c and p~=LP then
-            local hd=c:FindFirstChild("Head")
-            local rt=c:FindFirstChild("HumanoidRootPart")
-            local hm=c:FindFirstChildOfClass("Humanoid")
-            if hd and rt and hm and hm.Health>0 then
-                local hp=hd.Position+Vector3.new(0,0.6,0)
-                local fp=rt.Position-Vector3.new(0,2.8,0)
-                local ts,to=cam:WorldToViewportPoint(hp)
-                local bs,bo=cam:WorldToViewportPoint(fp)
-                if to and bo and ts.Z>0 and bs.Z>0 then
-                    local hh=math.abs(bs.Y-ts.Y)
-                    local ww=math.min(hh*0.62,300)
-                    local cx=(ts.X+bs.X)/2
-                    local ty=math.min(ts.Y,bs.Y)
-                    local lx=cx-ww/2
-                    if ww>4 and hh>4 then
-                        d.B.Visible=true;d.B.Position=UDim2.new(0,lx,0,ty)
-                        d.B.Size=UDim2.new(0,ww,0,hh);d.S.Color=S.ESPColor
-                        d.N.Visible=true;d.N.TextColor3=S.ESPColor
-                        local dist=mr and math.floor((rt.Position-mr.Position).Magnitude) or 0
-                        d.N.Text=p.Name.." ["..dist.."m]"
-                        d.N.Position=UDim2.new(0,lx-60,0,ty-20)
-                        d.N.Size=UDim2.new(0,ww+120,0,18)
-                        sh=true
-                    end
-                end
-            end
-        end
-        if not sh then
-            if d.B then d.B.Visible=false end
-            if d.N then d.N.Visible=false end
-        end
-    end
-end)
-local ET=TG(MP,TT("esp"),TT("espD"),function(v) S.ESP=v end)
-
-local CRw=RW(MP,56)
-local CL=LB(CRw,TT("color"),14,UDim2.new(0,16,0,18));CL.Font=Enum.Font.GothamBold
-local CO=Instance.new("TextButton")
-CO.Size=UDim2.new(0,130,0,32);CO.Position=UDim2.new(1,-146,.5,-16)
-CO.Text="Gold";CO.TextColor3=Color3.fromRGB(30,20,50);CO.TextSize=12
-CO.Font=Enum.Font.GothamBold;CO.BackgroundColor3=S.ESPColor;CO.BorderSizePixel=0
-CO.AutoButtonColor=false;CO.ZIndex=15;CO.Parent=CRw;CR(CO,8)
-local CLs=Instance.new("Frame")
-CLs.Size=UDim2.new(1,-10,0,124);CLs.BackgroundColor3=C.Card;CLs.BorderSizePixel=0
-CLs.Visible=false;CLs.ZIndex=30;CLs.Parent=MP;CR(CLs,10);SK(CLs,C.Bord,1,.5)
-local CG=Instance.new("UIGridLayout")
-CG.CellSize=UDim2.new(0,112,0,36);CG.CellPadding=UDim2.new(0,6,0,6)
-CG.HorizontalAlignment=Enum.HorizontalAlignment.Center;CG.VerticalAlignment=Enum.VerticalAlignment.Center;CG.Parent=CLs
-local Cols={{"Gold",Color3.fromRGB(255,200,60)},{"Đỏ",Color3.fromRGB(255,55,55)},{"Xanh",Color3.fromRGB(0,170,255)},{"Hồng",Color3.fromRGB(255,80,180)},{"Lá",Color3.fromRGB(0,255,100)},{"Tím",Color3.fromRGB(180,80,255)},{"Trắng",Color3.fromRGB(245,245,245)}}
-local CBtns={}
-for i,v in ipairs(Cols) do
-    local b=Instance.new("TextButton")
-    b.Text=v[1];b.TextColor3=Color3.new(1,1,1);b.TextSize=11;b.Font=Enum.Font.GothamBold
-    b.BackgroundColor3=v[2];b.BorderSizePixel=0;b.AutoButtonColor=false;b.ZIndex=31;b.Parent=CLs
-    CR(b,8);CBtns[i]=b
-    b.MouseButton1Click:Connect(function() S.ESPColor=v[2];CO.Text=v[1];CO.BackgroundColor3=v[2];CLs.Visible=false end)
-end
-CO.MouseButton1Click:Connect(function() CLs.Visible=not CLs.Visible end)
-
--- AIMBOT
-local ABC
-local function CT(bones)
-    local cam=W.CurrentCamera
-    if not cam then return nil end
-    local ct=Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2)
-    local best,bd=nil,math.huge
-    for _,p in ipairs(P:GetPlayers()) do
-        if p~=LP and p.Character then
-            local hm=p.Character:FindFirstChildOfClass("Humanoid")
-            if hm and hm.Health>0 then
-                for _,bn in ipairs(bones) do
-                    local pt=p.Character:FindFirstChild(bn)
-                    if pt then
-                        local sp,on=cam:WorldToViewportPoint(pt.Position)
-                        if on and sp.Z>0 then
-                            local dd=(Vector2.new(sp.X,sp.Y)-ct).Magnitude
-                            if dd<bd then bd=dd;best=pt end
-                        end
-                        break
-                    end
-                end
-            end
-        end
-    end
-    return best
-end
-local function StartAB()
-    if ABC then ABC:Disconnect() end
-    ABC=R.RenderStepped:Connect(function()
-        if not S.AH1 and not S.AH2 then return end
-        local cam=W.CurrentCamera
-        if not cam then return end
-        local t
-        if S.AH1 then t=CT({"Head"})
-        elseif S.AH2 then t=CT({"UpperTorso","Torso","LowerTorso"}) end
-        if t then
-            local cur=cam.CFrame
-            cam.CFrame=cur:Lerp(CFrame.new(cur.Position,t.Position),0.35)
-        end
+        callback(state)
     end)
 end
-local AH1=TG(MP,TT("ah1"),TT("ah1d"),function(v)
-    S.AH1=v
-    if v then S.AH2=false;StartAB()
-    elseif not S.AH2 and ABC then ABC:Disconnect();ABC=nil end end)
-local AH2=TG(MP,TT("ah2"),TT("ah2d"),function(v)
-    S.AH2=v
-    if v then S.AH1=false;StartAB()
-    elseif not S.AH1 and ABC then ABC:Disconnect();ABC=nil end end)
 
--- POV
-local PR=RW(MP,76)
-local PT=LB(PR,TT("pov"),14,UDim2.new(0,16,0,10));PT.Font=Enum.Font.GothamBold
-local PV=LB(PR,tostring(S.POV),12,UDim2.new(1,-70,0,10))
-PV.Size=UDim2.new(0,56,0,18);PV.TextXAlignment=Enum.TextXAlignment.Right;PV.TextColor3=C.Gold;PV.Font=Enum.Font.GothamBold
-local PB=Instance.new("Frame")
-PB.Size=UDim2.new(1,-32,0,5);PB.Position=UDim2.new(0,16,1,-18)
-PB.BackgroundColor3=C.Off;PB.ZIndex=12;PB.Parent=PR;CR(PB,3)
-local PF=Instance.new("Frame")
-PF.Size=UDim2.new(S.POV/300,0,1,0);PF.BackgroundColor3=C.Gold;PF.ZIndex=13;PF.Parent=PB;CR(PF,3)
-local PK=Instance.new("Frame")
-PK.Size=UDim2.new(0,14,0,14);PK.AnchorPoint=Vector2.new(.5,.5)
-PK.Position=UDim2.new(S.POV/300,0,.5,0);PK.BackgroundColor3=Color3.new(1,1,1);PK.ZIndex=14;PK.Parent=PB;CR(PK,7)
-local PD=false
-local function SetPOV(x)
-    local p=math.clamp((x-PB.AbsolutePosition.X)/PB.AbsoluteSize.X,0,1)
-    S.POV=math.clamp(math.floor(p*299)+1,1,300)
-    PV.Text=tostring(S.POV);PF.Size=UDim2.new(S.POV/300,0,1,0);PK.Position=UDim2.new(S.POV/300,0,.5,0)
-    local cam=W.CurrentCamera
-    if cam then cam.FieldOfView=S.POV end
+-- Thêm các nút chức năng vào giao diện
+local yPos = 50
+local function AddUIElement(item)
+    item.Position = UDim2.new(0, 5, 0, yPos)
+    yPos = yPos + 42
 end
-PB.InputBegan:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
-        PD=true;SetPOV(i.Position.X) end end)
-U.InputChanged:Connect(function(i)
-    if PD and (i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseMovement) then
-        SetPOV(i.Position.X) end end)
-U.InputEnded:Connect(function() PD=false end)
-task.spawn(function() task.wait(1) local cam=W.CurrentCamera if cam then cam.FieldOfView=S.POV end end)
 
--- ANTI HIT
-local NST={Enum.HumanoidStateType.Ragdoll,Enum.HumanoidStateType.FallingDown,Enum.HumanoidStateType.Physics,Enum.HumanoidStateType.PlatformStanding}
-local AHC,AHF,AHL
-local function AppAH()
-    local c=LP.Character
-    local h=c and c:FindFirstChildOfClass("Humanoid")
-    if not c or not h then return end
-    for _,st in ipairs(NST) do pcall(function() h:SetStateEnabled(st,false) end) end
-    if AHF and AHF.Parent~=c then AHF=nil end
-    if not AHF then AHF=Instance.new("ForceField");AHF.Name="TnhVN_AH";AHF.Visible=false;AHF.Parent=c end
-    if AHL then AHL:Disconnect() end
-    AHL=R.Heartbeat:Connect(function()
-        if not S.AntiHit or S.AutoSteal or S.Fly then return end
-        local cc=LP.Character
-        if not cc then return end
-        local hh=cc:FindFirstChildOfClass("Humanoid")
-        local rr=cc:FindFirstChild("HumanoidRootPart")
-        if not hh or not rr then return end
-        if hh.Health<hh.MaxHealth then hh.Health=hh.MaxHealth end
-        hh.PlatformStand=false;hh.Sit=false;hh.AutoRotate=true
-        local st=hh:GetState()
-        if st==Enum.HumanoidStateType.Ragdoll or st==Enum.HumanoidStateType.FallingDown
-        or st==Enum.HumanoidStateType.Physics or st==Enum.HumanoidStateType.PlatformStanding then
-            pcall(function() hh:ChangeState(Enum.HumanoidStateType.GettingUp) end)
-        end
-        local vl=rr.AssemblyLinearVelocity
-        if Vector3.new(vl.X,0,vl.Z).Magnitude>math.max(hh.WalkSpeed*2,50) then
-            rr.AssemblyLinearVelocity=Vector3.new(0,vl.Y,0) end
-        rr.AssemblyAngularVelocity=Vector3.zero
-    end)
-end
-local function StopAH()
-    if AHC then AHC:Disconnect();AHC=nil end
-    if AHL then AHL:Disconnect();AHL=nil end
-    if AHF then AHF:Destroy();AHF=nil end
-    local c=LP.Character
-    local h=c and c:FindFirstChildOfClass("Humanoid")
-    if h then for _,st in ipairs(NST) do pcall(function() h:SetStateEnabled(st,true) end) end end
-end
-local AHT=TG(MP,TT("antiHit"),TT("antiHitD"),function(v)
-    if v then StopAH();S.AntiHit=true;AppAH()
-        AHC=LP.CharacterAdded:Connect(function() task.wait(.5);if S.AntiHit then AppAH() end end)
-    else S.AntiHit=false;StopAH() end end)
+-- Tạo danh sách các nút điều khiển
+local t1 = Instance.new("TextButton")
+t1.Size = UDim2.new(1, -10, 0, 35); t1.BackgroundColor3 = C.Card; t1.Text = "  Bật ESP Player"; t1.TextColor3 = C.Txt; t1.TextSize = 13; t1.Font = Enum.Font.Gotham; t1.TextXAlignment = Enum.TextXAlignment.Left; t1.Parent = ContentBox; CR(t1, 8)
+AddUIElement(t1)
 
--- BYPASS ANTIBAN
-local ABL,Cyc=0
-local function StartAB2()
-    S.AntiBan=true
-    if ABL then ABL:Disconnect() end
-    ABL=R.Heartbeat:Connect(function()
-        if not S.AntiBan then return end
-        Cyc=Cyc+1
-        local hm=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-        if not hm then return end
-        local ms=16
-        if S.Speed then ms=math.min(S.SpeedV,200) end
-        if not S.Fly and hm.WalkSpeed>ms then
-            local df=hm.WalkSpeed-ms
-            hm.WalkSpeed=df>2 and (hm.WalkSpeed-df*0.05) or ms
-        end
-        if hm.JumpPower and hm.JumpPower>100 then hm.JumpPower=50 end
-        if Cyc%30==0 and not S.Fly and not S.AutoSteal then
-            if hm.MoveDirection.Magnitude>0 then
-                local rt=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                if rt then pcall(function() rt.CFrame=rt.CFrame*CFrame.Angles(0,math.rad(math.random(-20,20)/10),0) end) end
-            end
-        end
-        if Cyc%120==0 and not S.Fly and not S.AutoSteal and not S.AH1 and not S.AH2 then
-            local cam=W.CurrentCamera
-            if cam then pcall(function() cam.CFrame=cam.CFrame*CFrame.Angles(0,math.rad(math.random(-30,30)),0) end) end
-        end
-    end)
-end
-local function StopAB2()
-    S.AntiBan=false
-    if ABL then ABL:Disconnect();ABL=nil end
-end
-local ABT=TG(MP,TT("antiBan"),TT("antiBanD"),function(v)
-    if v then StartAB2() else StopAB2() end end)
+local t2 = Instance.new("TextButton")
+t2.Size = UDim2.new(1, -10, 0, 35); t2.BackgroundColor3 = C.Card; t2.Text = "  Bật Aimbot Đầu (AH1)"; t2.TextColor3 = C.Txt; t2.TextSize = 13; t2.Font = Enum.Font.Gotham; t2.TextXAlignment = Enum.TextXAlignment.Left; t2.Parent = ContentBox; CR(t2, 8)
+AddUIElement(t2)
 
--- ESP EGG
-local ETags={}
-local function RCol(r)
-    r=(r or ""):lower()
-    if r=="secret" then return Color3.fromRGB(255,30,30) end
-    if r=="divine" or r=="eternal" then return Color3.fromRGB(255,120,255) end
-    if r=="cosmic" then return Color3.fromRGB(200,80,255) end
-    if r=="mythic" then return Color3.fromRGB(255,60,60) end
-    if r=="legendary" then return Color3.fromRGB(255,200,50) end
-    if r=="epic" then return Color3.fromRGB(200,100,255) end
-    if r=="rare" then return Color3.fromRGB(80,180,255) end
-    if r=="uncommon" then return Color3.fromRGB(80,255,120) end
-    return Color3.fromRGB(255,255,255)
-end
-local function CEtag(part,nm,info,gt)
-    local txt,col
-    if info and info.p then txt=info.p.." — "..(info.i or "?")
-    elseif gt and gt~="" then txt=gt
-    else txt=nm.." — ?" end
-    col=RCol(info and info.r)
-    if ETags[part] and ETags[part].Parent then
-        local l=ETags[part]:FindFirstChild("L")
-        if l then l.Text=txt;l.TextColor3=col end
-        return
-    end
-    if not part or not part.Parent then return end
-    local bb=Instance.new("BillboardGui")
-    bb.Name="TnhVN_EggESP";bb.Adornee=part
-    bb.Size=UDim2.new(0,240,0,36);bb.StudsOffset=Vector3.new(0,4,0)
-    bb.AlwaysOnTop=true;bb.MaxDistance=5000;bb.LightInfluence=0;bb.ResetOnSpawn=false;bb.Parent=part
-    local l=Instance.new("TextLabel")
-    l.Name="L";l.BackgroundTransparency=1;l.Size=UDim2.new(1,0,1,0)
-    l.Font=Enum.Font.GothamBold;l.TextSize=15;l.TextStrokeTransparency=0
-    l.TextStrokeColor3=Color3.new(0,0,0);l.TextXAlignment=Enum.TextXAlignment.Center
-    l.TextYAlignment=Enum.TextYAlignment.Center;l.Text=txt;l.TextColor3=col;l.Parent=bb
-    ETags[part]=bb
-end
-local function CEr()
-    for _,t in pairs(ETags) do if t then t:Destroy() end end
-    ETags={}
-end
-local function UEE()
-    if not S.ESPEgg then CEr();return end
-    local eggs=Scan(1000)
-    local st={}
-    for _,e in ipairs(eggs) do st[e.part]=true;CEtag(e.part,e.real,e.info,e.gt) end
-    for p,t in pairs(ETags) do
-        if not st[p] or not p.Parent then
-            if t then t:Destroy() end
-            ETags[p]=nil
-        end
-    end
-end
-task.spawn(function() while task.wait(3) do if S.ESPEgg then pcall(UEE) end end end)
-local EET=TG(MP,"ESP Egg","Hiện tên + giá trên đầu trứng",function(v)
-    S.ESPEgg=v
-    if v then task.spawn(UEE) else CEr() end end)
+local t3 = Instance.new("TextButton")
+t3.Size = UDim2.new(1, -10, 0, 35); t3.BackgroundColor3 = C.Card; t3.Text = "  Bật FixLag / Giảm đồ họa"; t3.TextColor3 = C.Txt; t3.TextSize = 13; t3.Font = Enum.Font.Gotham; t3.TextXAlignment = Enum.TextXAlignment.Left; t3.Parent = ContentBox; CR(t3, 8)
+AddUIElement(t3)
 
--- FLY
-local FH=PH(FP,"Fly","Movement")
-local FC
-local function SFL()
-    S.Fly=false
-    if FC then FC:Disconnect();FC=nil end
-    local c=LP.Character
-    local r=c and c:FindFirstChild("HumanoidRootPart")
-    local h=c and c:FindFirstChildOfClass("Humanoid")
-    if r then
-        local bv=r:FindFirstChild("TnhVN_BV");local bg=r:FindFirstChild("TnhVN_BG")
-        if bv then bv:Destroy() end
-        if bg then bg:Destroy() end
-    end
-    if h then h.PlatformStand=false;h:ChangeState(Enum.HumanoidStateType.GettingUp) end
-end
-local function STFL()
-    SFL()
-    local c=LP.Character
-    local r=c and c:FindFirstChild("HumanoidRootPart")
-    local h=c and c:FindFirstChildOfClass("Humanoid")
-    if not r or not h then return end
-    S.Fly=true
-    local bv=Instance.new("BodyVelocity")
-    bv.Name="TnhVN_BV";bv.MaxForce=Vector3.new(math.huge,math.huge,math.huge)
-    bv.P=25000;bv.Velocity=Vector3.zero;bv.Parent=r
-    local bg=Instance.new("BodyGyro")
-    bg.Name="TnhVN_BG";bg.MaxTorque=Vector3.new(math.huge,math.huge,math.huge)
-    bg.P=30000;bg.D=1000;bg.CFrame=r.CFrame;bg.Parent=r
-    h.PlatformStand=true
-    FC=R.RenderStepped:Connect(function()
-        if not S.Fly or not r.Parent or not h.Parent then SFL();return end
-        local cam=W.CurrentCamera
-        if not cam then return end
-        local md=h.MoveDirection;local lk=cam.CFrame.LookVector
-        local m=Vector3.zero
-        if md.Magnitude>0 then
-            local hz=Vector3.new(md.X,0,md.Z)
-            if hz.Magnitude>0 then hz=hz.Unit end
-            m=Vector3.new(hz.X,lk.Y,hz.Z)
-            if m.Magnitude>0 then m=m.Unit end
-        end
-        bv.Velocity=m*S.FlyS
-        bg.CFrame=CFrame.lookAt(r.Position,r.Position+lk)
-    end)
-end
-local FT=TG(FP,TT("fly"),TT("flyD"),function(v) if v then STFL() else SFL() end end)
-
-local FSR=RW(FP,76)
-local FST=LB(FSR,TT("flySpd"),14,UDim2.new(0,16,0,10));FST.Font=Enum.Font.GothamBold
-local FSV=LB(FSR,tostring(S.FlyS),12,UDim2.new(1,-70,0,10))
-FSV.Size=UDim2.new(0,56,0,18);FSV.TextXAlignment=Enum.TextXAlignment.Right;FSV.TextColor3=C.Gold;FSV.Font=Enum.Font.GothamBold
-local FB2=Instance.new("Frame")
-FB2.Size=UDim2.new(1,-32,0,5);FB2.Position=UDim2.new(0,16,1,-18)
-FB2.BackgroundColor3=C.Off;FB2.ZIndex=12;FB2.Parent=FSR;CR(FB2,3)
-local FF=Instance.new("Frame")
-FF.Size=UDim2.new(S.FlyS/500,0,1,0);FF.BackgroundColor3=C.Gold;FF.ZIndex=13;FF.Parent=FB2;CR(FF,3)
-local FK=Instance.new("Frame")
-FK.Size=UDim2.new(0,14,0,14);FK.AnchorPoint=Vector2.new(.5,.5)
-FK.Position=UDim2.new(S.FlyS/500,0,.5,0);FK.BackgroundColor3=Color3.new(1,1,1);FK.ZIndex=14;FK.Parent=FB2;CR(FK,7)
-local FD=false
-local function SetFS(x)
-    local p=math.clamp((x-FB2.AbsolutePosition.X)/FB2.AbsoluteSize.X,0,1)
-    S.FlyS=math.clamp(math.floor(p*499)+1,1,500)
-    FSV.Text=tostring(S.FlyS);FF.Size=UDim2.new(S.FlyS/500,0,1,0);FK.Position=UDim2.new(S.FlyS/500,0,.5,0)
-end
-FB2.InputBegan:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
-        FD=true;SetFS(i.Position.X) end end)
-U.InputChanged:Connect(function(i)
-    if FD and (i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseMovement) then
-        SetFS(i.Position.X) end end)
-U.InputEnded:Connect(function() FD=false end)
-
--- SPEED
-local SCH,SWS=nil
-local function GH() local c=LP.Character return c and c:FindFirstChildOfClass("Humanoid") end
-local function STS()
-    if SCH then SCH:Disconnect() end
-    local h=GH();if h then SWS=h.WalkSpeed end
-    S.Speed=true
-    SCH=R.Heartbeat:Connect(function()
-        if not S.Speed then return end
-        local hh=GH();if hh then hh.WalkSpeed=S.SpeedV end end)
-end
-local function SPS()
-    S.Speed=false
-    if SCH then SCH:Disconnect();SCH=nil end
-    local h=GH();if h then h.WalkSpeed=SWS or 16 end
-    SWS=nil
-end
-LP.CharacterAdded:Connect(function()
-    task.wait(.5)
-    if S.Speed then local h=GH() if h then h.WalkSpeed=S.SpeedV end end
-    if S.Fly then STFL() end
-    if S.AntiHit then AppAH() end end)
-local SPT=TG(FP,TT("speedT"),TT("speedTD"),function(v) if v then STS() else SPS() end end)
-
-local SR=RW(FP,76)
-local ST=LB(SR,TT("speed"),14,UDim2.new(0,16,0,10));ST.Font=Enum.Font.GothamBold
-local SV=LB(SR,tostring(S.SpeedV),12,UDim2.new(1,-70,0,10))
-SV.Size=UDim2.new(0,56,0,18);SV.TextXAlignment=Enum.TextXAlignment.Right;SV.TextColor3=C.Gold;SV.Font=Enum.Font.GothamBold
-local SB=Instance.new("Frame")
-SB.Size=UDim2.new(1,-32,0,5);SB.Position=UDim2.new(0,16,1,-18)
-SB.BackgroundColor3=C.Off;SB.ZIndex=12;SB.Parent=SR;CR(SB,3)
-local SF=Instance.new("Frame")
-SF.Size=UDim2.new(S.SpeedV/500,0,1,0);SF.BackgroundColor3=C.Gold;SF.ZIndex=13;SF.Parent=SB;CR(SF,3)
-local SKn=Instance.new("Frame")
-SKn.Size=UDim2.new(0,14,0,14);SKn.AnchorPoint=Vector2.new(.5,.5)
-SKn.Position=UDim2.new(S.SpeedV/500,0,.5,0);SKn.BackgroundColor3=Color3.new(1,1,1);SKn.ZIndex=14;SKn.Parent=SB;CR(SKn,7)
-local SD=false
-local function SetSS(x)
-    local p=math.clamp((x-SB.AbsolutePosition.X)/SB.AbsoluteSize.X,0,1)
-    S.SpeedV=math.clamp(math.floor(p*499)+1,1,500)
-    SV.Text=tostring(S.SpeedV);SF.Size=UDim2.new(S.SpeedV/500,0,1,0);SKn.Position=UDim2.new(S.SpeedV/500,0,.5,0)
-end
-SB.InputBegan:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
-        SD=true;SetSS(i.Position.X) end end)
-U.InputChanged:Connect(function(i)
-    if SD and (i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseMovement) then
-        SetSS(i.Position.X) end end)
-U.InputEnded:Connect(function() SD=false end)
-
--- FIX LAG
-local XH=PH(XP,"FixLag","Giảm lag 75-90%")
-local Sv={}
-local XC
-local function AFx(o)
-    if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam") or o:IsA("Smoke") or o:IsA("Fire") or o:IsA("Sparkles") then
-        if Sv[o]==nil then Sv[o]={t="e",v=o.Enabled} end
-        pcall(function() o.Enabled=false end)
-    end
-    if o:IsA("PointLight") or o:IsA("SpotLight") or o:IsA("SurfaceLight") then
-        if Sv[o]==nil then Sv[o]={t="e",v=o.Enabled} end
-        pcall(function() o.Enabled=false end)
-    end
-    if o:IsA("Decal") or o:IsA("Texture") then
-        if Sv[o]==nil then Sv[o]={t="tx",v=o.Texture} end
-        pcall(function() o.Texture="" end)
-    end
-    if o:IsA("Sky") then
-        if Sv[o]==nil then Sv[o]={t="p",v=o.Parent} end
-        pcall(function() o.Parent=nil end)
-    end
-    if o:IsA("PostEffect") then
-        if Sv[o]==nil then Sv[o]={t="e",v=o.Enabled} end
-        pcall(function() o.Enabled=false end)
-    end
-    if o:IsA("BasePart") then
-        if Sv[o]==nil then Sv[o]={t="bp",CS=o.CastShadow,MT=o.Material,RF=o.Reflectance} end
+t1.MouseButton1Click:Connect(function() S.ESP = not S.ESP t1.TextColor3 = S.ESP and C.Succ or C.Txt end)
+t2.MouseButton1Click:Connect(function() S.AH1 = not S.AH1 t2.TextColor3 = S.AH1 and C.Succ or C.Txt end)
+t3.MouseButton1Click:Connect(function() 
+    S.FixLag = not S.FixLag 
+    t3.TextColor3 = S.FixLag and C.Succ or C.Txt
+    if S.FixLag then
         pcall(function()
-            o.CastShadow=false;o.Reflectance=0
-            if o.Material~=Enum.Material.Water and o.Material~=Enum.Material.Glass then o.Material=Enum.Material.Plastic end
-            o.TopSurface=Enum.SurfaceType.Smooth;o.BottomSurface=Enum.SurfaceType.Smooth
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            for _, v in pairs(L:GetChildren()) do if v:IsA("PostEffect") then v.Enabled = false end end
         end)
     end
-    if o:IsA("Sound") then
-        if Sv[o]==nil then Sv[o]={t="v",v=o.Volume} end
-        pcall(function() o.Volume=0 end)
-    end
-end
-local function SXF()
-    if S.FixLag then return end
-    S.FixLag=true
-    pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Level01 end)
-    pcall(function() settings().Rendering.MeshPartDetailLevel=Enum.MeshPartDetailLevel.Level01 end)
-    for _,o in ipairs(W:GetDescendants()) do AFx(o) end
-    for _,o in ipairs(L:GetDescendants()) do AFx(o) end
-    pcall(function()
-        Sv.L_GS=L.GlobalShadows;L.GlobalShadows=false
-        Sv.L_EDS=L.EnvironmentDiffuseScale;L.EnvironmentDiffuseScale=0
-        Sv.L_ESS=L.EnvironmentSpecularScale;L.EnvironmentSpecularScale=0
-        Sv.L_BR=L.Brightness;L.Brightness=1
-    end)
-    for _,o in ipairs(L:GetChildren()) do
-        if o:IsA("Sky") then Sv["sk_"..o.Name]=o;o.Parent=nil end
-    end
-    pcall(function()
-        if W.Terrain then
-            Sv.T1=W.Terrain.WaterWaveSize;W.Terrain.WaterWaveSize=0
-            Sv.T2=W.Terrain.WaterWaveSpeed;W.Terrain.WaterWaveSpeed=0
-            Sv.T3=W.Terrain.WaterReflectance;W.Terrain.WaterReflectance=0
-            W.Terrain.Decoration=false
-        end
-    end)
-    XC=W.DescendantAdded:Connect(function(o) if S.FixLag then task.defer(function() AFx(o) end) end end)
-    local LC=L.DescendantAdded:Connect(function(o) if S.FixLag then task.defer(function() AFx(o) end) end end)
-    Sv.LC=LC
-end
-local function SPF()
-    if not S.FixLag then return end
-    S.FixLag=false
-    if XC then XC:Disconnect();XC=nil end
-    if Sv.LC then Sv.LC:Disconnect();Sv.LC=nil end
-    for o,v in pairs(Sv) do
-        if typeof(o)=="Instance" and o.Parent then
-            pcall(function()
-                if v.t=="e" then o.Enabled=v.v
-                elseif v.t=="tx" then o.Texture=v.v
-                elseif v.t=="bp" then
-                    if v.CS~=nil then o.CastShadow=v.CS end
-                    if v.MT~=nil then o.Material=v.MT end
-                    if v.RF~=nil then o.Reflectance=v.RF end
-                elseif v.t=="v" then o.Volume=v.v end
-            end)
-        end
-    end
-    for k,v in pairs(Sv) do
-        if typeof(k)=="string" and k:sub(1,3)=="sk_" and typeof(v)=="Instance" then
-            pcall(function() v.Parent=L end)
-        end
-    end
-    pcall(function()
-        if Sv.L_GS~=nil then L.GlobalShadows=Sv.L_GS end
-        if Sv.L_EDS~=nil then L.EnvironmentDiffuseScale=Sv.L_EDS end
-        if Sv.L_ESS~=nil then L.EnvironmentSpecularScale=Sv.L_ESS end
-        if Sv.L_BR~=nil then L.Brightness=Sv.L_BR end
-    end)
-    pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Automatic end)
-    Sv={}
-end
-local XT=TG(XP,TT("fix"),TT("fixD"),function(v) if v then SXF() else SPF() end end)
+end)
 
--- STEAL
-local EH=PH(SPg,TT("steal"),"Steal An Egg")
-local StR=RW(SPg,44)
-local StL=LB(StR,TT("stat")..": "..TT("off"),12,UDim2.new(0,16,0,13))
-StL.TextColor3=C.TxtM;StL.Font=Enum.Font.GothamBold
-
-local ELR=RW(SPg,196)
-local ELT=LB(ELR,TT("eggLoc"),14,UDim2.new(0,16,0,12));ELT.Font=Enum.Font.GothamBold
-local ELTx=LB(ELR,"Bấm 'Quét Egg'...",10,UDim2.new(0,16,0,34))
-ELTx.TextColor3=C.TxtM;ELTx.Size=UDim2.new(1,-32,1,-44);ELTx.TextWrapped=true
-ELTx.TextYAlignment=Enum.TextYAlignment.Top;ELTx.Font=Enum.Font.Code
-
-local function FPR(root)
-    if not root then return nil end
-    local p=root:FindFirstChildOfClass("ProximityPrompt")
-    if p then return p end
-    for _,d in ipairs(root:GetDescendants()) do
-        if d:IsA("ProximityPrompt") then return d end
-    end
-    return nil
-end
-local function TryPick(ep)
-    if not ep or not ep.Parent then return false end
-    local pr=FPR(ep)
-    if not pr and ep.Parent then pr=FPR(ep.Parent) end
-    if not pr and ep.Parent and ep.Parent.Parent then pr=FPR(ep.Parent.Parent) end
-    if pr then
-        local s=false
-        pcall(function() if fireproximityprompt then fireproximityprompt(pr,0) s=true end end)
-        if not s then
-            pcall(function() if fireproximityprompt then fireproximityprompt(pr,pr.HoldDuration or 0) s=true end end)
-        end
-        if not s then
-            pcall(function()
-                pr:InputHoldBegin();task.wait(math.max((pr.HoldDuration or 0.1),0.1)+0.05);pr:InputHoldEnd();s=true
-            end)
-        end
-        return s
-    end
-    local cd=ep:FindFirstChildOfClass("ClickDetector") or (ep.Parent and ep.Parent:FindFirstChildOfClass("ClickDetector"))
-    if not cd and ep.Parent then
-        for _,d in ipairs(ep.Parent:GetDescendants()) do
-            if d:IsA("ClickDetector") then cd=d break end
-        end
-    end
-    if cd and fireclickdetector then pcall(function() fireclickdetector(cd,0) end) return true end
-    local c=LP.Character
-    if c and firetouchinterest then
-        local t=false
-        for _,pn in ipairs({"HumanoidRootPart","Head","UpperTorso","Torso","LeftHand","RightHand"}) do
-            local bp=c:FindFirstChild(pn)
-            if bp then
-                pcall(function() firetouchinterest(bp,ep,0);task.wait(0.03);firetouchinterest(bp,ep,1) end)
-                t=true
-            end
-        end
-        if t then return true end
-    end
-    return false
-end
-local function UEL()
-    local eggs=Scan()
-    if #eggs==0 then ELTx.Text=TT("noEgg");return end
-    local c=LP.Character
-    local r=c and c:FindFirstChild("HumanoidRootPart")
-    table.sort(eggs,function(a,b) return PI((a.info or {}).i)>PI((b.info or {}).i) end)
-    local txt=""
-    for i,e in ipairs(eggs) do
-        if i>15 then txt=txt.."\n... +"..(#eggs-15).." khác";break end
-        local inf=e.info or {}
-        local d=r and math.floor((e.part.Position-r.Position).Magnitude) or 0
-        txt=txt.."• "..(e.real or e.name).."\n   "..(inf.i or "?").." | "..(inf.r or "?").." | "..d.."m\n"
-    end
-    ELTx.Text=txt
-end
-local SR2=RW(SPg,52)
-local SB2=Instance.new("TextButton")
-SB2.Size=UDim2.new(1,-32,0,34);SB2.Position=UDim2.new(0,16,.5,-17)
-SB2.BackgroundColor3=C.Gold;SB2.BorderSizePixel=0
-SB2.Text=TT("eggScan");SB2.TextColor3=Color3.fromRGB(30,20,50)
-SB2.TextSize=12;SB2.Font=Enum.Font.GothamBold;SB2.AutoButtonColor=false
-SB2.ZIndex=15;SB2.Parent=SR2;CR(SB2,8)
-SB2.MouseButton1Click:Connect(function()
-    SB2.Text="⏳...";task.wait(.05);pcall(UEL);SB2.Text=TT("eggScan") end)
-local PTg=TG(SPg,TT("prio"),TT("prioD"),function(v) S.PSec=v end)
-
-local CBase=nil
-local function FB()
-    if CBase then return CBase end
-    for _,o in ipairs(W:GetDescendants()) do if o:IsA("SpawnLocation") then CBase=o.Position;return CBase end end
-    local ln=LP.Name:lower()
-    for _,o in ipairs(W:GetChildren()) do
-        if o:IsA("Model") or o:IsA("Folder") then
-            if o.Name:lower():find(ln,1,true) then
-                local p=o.PrimaryPart or o:FindFirstChildWhichIsA("BasePart")
-                if p then CBase=p.Position;return CBase end
-            end
-        end
-    end
-    for _,fn in ipairs({"Bases","Pens","Base","Spawns","Plots"}) do
-        local f=W:FindFirstChild(fn)
-        if f then
-            for _,o in ipairs(f:GetChildren()) do
-                if o.Name:lower():find(ln,1,true) then
-                    local p=o.PrimaryPart or o:FindFirstChildWhichIsA("BasePart")
-                    if p then CBase=p.Position;return CBase end
-                end
-            end
-        end
-    end
-    return Vector3.new(0,50,0)
-end
-local function ICE()
-    for _,a in ipairs({"HasEgg","CarryingEgg","HasPet","CarryEgg","Holding","IsCarrying","CarryEggValue"}) do
-        local ok,v=pcall(function() return LP:GetAttribute(a) end)
-        if ok and v~=nil and v~=false and v~="" then return true end
-    end
-    local c=LP.Character
-    if c then
-        for _,o in ipairs(c:GetChildren()) do
-            if o:IsA("Tool") or o:IsA("Model") then
-                local n=o.Name:lower()
-                if n=="egg" or n:match("^egg[%s_%-%d]") then return true end
-            end
-        end
-    end
-    local bp=LP:FindFirstChildOfClass("Backpack")
-    if bp then
-        for _,o in ipairs(bp:GetChildren()) do
-            local n=o.Name:lower()
-            if n=="egg" or n:match("^egg[%s_%-%d]") then return true end
-        end
-    end
-    return false
-end
-local function EMP(e)
-    if not next(S.PEggs) then return true end
-    local c={}
-    if e.real then table.insert(c,e.real:lower()) end
-    if e.name then table.insert(c,e.name:lower()) end
-    if e.info and e.info.p then table.insert(c,e.info.p:lower()) end
-    for k,_ in pairs(S.PEggs) do
-        local p=k:lower();local pn=p:gsub("%s*egg%s*$","")
-        for _,cc in ipairs(c) do
-            local cn=cc:gsub("%s*egg%s*$","")
-            if cc==p or cc==pn or cn==p or cn==pn then return true end
-        end
-    end
-    return false
-end
-
--- AUTO STEAL
-local ASC,CTg,Rag,FBk,LCk,ATm,LTP,MAT=8
-local function FNE()
-    local all=Scan()
-    if #all==0 then return nil end
-    local best,bs=nil,-math.huge
-    for _,e in ipairs(all) do
-        if e.part and e.part.Parent and EMP(e) then
-            local inf=e.info or {}
-            local sc=0
-            if S.PSec then
-                local rr=(inf.r or ""):lower()
-                if rr=="secret" or rr=="mythic" or rr=="cosmic" or rr=="divine" or rr=="eternal" then sc=sc+1e9 end
-            end
-            sc=sc+PI(inf.i)*100
-            if sc>bs then bs=sc;best=e end
-        end
-    end
-    return best
-end
-local function MRag()
-    local c=LP.Character
-    if not c then return end
-    local h=c:FindFirstChildOfClass("Humanoid")
-    if not h then return end
-    pcall(function()
-        for _,st in ipairs(NST) do h:SetStateEnabled(st,false) end
-        h:ChangeState(Enum.HumanoidStateType.Physics)
-    end)
-    Rag=true
-end
-local function URag()
-    local c=LP.Character
-    if not c then return end
-    local h=c:FindFirstChildOfClass("Humanoid")
-    if not h then return end
-    pcall(function()
-        for _,st in ipairs(NST) do h:SetStateEnabled(st,true) end
-        h:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end)
-    Rag=false
-end
-local function SLk() if LCk then LCk:Disconnect();LCk=nil end end
-local function FlyB()
-    local c=LP.Character
-    if not c then FBk=false;return end
-    local r=c:FindFirstChild("HumanoidRootPart")
-    local h=c:FindFirstChildOfClass("Humanoid")
-    if not r or not h then FBk=false;return end
-    FBk=true;URag();SLk()
-    if h.Health<h.MaxHealth then h.Health=h.MaxHealth end
-    task.wait(math.random(15,40)/100)
-    local base=FB()
-    local sp0=r.Position
-    local airP=Vector3.new(sp0.X,sp0.Y+150,sp0.Z)
-    local bAir=Vector3.new(base.X,base.Y+80,base.Z)
-    local bGrd=Vector3.new(base.X,base.Y+3,base.Z)
-    pcall(function()
-        local t1=T:Create(r,TweenInfo.new(0.5,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{CFrame=CFrame.new(airP)})
-        t1:Play();t1.Completed:Wait()
-    end)
-    if not c.Parent or not r.Parent then FBk=false;return end
-    local dst=(bAir-sp0).Magnitude
-    local dur=math.clamp(dst/500,0.8,3)
-    local mid=sp0:Lerp(bAir,0.7)+Vector3.new(math.random(-25,25),math.random(-10,10),math.random(-25,25))
-    pcall(function()
-        local t2=T:Create(r,TweenInfo.new(dur*0.6,Enum.EasingStyle.Linear),{CFrame=CFrame.new(mid)})
-        t2:Play();t2.Completed:Wait()
-    end)
-    if not c.Parent or not r.Parent then FBk=false;return end
-    task.wait(math.random(5,15)/100)
-    pcall(function()
-        local t3=T:Create(r,TweenInfo.new(dur*0.4,Enum.EasingStyle.Linear),{CFrame=CFrame.new(bAir)})
-        t3:Play();t3.Completed:Wait()
-    end)
-    if not c.Parent or not r.Parent then FBk=false;return end
-    pcall(function()
-        local t4=T:Create(r,TweenInfo.new(0.5,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{CFrame=CFrame.new(bGrd)})
-        t4:Play();t4.Completed:Wait()
-    end)
-    FBk=false
-end
-local function TTE(ep)
-    local c=LP.Character
-    if not c then return end
-    local r=c:FindFirstChild("HumanoidRootPart")
-    if not r then return end
-    MRag()
-    local pos=ep.Position+Vector3.new(0,3,0)
-    pcall(function()
-        r.CFrame=CFrame.new(pos)
-        r.AssemblyLinearVelocity=Vector3.zero
-        r.AssemblyAngularVelocity=Vector3.zero
-    end)
-end
-local function SLock(ep)
-    SLk()
-    LCk=R.Heartbeat:Connect(function()
-        if not S.AutoSteal then return end
-        local c=LP.Character
-        if not c then return end
-        local r=c:FindFirstChild("HumanoidRootPart")
-        if not r then return end
-        if ep and ep.Parent then
-            local pos=ep.Position+Vector3.new(0,3,0)
-            if (r.Position-pos).Magnitude>5 then r.CFrame=CFrame.new(pos) end
-            r.AssemblyLinearVelocity=Vector3.zero
-            r.AssemblyAngularVelocity=Vector3.zero
-        end
-    end)
-end
-local function RSt() SLk();URag();CTg=nil;ATm=0 end
-local function SAS()
-    S.AutoSteal=true
-    StL.Text=TT("stat")..": "..TT("on");StL.TextColor3=C.Succ
-    FB();Rag=false;FBk=false;CTg=nil;ATm=0;LTP=0
-    if ASC then ASC:Disconnect() end
-    ASC=R.Heartbeat:Connect(function()
-        if not S.AutoSteal then return end
-        if FBk then return end
-        local c=LP.Character
-        local r=c and c:FindFirstChild("HumanoidRootPart")
-        local h=c and c:FindFirstChildOfClass("Humanoid")
-        if not r or not h then return end
-        if h.Health<=0 then RSt();return end
-        if ICE() then
-            SLk()
-            StL.Text=TT("stat")..": Về Base...";StL.TextColor3=C.Gold
-            task.spawn(function() FlyB() end)
-            return
-        end
-        if CTg and (tick()-ATm>MAT) then RSt() end
-        if CTg and Rag then
-            local tp=CTg.part
-            if tp and tp.Parent then
-                StL.Text=TT("stat")..": Nhặt "..(CTg.real or CTg.name)
-                StL.TextColor3=C.Gold
-                local pos=tp.Position+Vector3.new(0,3,0)
-                r.CFrame=CFrame.new(pos)
-                r.AssemblyLinearVelocity=Vector3.zero
-                if tick()-LTP>(0.15+math.random(0,10)/100) then
-                    LTP=tick();pcall(function() TryPick(tp) end)
-                end
-                return
-            else RSt() end
-        end
-        local t=FNE()
-        if not t then
-            StL.Text=TT("stat")..": Không match";StL.TextColor3=C.Dang
-            return
-        end
-        CTg=t;ATm=tick()
-        StL.Text=TT("stat")..": → "..(t.real or t.name).." ("..((t.info or {}).i or "?")..")"
-        StL.TextColor3=C.Gold
-        TTE(t.part);SLock(t.part)
-    end)
-end
-local function SASstop()
-    S.AutoSteal=false
-    if ASC then ASC:Disconnect();ASC=nil end
-    SLk();URag();CTg=nil;FBk=false;ATm=0
-    StL.Text=TT("stat")..": "..TT("off");StL.TextColor3=C.TxtM
-end
-LP.CharacterAdded:Connect(function() task.wait(1);RSt() end)
-local AST=TG(SPg,TT("autoSteal"),TT("autoStealD"),function(v)
-    if v then SAS() else SASstop() end end)
-
--- PRIORITY
-local PLR=RW(SPg,300)
-local PLT=LB(PLR,"Danh mục trứng ưu tiên",14,UDim2.new(0,16,0,12));PLT.Font=Enum.Font.GothamBold
-local PLD=LB(PLR,"Tick để chỉ nhặt trứng đã chọn",10,UDim2.new(0,16,0,34))
-PLD.TextColor3=C.TxtM;PLD.Size=UDim2.new(1,-210,0,18)
-local RB=Instance.new("TextButton")
-RB.Size=UDim2.new(0,120,0,24);RB.Position=UDim2.new(1,-136,0,34)
-RB.BackgroundColor3=C.Gold;RB.BorderSizePixel=0
-RB.Text="🔄 Loading";RB.TextColor3=Color3.fromRGB(30,20,50)
-RB.TextSize=10;RB.Font=Enum.Font.GothamBold;RB.AutoButtonColor=false
-RB.ZIndex=15;RB.Parent=PLR;CR(RB,6)
-local PS=Instance.new("ScrollingFrame")
-PS.Size=UDim2.new(1,-32,1,-70);PS.Position=UDim2.new(0,16,0,62)
-PS.BackgroundColor3=C.Bg;PS.BorderSizePixel=0
-PS.ScrollBarThickness=3;PS.ScrollBarImageColor3=C.Gold
-PS.CanvasSize=UDim2.new(0,0,0,0);PS.Parent=PLR;CR(PS,8);SK(PS,C.Bord,1,.5)
-local PL2=Instance.new("UIListLayout")
-PL2.Padding=UDim.new(0,3);PL2.Parent=PS
-local PBtns={}
-local function RPL()
-    for _,d in pairs(PBtns) do if d.Button then d.Button:Destroy() end end
-    PBtns={}
-    local all=Scan()
-    local uq={}
-    for _,e in ipairs(all) do
-        local k=e.real or e.name
-        if not uq[k] and GI(k) then uq[k]=GI(k) end
-    end
-    if not next(uq) then
-        local nl=Instance.new("TextLabel")
-        nl.Size=UDim2.new(1,-10,0,26);nl.BackgroundTransparency=1
-        nl.Text="Không có trứng";nl.TextColor3=C.Dang;nl.TextSize=11;nl.Parent=PS
-        PBtns["__e"]={Button=nl};RB.Text="🔄 Loading";return
-    end
-    local srt={}
-    for n,i in pairs(uq) do table.insert(srt,{name=n,info=i}) end
-    table.sort(srt,function(a,b) return PI(a.info.i)>PI(b.info.i) end)
-    for _,en in ipairs(srt) do
-        local bn=en.name;local inf=en.info
-        local b=Instance.new("TextButton")
-        b.Size=UDim2.new(1,-8,0,24);b.BackgroundColor3=C.CardHi
-        b.BorderSizePixel=0;b.Text="  ☐  "..bn.."   "..(inf.i or "?")
-        b.TextColor3=C.Txt2;b.TextSize=11;b.Font=Enum.Font.Gotham
-        b.TextXAlignment=Enum.TextXAlignment.Left;b.AutoButtonColor=false;b.Parent=PS;CR(b,6)
-        local sel=S.PEggs[bn] and true or false
-        if sel then b.BackgroundColor3=C.Gold;b.TextColor3=Color3.fromRGB(30,20,50)
-        b.Text="  ☑  "..bn.."   "..(inf.i or "?") end
-        local function SS(v)
-            sel=v
-            if v then
-                S.PEggs[bn]=true
-                b.BackgroundColor3=C.Gold;b.TextColor3=Color3.fromRGB(30,20,50)
-                b.Text="  ☑  "..bn.."   "..(inf.i or "?")
-            else
-                S.PEggs[bn]=nil
-                b.BackgroundColor3=C.CardHi;b.TextColor3=C.Txt2
-                b.Text="  ☐  "..bn.."   "..(inf.i or "?")
-            end
-        end
-        b.MouseButton1Click:Connect(function() SS(not sel) end)
-        PBtns[bn]={Button=b,SetState=SS}
-    end
-    RB.Text="🔄 Loading ("..#srt..")"
-end
-RB.MouseButton1Click:Connect(function() RB.Text="⏳...";task.wait(.05);pcall(RPL) end)
-PL2:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    PS.CanvasSize=UDim2.new(0,0,0,PL2.AbsoluteContentSize.Y+10) end)
-task.spawn(function() task.wait(3);pcall(RPL) end)
-
--- ANTI TRAP
-local ATC,DTs={}
-local function DT(o)
-    if not o:IsA("BasePart") then return end
-    local n=o.Name:lower()
-    if n:find("trap") or n:find("bear") or n:find("bẫy") or n:find("spike") or n:find("snare") then
-        DTs[o]={CC=o.CanCollide,CT=o.CanTouch}
-        pcall(function() o.CanCollide=false;o.CanTouch=false end)
-    end
-end
-local ATt=TG(SPg,TT("antiTrap"),TT("antiTrapD"),function(v)
-    S.AntiTrap=v
-    if v then
-        if ATC then ATC:Disconnect() end
-        for _,o in ipairs(W:GetDescendants()) do DT(o) end
-        ATC=W.DescendantAdded:Connect(function(o) if S.AntiTrap then DT(o) end end)
+-- Key Logic Handler
+KC.MouseButton1Click:Connect(function()
+    if KIn.Text == "Tnh-VN" then
+        KSt.Text = "Thành công! Đang tải Menu..."
+        KSt.TextColor3 = C.Succ
+        task.wait(0.5)
+        KF.Visible = false
+        M.Visible = true
     else
-        if ATC then ATC:Disconnect();ATC=nil end
-        for o,vv in pairs(DTs) do
-            if o.Parent then pcall(function() o.CanCollide=vv.CC;o.CanTouch=vv.CT end) end
-        end
-        DTs={}
+        KSt.Text = "Sai Key! Key mẫu: Tnh-VN"
+        KSt.TextColor3 = C.Dang
     end
 end)
-
--- SCRIPT CARD
-local function SCard(parent,title,desc,url)
-    local r=RW(parent,72)
-    local t=LB(r,title,14,UDim2.new(0,16,0,12));t.Font=Enum.Font.GothamBold
-    local d=LB(r,desc,10,UDim2.new(0,16,0,34));d.TextColor3=C.TxtM;d.Size=UDim2.new(1,-160,0,18)
-    local b=Instance.new("TextButton")
-    b.Size=UDim2.new(0,116,0,30);b.Position=UDim2.new(1,-132,.5,-15)
-    b.BackgroundColor3=C.Gold;b.BorderSizePixel=0
-    b.Text="EXECUTE";b.TextColor3=Color3.fromRGB(30,20,50)
-    b.TextSize=11;b.Font=Enum.Font.GothamBold;b.AutoButtonColor=false
-    b.ZIndex=15;b.Parent=r;CR(b,8)
-    b.MouseButton1Click:Connect(function()
-        b.Text="LOADING..."
-        task.spawn(function()
-            local ok,err=pcall(function()
-                local code=game:HttpGet(url)
-                local fn=loadstring(code)
-                if fn then fn() else error("ls fail") end
-            end)
-            if ok then b.Text="EXECUTED";task.wait(1);b.Text="EXECUTE"
-            else b.Text="ERROR";warn("[Tnh-VN] "..tostring(err));task.wait(1.5);b.Text="EXECUTE" end
-        end)
-    end)
-    return r
-end
-SCard(SPg,"RealKid","Blox Fruit & Steal An Egg","https://raw.githubusercontent.com/realkidhub/realkid/refs/heads/main/main.lua")
-SCard(SPg,"Scarlet","Scarlet Hub","https://api.polsec.sh/loader/2d271ee938bdde2c/fc1585fd7ebfea10")
-SCard(SPg,"Sena","Sena V3","https://raw.githubusercontent.com/senarblx/sena/refs/heads/main/senav3go")
-
--- LANGUAGE
-local LH=PH(LPg,TT("lang"),"Đổi ngôn ngữ")
-local LR=RW(LPg,90)
-local LL=Instance.new("Frame")
-LL.Size=UDim2.new(1,-32,0,40);LL.Position=UDim2.new(0,16,0,28)
-LL.BackgroundTransparency=1;LL.Parent=LR
-local LGd=Instance.new("UIGridLayout")
-LGd.CellSize=UDim2.new(.48,0,0,32);LGd.CellPadding=UDim2.new(.02,0,0,6);LGd.Parent=LL
-local Langs={{"VN","🇻🇳 Tiếng Việt"},{"EN","🇺🇸 English"}}
-local LBs={}
-local function RF()
-    MB.Text=TT("main");FB.Text="Fly";XB.Text="FixLag";EB.Text=TT("steal");LBt.Text=TT("lang")
-    MH.Text=TT("main");ET.T.Text=TT("esp");ET.D.Text=TT("espD");CL.Text=TT("color")
-    for i,v in ipairs(Cols) do if CBtns[i] then CBtns[i].Text=v[1] end end
-    AH1.T.Text=TT("ah1");AH1.D.Text=TT("ah1d");AH2.T.Text=TT("ah2");AH2.D.Text=TT("ah2d")
-    PT.Text=TT("pov");AHT.T.Text=TT("antiHit");AHT.D.Text=TT("antiHitD")
-    ABT.T.Text=TT("antiBan");ABT.D.Text=TT("antiBanD")
-    FT.T.Text=TT("fly");FT.D.Text=TT("flyD");FST.Text=TT("flySpd")
-    SPT.T.Text=TT("speedT");SPT.D.Text=TT("speedTD");ST.Text=TT("speed")
-    XT.T.Text=TT("fix");XT.D.Text=TT("fixD")
-    EH.Text=TT("steal");ELT.Text=TT("eggLoc");SB2.Text=TT("eggScan")
-    PTg.T.Text=TT("prio");PTg.D.Text=TT("prioD")
-    AST.T.Text=TT("autoSteal");AST.D.Text=TT("autoStealD")
-    ATt.T.Text=TT("antiTrap");ATt.D.Text=TT("antiTrapD")
-end
-for _,v in ipairs(Langs) do
-    local code=v[1]
-    local b=Instance.new("TextButton")
-    b.Text=v[2];b.TextSize=11;b.TextColor3=C.Txt2
-    b.BackgroundColor3=C.CardHi;b.BorderSizePixel=0
-    b.Font=Enum.Font.GothamBold;b.AutoButtonColor=false
-    b.ZIndex=15;b.Parent=LL;CR(b,8)
-    LBs[code]=b
-    b.MouseButton1Click:Connect(function()
-        S.Lang=code
-        for c,x in pairs(LBs) do
-            if c==code then x.BackgroundColor3=C.Gold;x.TextColor3=Color3.fromRGB(30,20,50)
-            else x.BackgroundColor3=C.CardHi;x.TextColor3=C.Txt2 end
-        end
-        RF()
-    end)
-end
-LBs.VN.BackgroundColor3=C.Gold
-LBs.VN.TextColor3=Color3.fromRGB(30,20,50)
-
--- FLOAT
-local TB=Instance.new("TextButton")
-TB.Size=UDim2.new(0,54,0,54);TB.Position=UDim2.new(1,-74,.5,-27)
-TB.BackgroundColor3=C.Gold;TB.Text="🍌";TB.TextSize=24
-TB.Font=Enum.Font.GothamBold;TB.Visible=false;TB.ZIndex=100
-TB.AutoButtonColor=false;TB.Parent=G
-CR(TB,27);SK(TB,C.GoldHi,2,.3)
-local TD2,TS2,TP2
-TB.InputBegan:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
-        TD2=true;TS2=i.Position;TP2=TB.Position end end)
-U.InputChanged:Connect(function(i)
-    if TD2 and (i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseMovement) then
-        local d=i.Position-TS2
-        TB.Position=UDim2.new(TP2.X.Scale,TP2.X.Offset+d.X,TP2.Y.Scale,TP2.Y.Offset+d.Y) end end)
-U.InputEnded:Connect(function() TD2=false end)
-Mn.MouseButton1Click:Connect(function() M.Visible=false;NT.Visible=false;TB.Visible=true end)
-TB.MouseButton1Click:Connect(function() M.Visible=true;NT.Visible=true;TB.Visible=false end)
-Cs.MouseButton1Click:Connect(function()
-    SFL();SPS();StopAH();SASstop();StopAB2()
-    if XC then XC:Disconnect() end
-    if ABC then ABC:Disconnect() end
-    CEr()
-    for p,d in pairs(ESD) do
-        if d.B then d.B:Destroy() end
-        if d.N then d.N:Destroy() end
-    end
-    if S.FixLag then SPF() end
-    local cam=W.CurrentCamera
-    if cam then cam.FieldOfView=70 end
-    G:Destroy();EG:Destroy()
-end)
-
-print("[Tnh-VN] Hub Loaded — Key: Tnh-VN")
