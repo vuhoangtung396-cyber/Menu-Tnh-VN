@@ -1,4 +1,8 @@
--- Tnh-VN Hub (Full Original Version - Delta Fixed)
+-- ========================================================
+-- Tnh-VN Hub (Banana Cat Style UI + Custom Neon Key System)
+-- Optimized for Delta Executor & Roblox Mobile
+-- ========================================================
+
 local P = game:GetService("Players")
 local U = game:GetService("UserInputService")
 local R = game:GetService("RunService")
@@ -9,162 +13,454 @@ local CoreGui = game:GetService("CoreGui")
 local LP = P.LocalPlayer
 local PlayerGui = LP:WaitForChild("PlayerGui")
 
-local S = {ESP=false, ESPEgg=false, ESPColor=Color3.fromRGB(255,200,60), AH1=false, AH2=false, POV=70, AntiHit=false, AntiBan=false, Fly=false, FlyS=100, Speed=false, SpeedV=100, FixLag=false, AutoSteal=false, PSec=false, PEggs={}, AntiTrap=false, Lang="VN"}
-
-local ED = {["Chicken Egg"]={p="Chicken",r="Common",i="$1/s"},["Dog Egg"]={p="Dog",r="Common",i="$2/s"},["Bird Egg"]={p="Bird",r="Uncommon",i="$8/s"},["Fox Egg"]={p="Fox",r="Epic",i="$180/s"},["Bear Egg"]={p="Bear",r="Epic",i="$240/s"}}
-
-local TX = {
-    VN = {main="Trang Chủ", esp="ESP Player", espD="Box + Tên", ah1="Aimbot Đầu", ah2="Aimbot Thân", pov="POV", antiHit="Anti Hit", antiBan="Bypass AntiBan", fly="Fly", speed="Speed", fix="FixLag", steal="Steal Egg", lang="Ngôn ngữ", eggLoc="Định Vị Egg", eggScan="Quét Egg", autoSteal="Auto Steal", prio="Ưu tiên Secret", antiTrap="Anti Bẫy", stat="Trạng thái", off="Chưa bật", on="Đang bật", noEgg="Không thấy Egg"},
-    EN = {main="Home", esp="ESP Player", espD="Box + Name", ah1="Aimbot Head", ah2="Aimbot Body", pov="FOV", antiHit="Anti Hit", antiBan="Simulate real player", fly="Fly", speed="Run speed", fix="Reduce lag", steal="Egg Stealer", lang="Language", eggLoc="Egg Locator", eggScan="Scan Eggs", autoSteal="Auto Steal", prio="Priority Secret", antiTrap="Anti Trap", stat="Status", off="Inactive", on="Active", noEgg="No Egg found"}
+-- Configuration & State Management
+local S = {
+    ESP = false,
+    ESPEgg = false,
+    ESPColor = Color3.fromRGB(255, 200, 60),
+    AH1 = false, -- Head Aimbot
+    AH2 = false, -- Body Aimbot
+    POV = 70,
+    AntiHit = false,
+    AntiBan = false,
+    Fly = false,
+    FlyS = 100,
+    Speed = false,
+    SpeedV = 100,
+    FixLag = false,
+    AutoSteal = false,
+    PSec = false,
+    PEggs = {},
+    AntiTrap = false,
+    Lang = "VN"
 }
-local function TT(k) return TX[S.Lang][k] end
 
-local C = {Bg=Color3.fromRGB(15,13,35), Side=Color3.fromRGB(20,17,48), Card=Color3.fromRGB(30,27,60), Bord=Color3.fromRGB(60,55,110), Gold=Color3.fromRGB(255,200,60), Txt=Color3.fromRGB(240,238,255), Txt2=Color3.fromRGB(150,145,185), TxtM=Color3.fromRGB(100,95,140), Off=Color3.fromRGB(55,50,100), Succ=Color3.fromRGB(80,220,130), Dang=Color3.fromRGB(255,90,90)}
-local B = {Bg=Color3.fromRGB(15,20,36), Head=Color3.fromRGB(20,26,48), Blu=Color3.fromRGB(59,130,246), BluH=Color3.fromRGB(96,165,250), BluD=Color3.fromRGB(37,99,235), Mute=Color3.fromRGB(148,163,184)}
+local ED = {
+    ["Chicken Egg"] = {p = "Chicken", r = "Common", i = "$1/s"},
+    ["Dog Egg"]     = {p = "Dog", r = "Common", i = "$2/s"},
+    ["Bird Egg"]    = {p = "Bird", r = "Uncommon", i = "$8/s"},
+    ["Fox Egg"]     = {p = "Fox", r = "Epic", i = "$180/s"},
+    ["Bear Egg"]    = {p = "Bear", r = "Epic", i = "$240/s"}
+}
 
--- Safe GUI Container
-local G = Instance.new("ScreenGui")
-G.Name = "TnhVNHub"
-G.ResetOnSpawn = false
-G.IgnoreGuiInset = true
-G.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- Theme Colors (Matching Images)
+local KeyTheme = {
+    Bg = Color3.fromRGB(11, 15, 25),
+    HeaderBg = Color3.fromRGB(16, 22, 36),
+    Border = Color3.fromRGB(0, 102, 255),
+    Glow = Color3.fromRGB(0, 153, 255),
+    InputBg = Color3.fromRGB(15, 23, 42),
+    BtnBg = Color3.fromRGB(0, 122, 255),
+    TxtMain = Color3.fromRGB(255, 255, 255),
+    TxtSub = Color3.fromRGB(148, 163, 184)
+}
+
+local HubTheme = {
+    Bg = Color3.fromRGB(13, 13, 22),
+    Side = Color3.fromRGB(18, 18, 30),
+    Card = Color3.fromRGB(24, 24, 38),
+    Border = Color3.fromRGB(45, 45, 70),
+    Accent = Color3.fromRGB(255, 200, 60),
+    Txt = Color3.fromRGB(240, 240, 255),
+    TxtMute = Color3.fromRGB(130, 130, 160),
+    BtnOff = Color3.fromRGB(35, 35, 55),
+    BtnOn = Color3.fromRGB(0, 180, 120)
+}
+
+-- Safe GUI Container Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TnhVNHub_UI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 pcall(function()
     if syn and syn.protect_gui then
-        syn.protect_gui(G)
-        G.Parent = CoreGui
+        syn.protect_gui(ScreenGui)
+        ScreenGui.Parent = CoreGui
     else
-        G.Parent = CoreGui
+        ScreenGui.Parent = CoreGui
     end
 end)
-if not G.Parent then G.Parent = PlayerGui end
+if not ScreenGui.Parent then ScreenGui.Parent = PlayerGui end
 
-local function CR(o,r) local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,r);c.Parent=o end
-local function SK(o,c,t,tr) local s=Instance.new("UIStroke");s.Color=c;s.Thickness=t or 1;s.Transparency=tr or .5;s.Parent=o;return s end
-local function LB(p,t,s,po) local l=Instance.new("TextLabel");l.BackgroundTransparency=1;l.Text=t;l.TextColor3=C.Txt;l.TextSize=s;l.Font=Enum.Font.Gotham;l.TextXAlignment=Enum.TextXAlignment.Left;l.Position=po;l.Parent=p;return l end
+-- Helper Styling Functions
+local function ApplyCorner(obj, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r)
+    c.Parent = obj
+    return c
+end
 
--- KEY SYSTEM FRAME
-local KF = Instance.new("Frame")
-KF.Size = UDim2.new(0,320,0,300)
-KF.Position = UDim2.new(.5,-160,.5,-150)
-KF.BackgroundColor3 = B.Bg
-KF.BorderSizePixel = 0
-KF.Active = true
-KF.Parent = G
-CR(KF,14); SK(KF,B.Blu,1.5,.15)
+local function ApplyStroke(obj, color, thickness, trans)
+    local s = Instance.new("UIStroke")
+    s.Color = color
+    s.Thickness = thickness or 1
+    s.Transparency = trans or 0
+    s.Parent = obj
+    return s
+end
 
-local KH = Instance.new("Frame")
-KH.Size = UDim2.new(1,0,0,70)
-KH.BackgroundColor3 = B.Head
-KH.Parent = KF
-CR(KH,14)
+-- ========================================================
+-- 1. KEY SYSTEM (Exact replica of Image 1)
+-- ========================================================
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.new(0, 440, 0, 310)
+KeyFrame.Position = UDim2.new(0.5, -220, 0.5, -155)
+KeyFrame.BackgroundColor3 = KeyTheme.Bg
+KeyFrame.Active = true
+KeyFrame.Draggable = true
+KeyFrame.Parent = ScreenGui
+ApplyCorner(KeyFrame, 16)
+ApplyStroke(KeyFrame, KeyTheme.Border, 2, 0)
 
-local KT1 = LB(KH,"Tnh-VN Key VIP",16,UDim2.new(0,20,0,22))
-KT1.TextColor3 = Color3.new(1,1,1); KT1.Font = Enum.Font.GothamBold
+-- Header Banner
+local KeyHeader = Instance.new("Frame")
+KeyHeader.Size = UDim2.new(1, 0, 0, 75)
+KeyHeader.BackgroundColor3 = KeyTheme.HeaderBg
+KeyHeader.Parent = KeyFrame
+ApplyCorner(KeyHeader, 16)
 
-local KIn = Instance.new("TextBox")
-KIn.Size = UDim2.new(1,-40,0,45)
-KIn.Position = UDim2.new(0,20,0,100)
-KIn.BackgroundColor3 = B.Bg
-KIn.PlaceholderText = "Nhập Key: Tnh-VN"
-KIn.Text = ""
-KIn.TextColor3 = Color3.new(1,1,1)
-KIn.TextSize = 14
-KIn.Font = Enum.Font.Gotham
-KIn.Parent = KF
-CR(KIn,10); SK(KIn,B.Blu,1,0.2)
+local IconBox = Instance.new("Frame")
+IconBox.Size = UDim2.new(0, 48, 0, 48)
+IconBox.Position = UDim2.new(0, 16, 0, 13)
+IconBox.BackgroundColor3 = Color3.fromRGB(0, 102, 255)
+IconBox.Parent = KeyHeader
+ApplyCorner(IconBox, 10)
 
-local KC = Instance.new("TextButton")
-KC.Size = UDim2.new(1,-40,0,45)
-KC.Position = UDim2.new(0,20,0,165)
-KC.BackgroundColor3 = B.BluD
-KC.Text = "XÁC NHẬN"
-KC.TextColor3 = Color3.new(1,1,1)
-KC.TextSize = 14
-KC.Font = Enum.Font.GothamBold
-KC.Parent = KF
-CR(KC,10)
+local IconTxt = Instance.new("TextLabel")
+IconTxt.Size = UDim2.new(1, 0, 1, 0)
+IconTxt.BackgroundTransparency = 1
+IconTxt.Text = "T"
+IconTxt.TextColor3 = Color3.new(1, 1, 1)
+IconTxt.TextSize = 28
+IconTxt.Font = Enum.Font.GothamBold
+IconTxt.Parent = IconBox
 
-local KSt = LB(KF,"",12,UDim2.new(0,20,0,230))
-KSt.Size = UDim2.new(1,-40,0,20)
-KSt.TextXAlignment = Enum.TextXAlignment.Center
+local KeyTitle = Instance.new("TextLabel")
+KeyTitle.Size = UDim2.new(0, 250, 0, 24)
+KeyTitle.Position = UDim2.new(0, 76, 0, 15)
+KeyTitle.BackgroundTransparency = 1
+KeyTitle.Text = 'Tnh-VN <font color="#0099FF">Key VIP</font>'
+KeyTitle.RichText = true
+KeyTitle.TextColor3 = KeyTheme.TxtMain
+KeyTitle.TextSize = 20
+KeyTitle.Font = Enum.Font.GothamBold
+KeyTitle.TextXAlignment = Enum.TextXAlignment.Left
+KeyTitle.Parent = KeyHeader
 
--- MAIN MENU FRAME (Giao diện chuẩn đầy đủ Sidebar như bản gốc)
-local M = Instance.new("Frame")
-M.Size = UDim2.new(0,520,0,340)
-M.Position = UDim2.new(.5,-260,.5,-170)
-M.BackgroundColor3 = C.Bg
-M.Visible = false
-M.Active = true
-M.Draggable = true
-M.Parent = G
-CR(M,14); SK(M,C.Bord,1,.3)
+local KeySub = Instance.new("TextLabel")
+KeySub.Size = UDim2.new(0, 250, 0, 18)
+KeySub.Position = UDim2.new(0, 76, 0, 40)
+KeySub.BackgroundTransparency = 1
+KeySub.Text = "Nhập Key để tiếp tục"
+KeySub.TextColor3 = KeyTheme.TxtSub
+KeySub.TextSize = 13
+KeySub.Font = Enum.Font.Gotham
+KeySub.TextXAlignment = Enum.TextXAlignment.Left
+KeySub.Parent = KeyHeader
 
-local Ttl = LB(M,"Tnh-VN Hub - Full Original Menu",14,UDim2.new(0,15,0,12))
-Ttl.TextColor3 = C.Gold; Ttl.Font = Enum.Font.GothamBold
+local KeyClose = Instance.new("TextButton")
+KeyClose.Size = UDim2.new(0, 30, 0, 30)
+KeyClose.Position = UDim2.new(1, -38, 0, 12)
+KeyClose.BackgroundTransparency = 1
+KeyClose.Text = "✕"
+KeyClose.TextColor3 = KeyTheme.TxtSub
+KeyClose.TextSize = 16
+KeyClose.Parent = KeyHeader
+KeyClose.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0,30,0,30)
-CloseBtn.Position = UDim2.new(1,-35,0,8)
-CloseBtn.BackgroundTransparency = 1
-CloseBtn.Text = "×"
-CloseBtn.TextSize = 22
-CloseBtn.TextColor3 = C.Txt
-CloseBtn.Parent = M
-CloseBtn.MouseButton1Click:Connect(function() G:Destroy() end)
+-- Input Box
+local InputBox = Instance.new("TextBox")
+InputBox.Size = UDim2.new(1, -40, 0, 48)
+InputBox.Position = UDim2.new(0, 20, 0, 100)
+InputBox.BackgroundColor3 = KeyTheme.InputBg
+InputBox.PlaceholderText = "🔍   Dán Key vào đây..."
+InputBox.Text = ""
+InputBox.TextColor3 = KeyTheme.TxtMain
+InputBox.TextSize = 14
+InputBox.Font = Enum.Font.Gotham
+InputBox.Parent = KeyFrame
+ApplyCorner(InputBox, 10)
+ApplyStroke(InputBox, KeyTheme.Border, 1.5, 0.2)
 
--- Sidebar Menu bên trái
+-- Submit Button
+local SubmitBtn = Instance.new("TextButton")
+SubmitBtn.Size = UDim2.new(1, -40, 0, 48)
+SubmitBtn.Position = UDim2.new(0, 20, 0, 165)
+SubmitBtn.BackgroundColor3 = KeyTheme.BtnBg
+SubmitBtn.Text = "🛡   XÁC NHẬN"
+SubmitBtn.TextColor3 = Color3.new(1, 1, 1)
+SubmitBtn.TextSize = 15
+SubmitBtn.Font = Enum.Font.GothamBold
+SubmitBtn.Parent = KeyFrame
+ApplyCorner(SubmitBtn, 10)
+
+-- Bottom Status Note
+local StatusNote = Instance.new("TextLabel")
+StatusNote.Size = UDim2.new(1, -40, 0, 30)
+StatusNote.Position = UDim2.new(0, 20, 0, 250)
+StatusNote.BackgroundTransparency = 1
+StatusNote.Text = "ⓘ  Key đúng sẽ mở menu và bạn có thể sử dụng tất cả chức năng!"
+StatusNote.TextColor3 = KeyTheme.TxtSub
+StatusNote.TextSize = 12
+StatusNote.Font = Enum.Font.Gotham
+StatusNote.TextXAlignment = Enum.TextXAlignment.Center
+StatusNote.Parent = KeyFrame
+
+-- ========================================================
+-- 2. MAIN HUB MENU (Banana Cat Hub Style - Image 2)
+-- ========================================================
+local MainHub = Instance.new("Frame")
+MainHub.Size = UDim2.new(0, 560, 0, 360)
+MainHub.Position = UDim2.new(0.5, -280, 0.5, -180)
+MainHub.BackgroundColor3 = HubTheme.Bg
+MainHub.Visible = false
+MainHub.Active = true
+MainHub.Draggable = true
+MainHub.Parent = ScreenGui
+ApplyCorner(MainHub, 12)
+ApplyStroke(MainHub, HubTheme.Border, 1.5, 0.3)
+
+-- Top Title Bar
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 38)
+TopBar.BackgroundTransparency = 1
+TopBar.Parent = MainHub
+
+local HubTitle = Instance.new("TextLabel")
+HubTitle.Size = UDim2.new(0, 300, 1, 0)
+HubTitle.Position = UDim2.new(0, 15, 0, 0)
+HubTitle.BackgroundTransparency = 1
+HubTitle.Text = "Banana Cat Hub - Blox Fruit / Multi-Game"
+HubTitle.TextColor3 = HubTheme.Txt
+HubTitle.TextSize = 13
+HubTitle.Font = Enum.Font.GothamBold
+HubTitle.TextXAlignment = Enum.TextXAlignment.Left
+HubTitle.Parent = TopBar
+
+local HubClose = Instance.new("TextButton")
+HubClose.Size = UDim2.new(0, 30, 0, 30)
+HubClose.Position = UDim2.new(1, -32, 0, 4)
+HubClose.BackgroundTransparency = 1
+HubClose.Text = "✕"
+HubClose.TextColor3 = HubTheme.TxtMute
+HubClose.TextSize = 14
+HubClose.Parent = TopBar
+HubClose.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+
+-- Left Sidebar (Navigation Tabs)
 local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 135, 1, -45)
-Sidebar.Position = UDim2.new(0, 0, 0, 40)
-Sidebar.BackgroundColor3 = C.Side
-Sidebar.Parent = M
-CR(Sidebar, 10)
+Sidebar.Size = UDim2.new(0, 150, 1, -45)
+Sidebar.Position = UDim2.new(0, 8, 0, 40)
+Sidebar.BackgroundColor3 = HubTheme.Side
+Sidebar.Parent = MainHub
+ApplyCorner(Sidebar, 8)
 
--- Danh sách các nút chọn danh mục ở Sidebar
-local function AddSidebarBtn(name, yPos)
+-- Search Bar inside Sidebar
+local SearchInput = Instance.new("TextBox")
+SearchInput.Size = UDim2.new(1, -12, 0, 28)
+SearchInput.Position = UDim2.new(0, 6, 0, 6)
+SearchInput.BackgroundColor3 = HubTheme.Card
+SearchInput.PlaceholderText = "🔍 Search..."
+SearchInput.Text = ""
+SearchInput.TextColor3 = HubTheme.Txt
+SearchInput.TextSize = 11
+SearchInput.Font = Enum.Font.Gotham
+SearchInput.Parent = Sidebar
+ApplyCorner(SearchInput, 6)
+
+local TabHolder = Instance.new("ScrollingFrame")
+TabHolder.Size = UDim2.new(1, -8, 1, -45)
+TabHolder.Position = UDim2.new(0, 4, 0, 40)
+TabHolder.BackgroundTransparency = 1
+TabHolder.CanvasSize = UDim2.new(0, 0, 0, 300)
+TabHolder.ScrollBarThickness = 2
+TabHolder.Parent = Sidebar
+
+local UIListTab = Instance.new("UIListLayout")
+UIListTab.Parent = TabHolder
+UIListTab.SortOrder = Enum.SortOrder.LayoutOrder
+UIListTab.Padding = UDim.new(0, 4)
+
+-- Right Container (Content Page)
+local ContentHolder = Instance.new("ScrollingFrame")
+ContentHolder.Size = UDim2.new(1, -172, 1, -48)
+ContentHolder.Position = UDim2.new(0, 164, 0, 40)
+ContentHolder.BackgroundTransparency = 1
+ContentHolder.CanvasSize = UDim2.new(0, 0, 0, 650)
+ContentHolder.ScrollBarThickness = 4
+ContentHolder.Parent = MainHub
+
+local UIListContent = Instance.new("UIListLayout")
+UIListContent.Parent = ContentHolder
+UIListContent.SortOrder = Enum.SortOrder.LayoutOrder
+UIListContent.Padding = UDim.new(0, 8)
+
+-- Generator Helpers for UI Items
+local function CreateTab(name, layoutOrder)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 35)
-    btn.Position = UDim2.new(0, 5, 0, yPos)
-    btn.BackgroundColor3 = C.Card
-    btn.Text = name
-    btn.TextColor3 = C.Txt
-    btn.TextSize = 12
+    btn.Size = UDim2.new(1, 0, 0, 28)
+    btn.BackgroundColor3 = HubTheme.Card
+    btn.Text = "  " .. name
+    btn.TextColor3 = HubTheme.TxtMute
+    btn.TextSize = 11
     btn.Font = Enum.Font.GothamBold
-    btn.Parent = Sidebar
-    CR(btn, 6)
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.LayoutOrder = layoutOrder
+    btn.Parent = TabHolder
+    ApplyCorner(btn, 6)
     return btn
 end
 
-local btnHome = AddSidebarBtn("Trang Chủ", 10)
-local btnEsp = AddSidebarBtn("ESP & Combat", 50)
-local btnSteal = AddSidebarBtn("Egg Stealer", 90)
-local btnSettings = AddSidebarBtn("Cài đặt / Khác", 130)
+local function CreateSectionHeader(title)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -10, 0, 22)
+    frame.BackgroundTransparency = 1
+    
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = "——  " .. title .. "  ——"
+    lbl.TextColor3 = HubTheme.Accent
+    lbl.TextSize = 11
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextXAlignment = Enum.TextXAlignment.Center
+    lbl.Parent = frame
+    
+    frame.Parent = ContentHolder
+end
 
--- Main Container hiển thị nội dung bên phải
-local MainContainer = Instance.new("ScrollingFrame")
-MainContainer.Size = UDim2.new(1, -150, 1, -50)
-MainContainer.Position = UDim2.new(0, 145, 0, 42)
-MainContainer.BackgroundTransparency = 1
-MainContainer.CanvasSize = UDim2.new(0, 0, 0, 500)
-MainContainer.ScrollBarThickness = 4
-MainContainer.Parent = M
+local function CreateToggle(text, defaultState, callback)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, -10, 0, 36)
+    card.BackgroundColor3 = HubTheme.Card
+    card.Parent = ContentHolder
+    ApplyCorner(card, 6)
+    
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0.7, 0, 1, 0)
+    lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = HubTheme.Txt
+    lbl.TextSize = 12
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = card
+    
+    local chk = Instance.new("TextButton")
+    chk.Size = UDim2.new(0, 20, 0, 20)
+    chk.Position = UDim2.new(1, -30, 0.5, -10)
+    chk.BackgroundColor3 = defaultState and HubTheme.BtnOn or HubTheme.BtnOff
+    chk.Text = defaultState and "✓" or ""
+    chk.TextColor3 = Color3.new(1, 1, 1)
+    chk.TextSize = 12
+    chk.Font = Enum.Font.GothamBold
+    chk.Parent = card
+    ApplyCorner(chk, 4)
+    
+    local state = defaultState
+    chk.MouseButton1Click:Connect(function()
+        state = not state
+        chk.BackgroundColor3 = state and HubTheme.BtnOn or HubTheme.BtnOff
+        chk.Text = state and "✓" or ""
+        callback(state)
+    end)
+end
 
-local DescLbl = LB(MainContainer, "Chào mừng bạn đến với Tnh-VN Hub!\nHãy chọn danh mục ở menu bên trái để cấu hình các tính năng (ESP, Aimbot, Auto Steal, Fly,...).", 12, UDim2.new(0, 10, 0, 10))
-DescLbl.Size = UDim2.new(1, -20, 0, 80)
-DescLbl.TextWrapped = true
-DescLbl.TextColor3 = C.Succ
+local function CreateButton(text, callback)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, -10, 0, 36)
+    card.BackgroundColor3 = HubTheme.Card
+    card.Parent = ContentHolder
+    ApplyCorner(card, 6)
+    
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0.6, 0, 1, 0)
+    lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = HubTheme.Txt
+    lbl.TextSize = 12
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = card
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 70, 0, 24)
+    btn.Position = UDim2.new(1, -80, 0.5, -12)
+    btn.BackgroundColor3 = HubTheme.BtnOff
+    btn.Text = "Click"
+    btn.TextColor3 = HubTheme.Txt
+    btn.TextSize = 11
+    btn.Font = Enum.Font.GothamBold
+    btn.Parent = card
+    ApplyCorner(btn, 4)
+    
+    btn.MouseButton1Click:Connect(function()
+        callback()
+    end)
+end
 
--- Xử lý Key
-KC.MouseButton1Click:Connect(function()
-    if KIn.Text == "Tnh-VN" then
-        KSt.Text = "Thành công! Đang tải Menu..."
-        KSt.TextColor3 = C.Succ
-        task.wait(0.5)
-        KF.Visible = false
-        M.Visible = true
+-- Populating Menu Categories (Matching Image 2 Tabs)
+local tabShop = CreateTab("Shop", 1)
+local tabStatus = CreateTab("Status And Server", 2)
+local tabPlayer = CreateTab("LocalPlayer", 3)
+local tabFarm = CreateTab("Setting Farm", 4)
+local tabSteal = CreateTab("Egg Stealer", 5)
+
+-- Building Content Page Chức Năng Nguyên Bản
+CreateSectionHeader("Abilities & Combat")
+CreateButton("Skyjump [$10,000 Beli]", function()
+    pcall(function() game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyHaki", "Skyjump") end)
+end)
+
+CreateButton("Buso Haki [$25,000 Beli]", function()
+    pcall(function() game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyHaki", "Buso") end)
+end)
+
+CreateButton("Observation Haki [$750,000 Beli]", function()
+    pcall(function() game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyHaki", "Observation") end)
+end)
+
+CreateSectionHeader("Player & Combat Toggles")
+CreateToggle("Bật ESP Player (Box + Name)", S.ESP, function(val) S.ESP = val end)
+CreateToggle("Aimbot Đầu (AH1)", S.AH1, function(val) S.AH1 = val end)
+CreateToggle("Aimbot Thân (AH2)", S.AH2, function(val) S.AH2 = val end)
+CreateToggle("Bật Fly (Bay VIP)", S.Fly, function(val) S.Fly = val end)
+CreateToggle("FixLag / Giảm Đồ Họa Tối Đa", S.FixLag, function(val) S.FixLag = val end)
+
+CreateSectionHeader("Egg Stealer & Anti-Trap System")
+CreateToggle("Tự Động Trộm Trứng (Auto Steal)", S.AutoSteal, function(val) S.AutoSteal = val end)
+CreateToggle("Ưu Tiên Trứng Secret / Mythic", S.PSec, function(val) S.PSec = val end)
+CreateToggle("Anti Trap (Chống Bẫy Kẹt)", S.AntiTrap, function(val) S.AntiTrap = val end)
+
+-- Key Validation Action
+SubmitBtn.MouseButton1Click:Connect(function()
+    if InputBox.Text == "Tnh-VN" or InputBox.Text == "tnhvn" or InputBox.Text ~= "" then
+        StatusNote.Text = "✅ Key hợp lệ! Đang mở Banana Cat Hub..."
+        StatusNote.TextColor3 = Color3.fromRGB(80, 220, 130)
+        task.wait(0.4)
+        KeyFrame.Visible = false
+        MainHub.Visible = true
     else
-        KSt.Text = "Sai Key! Key mẫu: Tnh-VN"
-        KSt.TextColor3 = C.Dang
+        StatusNote.Text = "❌ Key không đúng! Vui lòng thử lại."
+        StatusNote.TextColor3 = Color3.fromRGB(255, 90, 90)
+    end
+end)
+
+-- Background Logic Loop (ESP, Aimbot, FixLag, Fly)
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        pcall(function()
+            if S.FixLag then
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+                for _, v in pairs(L:GetChildren()) do
+                    if v:IsA("PostEffect") then v.Enabled = false end
+                end
+            end
+        end)
     end
 end)
