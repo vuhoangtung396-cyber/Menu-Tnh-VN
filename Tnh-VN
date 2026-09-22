@@ -1,519 +1,1626 @@
---// TNH-VN | STEAL AN EGG
---// ESP + COLOR + AUTO STEAL
---// Mobile / Delta friendly
+--========================================================--
+--              TNH-VN | STEAL AN EGG HUB
+--        KEY + FLOATING T + ESP + SPEED + FLY
+--              FIXLAG + AUTO STEAL
+--========================================================--
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
 
 local LP = Players.LocalPlayer
 
---==================================================
+--========================================================--
 -- STATE
---==================================================
+--========================================================--
 
 local State = {
     ESP = false,
-    ESPColor = Color3.fromRGB(255, 70, 70),
-    ShowName = true,
-    ShowDistance = true,
+    ESPColor = Color3.fromRGB(255,70,70),
+    ESPShowName = true,
+    ESPShowDist = true,
 
+    Speed = false,
+    SpeedValue = 50,
+
+    Fly = false,
+    FlyValue = 50,
+
+    FixLag = false,
     AutoSteal = false,
-    StealSpeed = 70,
+
+    MenuOpen = true,
+    Destroyed = false
 }
 
---==================================================
--- CHARACTER
---==================================================
+--========================================================--
+-- CONNECTION MANAGER
+--========================================================--
 
-local function GetCharacter()
-    return LP.Character or LP.CharacterAdded:Wait()
+local Connections = {}
+
+local function Connect(signal,fn)
+    local c = signal:Connect(fn)
+    table.insert(Connections,c)
+    return c
 end
 
-local function GetRoot()
-    local char = GetCharacter()
-    return char:FindFirstChild("HumanoidRootPart")
-end
-
---==================================================
--- GUI
---==================================================
-
-local Gui = Instance.new("ScreenGui")
-Gui.Name = "TnhVN_EggHub"
-Gui.ResetOnSpawn = false
-Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-Gui.Parent = game:GetService("CoreGui")
-
-local Main = Instance.new("Frame")
-Main.Size = UDim2.fromOffset(520, 350)
-Main.Position = UDim2.new(0.5, -260, 0.5, -175)
-Main.BackgroundColor3 = Color3.fromRGB(18,18,18)
-Main.BorderSizePixel = 0
-Main.Parent = Gui
-
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0,10)
-Corner.Parent = Main
-
-local Stroke = Instance.new("UIStroke")
-Stroke.Color = Color3.fromRGB(65,65,65)
-Stroke.Thickness = 1
-Stroke.Parent = Main
-
---==================================================
--- TITLE
---==================================================
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,-90,0,45)
-Title.Position = UDim2.fromOffset(15,0)
-Title.BackgroundTransparency = 1
-Title.Text = "Tnh-VN | Steal An Egg"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.TextSize = 18
-Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = Main
-
-local Close = Instance.new("TextButton")
-Close.Size = UDim2.fromOffset(35,35)
-Close.Position = UDim2.new(1,-42,0,5)
-Close.BackgroundColor3 = Color3.fromRGB(150,45,45)
-Close.Text = "×"
-Close.TextColor3 = Color3.new(1,1,1)
-Close.TextSize = 23
-Close.Font = Enum.Font.GothamBold
-Close.Parent = Main
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0,7)
-CloseCorner.Parent = Close
-
---==================================================
--- DRAG
---==================================================
-
-do
-    local dragging = false
-    local dragStart
-    local startPos
-
-    Main.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-
-            dragging = true
-            dragStart = input.Position
-            startPos = Main.Position
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    UIS.InputChanged:Connect(function(input)
-        if not dragging then return end
-
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-
-            local delta = input.Position - dragStart
-
-            Main.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-end
-
---==================================================
--- LEFT PANEL
---==================================================
-
-local Side = Instance.new("Frame")
-Side.Size = UDim2.fromOffset(145,295)
-Side.Position = UDim2.fromOffset(10,45)
-Side.BackgroundColor3 = Color3.fromRGB(24,24,24)
-Side.BorderSizePixel = 0
-Side.Parent = Main
-
-local SideCorner = Instance.new("UICorner")
-SideCorner.CornerRadius = UDim.new(0,8)
-SideCorner.Parent = Side
-
-local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1,-165,1,-55)
-Content.Position = UDim2.fromOffset(155,50)
-Content.BackgroundTransparency = 1
-Content.Parent = Main
-
---==================================================
--- BUTTON HELPER
---==================================================
-
-local function MakeButton(parent,text,y)
-    local B = Instance.new("TextButton")
-
-    B.Size = UDim2.new(1,-12,0,40)
-    B.Position = UDim2.fromOffset(6,y)
-    B.BackgroundColor3 = Color3.fromRGB(35,35,35)
-    B.BorderSizePixel = 0
-    B.Text = text
-    B.TextColor3 = Color3.new(1,1,1)
-    B.TextSize = 14
-    B.Font = Enum.Font.GothamMedium
-    B.Parent = parent
-
-    local C = Instance.new("UICorner")
-    C.CornerRadius = UDim.new(0,7)
-    C.Parent = B
-
-    return B
-end
-
-local ESPBtn = MakeButton(Side,"ESP : OFF",10)
-local AutoBtn = MakeButton(Side,"AUTO STEAL : OFF",58)
-
---==================================================
--- CONTENT LABEL
---==================================================
-
-local Info = Instance.new("TextLabel")
-Info.Size = UDim2.new(1,0,0,70)
-Info.BackgroundTransparency = 1
-Info.Text = "ESP"
-Info.TextColor3 = Color3.new(1,1,1)
-Info.TextSize = 20
-Info.Font = Enum.Font.GothamBold
-Info.TextXAlignment = Enum.TextXAlignment.Left
-Info.Parent = Content
-
-local Desc = Instance.new("TextLabel")
-Desc.Size = UDim2.new(1,0,0,45)
-Desc.Position = UDim2.fromOffset(0,40)
-Desc.BackgroundTransparency = 1
-Desc.Text = "ESP egg / player + chọn màu"
-Desc.TextColor3 = Color3.fromRGB(180,180,180)
-Desc.TextSize = 13
-Desc.Font = Enum.Font.Gotham
-Desc.TextXAlignment = Enum.TextXAlignment.Left
-Desc.Parent = Content
-
---==================================================
--- COLOR PICKER
---==================================================
-
-local ColorTitle = Instance.new("TextLabel")
-ColorTitle.Size = UDim2.new(1,0,0,30)
-ColorTitle.Position = UDim2.fromOffset(0,80)
-ColorTitle.BackgroundTransparency = 1
-ColorTitle.Text = "ESP COLOR"
-ColorTitle.TextColor3 = Color3.new(1,1,1)
-ColorTitle.TextSize = 14
-ColorTitle.Font = Enum.Font.GothamBold
-ColorTitle.TextXAlignment = Enum.TextXAlignment.Left
-ColorTitle.Parent = Content
-
-local Colors = {
-    {"Red",Color3.fromRGB(255,60,60)},
-    {"Green",Color3.fromRGB(60,255,100)},
-    {"Blue",Color3.fromRGB(70,150,255)},
-    {"Purple",Color3.fromRGB(190,80,255)},
-    {"Yellow",Color3.fromRGB(255,230,60)},
-    {"Cyan",Color3.fromRGB(60,255,255)},
-    {"White",Color3.fromRGB(255,255,255)},
-    {"Pink",Color3.fromRGB(255,80,180)},
-}
-
-for i,data in ipairs(Colors) do
-
-    local col = (i-1)%4
-    local row = math.floor((i-1)/4)
-
-    local B = Instance.new("TextButton")
-
-    B.Size = UDim2.fromOffset(70,32)
-    B.Position = UDim2.fromOffset(col*78,row*38 + 112)
-
-    B.BackgroundColor3 = data[2]
-    B.BorderSizePixel = 0
-    B.Text = data[1]
-    B.TextSize = 11
-    B.Font = Enum.Font.GothamBold
-    B.TextColor3 = Color3.new(0,0,0)
-    B.Parent = Content
-
-    local C = Instance.new("UICorner")
-    C.CornerRadius = UDim.new(0,6)
-    C.Parent = B
-
-    B.MouseButton1Click:Connect(function()
-        State.ESPColor = data[2]
-    end)
-end
-
---==================================================
--- ESP
---==================================================
-
-local ESPFolder = Instance.new("Folder")
-ESPFolder.Name = "TnhVN_ESP"
-ESPFolder.Parent = Gui
-
-local ESPObjects = {}
-
-local function RemoveESP(obj)
-    local v = ESPObjects[obj]
-
-    if v then
-        if v.box then
-            v.box:Destroy()
-        end
-
-        if v.name then
-            v.name:Destroy()
-        end
-
-        if v.dist then
-            v.dist:Destroy()
-        end
-
-        ESPObjects[obj] = nil
+local function DisconnectAll()
+    for _,c in ipairs(Connections) do
+        pcall(function()
+            c:Disconnect()
+        end)
     end
+    table.clear(Connections)
 end
 
-local function CreateESP(obj)
+--========================================================--
+-- CHARACTER
+--========================================================--
 
-    if ESPObjects[obj] then
+local Character
+local Humanoid
+local Root
+
+local function GetChar()
+    Character = LP.Character or LP.CharacterAdded:Wait()
+
+    Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    Root = Character:FindFirstChild("HumanoidRootPart")
+
+    if not Humanoid then
+        Humanoid = Character:WaitForChild("Humanoid",10)
+    end
+
+    if not Root then
+        Root = Character:WaitForChild("HumanoidRootPart",10)
+    end
+
+    return Character
+end
+
+GetChar()
+
+--========================================================--
+-- FORWARD DECLARATIONS
+--========================================================--
+
+local StartFly
+local StopFly
+local StartSpeed
+local StopSpeed
+local StartFixLag
+local StopFixLag
+local StartAutoSteal
+local StopAutoSteal
+
+--========================================================--
+-- GUI ROOT
+--========================================================--
+
+local KeyGui = Instance.new("ScreenGui")
+KeyGui.Name = "TnhVN_Key"
+KeyGui.ResetOnSpawn = false
+KeyGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+KeyGui.Parent = game:GetService("CoreGui")
+
+--========================================================--
+-- KEY GUI
+--========================================================--
+
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.fromOffset(310,190)
+KeyFrame.Position = UDim2.new(0.5,-155,0.5,-95)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(17,17,17)
+KeyFrame.BorderSizePixel = 0
+KeyFrame.Parent = KeyGui
+
+local KFCorner = Instance.new("UICorner")
+KFCorner.CornerRadius = UDim.new(0,12)
+KFCorner.Parent = KeyFrame
+
+local KFStroke = Instance.new("UIStroke")
+KFStroke.Color = Color3.fromRGB(65,65,65)
+KFStroke.Thickness = 1
+KFStroke.Parent = KeyFrame
+
+local KeyTitle = Instance.new("TextLabel")
+KeyTitle.Size = UDim2.new(1,-20,0,45)
+KeyTitle.Position = UDim2.fromOffset(10,5)
+KeyTitle.BackgroundTransparency = 1
+KeyTitle.Text = "Tnh-VN Hub"
+KeyTitle.TextColor3 = Color3.new(1,1,1)
+KeyTitle.TextSize = 21
+KeyTitle.Font = Enum.Font.GothamBold
+KeyTitle.Parent = KeyFrame
+
+local KeySub = Instance.new("TextLabel")
+KeySub.Size = UDim2.new(1,-20,0,25)
+KeySub.Position = UDim2.fromOffset(10,42)
+KeySub.BackgroundTransparency = 1
+KeySub.Text = "Nhập key để mở menu"
+KeySub.TextColor3 = Color3.fromRGB(170,170,170)
+KeySub.TextSize = 12
+KeySub.Font = Enum.Font.Gotham
+KeySub.Parent = KeyFrame
+
+local KeyBox = Instance.new("TextBox")
+KeyBox.Size = UDim2.new(1,-30,0,40)
+KeyBox.Position = UDim2.fromOffset(15,78)
+KeyBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+KeyBox.BorderSizePixel = 0
+KeyBox.PlaceholderText = "Key..."
+KeyBox.Text = ""
+KeyBox.TextColor3 = Color3.new(1,1,1)
+KeyBox.TextSize = 14
+KeyBox.Font = Enum.Font.Gotham
+KeyBox.ClearTextOnFocus = false
+KeyBox.Parent = KeyFrame
+
+local KBCorner = Instance.new("UICorner")
+KBCorner.CornerRadius = UDim.new(0,8)
+KBCorner.Parent = KeyBox
+
+local EnterKey = Instance.new("TextButton")
+EnterKey.Size = UDim2.new(1,-30,0,38)
+EnterKey.Position = UDim2.fromOffset(15,128)
+EnterKey.BackgroundColor3 = Color3.fromRGB(40,40,40)
+EnterKey.BorderSizePixel = 0
+EnterKey.Text = "XÁC NHẬN"
+EnterKey.TextColor3 = Color3.new(1,1,1)
+EnterKey.TextSize = 13
+EnterKey.Font = Enum.Font.GothamBold
+EnterKey.Parent = KeyFrame
+
+local EKCorner = Instance.new("UICorner")
+EKCorner.CornerRadius = UDim.new(0,8)
+EKCorner.Parent = EnterKey
+
+--========================================================--
+-- MAIN GUI
+--========================================================--
+
+local MainGui
+local FloatingT
+
+local function CreateMain()
+
+    if MainGui and MainGui.Parent then
+        MainGui.Enabled = true
+        return
+    end
+
+    MainGui = Instance.new("ScreenGui")
+    MainGui.Name = "TnhVN_Main"
+    MainGui.ResetOnSpawn = false
+    MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    MainGui.Parent = game:GetService("CoreGui")
+
+    --====================================================--
+    -- MAIN
+    --====================================================--
+
+    local Main = Instance.new("Frame")
+    Main.Name = "Main"
+    Main.Size = UDim2.fromOffset(570,370)
+    Main.Position = UDim2.new(0.5,-285,0.5,-185)
+    Main.BackgroundColor3 = Color3.fromRGB(18,18,18)
+    Main.BorderSizePixel = 0
+    Main.Parent = MainGui
+
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0,12)
+    MainCorner.Parent = Main
+
+    local MainStroke = Instance.new("UIStroke")
+    MainStroke.Color = Color3.fromRGB(60,60,60)
+    MainStroke.Thickness = 1
+    MainStroke.Parent = Main
+
+    --====================================================--
+    -- TITLE
+    --====================================================--
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1,-100,0,45)
+    Title.Position = UDim2.fromOffset(15,0)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Tnh-VN Hub"
+    Title.TextColor3 = Color3.new(1,1,1)
+    Title.TextSize = 19
+    Title.Font = Enum.Font.GothamBold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Main
+
+    local Min = Instance.new("TextButton")
+    Min.Size = UDim2.fromOffset(35,35)
+    Min.Position = UDim2.new(1,-82,0,5)
+    Min.BackgroundColor3 = Color3.fromRGB(42,42,42)
+    Min.Text = "−"
+    Min.TextColor3 = Color3.new(1,1,1)
+    Min.TextSize = 22
+    Min.Font = Enum.Font.GothamBold
+    Min.Parent = Main
+
+    local MinCorner = Instance.new("UICorner")
+    MinCorner.CornerRadius = UDim.new(0,7)
+    MinCorner.Parent = Min
+
+    local Close = Instance.new("TextButton")
+    Close.Size = UDim2.fromOffset(35,35)
+    Close.Position = UDim2.new(1,-42,0,5)
+    Close.BackgroundColor3 = Color3.fromRGB(145,45,45)
+    Close.Text = "×"
+    Close.TextColor3 = Color3.new(1,1,1)
+    Close.TextSize = 22
+    Close.Font = Enum.Font.GothamBold
+    Close.Parent = Main
+
+    local CloseCorner = Instance.new("UICorner")
+    CloseCorner.CornerRadius = UDim.new(0,7)
+    CloseCorner.Parent = Close
+
+    --====================================================--
+    -- DRAG MAIN
+    --====================================================--
+
+    do
+        local dragging = false
+        local dragStart
+        local startPos
+
+        Connect(Main.InputBegan,function(input)
+
+            if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+                dragging = true
+                dragStart = input.Position
+                startPos = Main.Position
+
+                input.Changed:Connect(function()
+
+                    if input.UserInputState == Enum.UserInputState.End then
+                        dragging = false
+                    end
+
+                end)
+            end
+        end)
+
+        Connect(UIS.InputChanged,function(input)
+
+            if not dragging then return end
+
+            if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+                local delta = input.Position - dragStart
+
+                Main.Position = UDim2.new(
+                    startPos.X.Scale,
+                    startPos.X.Offset + delta.X,
+                    startPos.Y.Scale,
+                    startPos.Y.Offset + delta.Y
+                )
+            end
+        end)
+    end
+
+    --====================================================--
+    -- SIDEBAR
+    --====================================================--
+
+    local Side = Instance.new("Frame")
+    Side.Size = UDim2.fromOffset(145,305)
+    Side.Position = UDim2.fromOffset(10,50)
+    Side.BackgroundColor3 = Color3.fromRGB(24,24,24)
+    Side.BorderSizePixel = 0
+    Side.Parent = Main
+
+    local SideCorner = Instance.new("UICorner")
+    SideCorner.CornerRadius = UDim.new(0,9)
+    SideCorner.Parent = Side
+
+    local Content = Instance.new("ScrollingFrame")
+    Content.Size = UDim2.new(1,-165,1,-55)
+    Content.Position = UDim2.fromOffset(155,50)
+    Content.BackgroundTransparency = 1
+    Content.BorderSizePixel = 0
+    Content.ScrollBarThickness = 3
+    Content.CanvasSize = UDim2.fromOffset(0,650)
+    Content.Parent = Main
+
+    --====================================================--
+    -- BUTTON HELPER
+    --====================================================--
+
+    local function SideButton(text,y)
+
+        local B = Instance.new("TextButton")
+
+        B.Size = UDim2.new(1,-12,0,40)
+        B.Position = UDim2.fromOffset(6,y)
+        B.BackgroundColor3 = Color3.fromRGB(35,35,35)
+        B.BorderSizePixel = 0
+        B.Text = text
+        B.TextColor3 = Color3.new(1,1,1)
+        B.TextSize = 13
+        B.Font = Enum.Font.GothamMedium
+        B.Parent = Side
+
+        local C = Instance.new("UICorner")
+        C.CornerRadius = UDim.new(0,7)
+        C.Parent = B
+
+        return B
+    end
+
+    local HomeBtn = SideButton("Home",10)
+    local StealBtn = SideButton("Steal",58)
+    local PlayerBtn = SideButton("Player",106)
+    local ESPBtn = SideButton("ESP",154)
+    local PerformanceBtn = SideButton("Performance",202)
+
+    --====================================================--
+    -- CONTENT HELPERS
+    --====================================================--
+
+    local CurrentPage
+
+    local function ClearContent()
+
+        for _,obj in ipairs(Content:GetChildren()) do
+            obj:Destroy()
+        end
+
+    end
+
+    local function Label(text,y,size)
+
+        local L = Instance.new("TextLabel")
+
+        L.Size = UDim2.new(1,-10,0,size or 30)
+        L.Position = UDim2.fromOffset(5,y)
+        L.BackgroundTransparency = 1
+        L.Text = text
+        L.TextColor3 = Color3.new(1,1,1)
+        L.TextSize = 14
+        L.Font = Enum.Font.GothamBold
+        L.TextXAlignment = Enum.TextXAlignment.Left
+        L.Parent = Content
+
+        return L
+    end
+
+    local function Toggle(text,value,y,callback)
+
+        local B = Instance.new("TextButton")
+
+        B.Size = UDim2.new(1,-10,0,42)
+        B.Position = UDim2.fromOffset(5,y)
+        B.BackgroundColor3 =
+            value and Color3.fromRGB(40,110,65)
+            or Color3.fromRGB(35,35,35)
+
+        B.BorderSizePixel = 0
+        B.Text = text .. (value and " : ON" or " : OFF")
+        B.TextColor3 = Color3.new(1,1,1)
+        B.TextSize = 13
+        B.Font = Enum.Font.GothamBold
+        B.Parent = Content
+
+        local C = Instance.new("UICorner")
+        C.CornerRadius = UDim.new(0,7)
+        C.Parent = B
+
+        Connect(B.MouseButton1Click,function()
+
+            value = not value
+
+            B.Text = text .. (value and " : ON" or " : OFF")
+
+            B.BackgroundColor3 =
+                value and Color3.fromRGB(40,110,65)
+                or Color3.fromRGB(35,35,35)
+
+            callback(value)
+
+        end)
+
+        return B
+    end
+
+    local function NumberBox(title,value,y,callback)
+
+        local L = Label(title,y,25)
+
+        local Box = Instance.new("TextBox")
+
+        Box.Size = UDim2.fromOffset(100,34)
+        Box.Position = UDim2.new(1,-105,0,y-2)
+        Box.BackgroundColor3 = Color3.fromRGB(32,32,32)
+        Box.BorderSizePixel = 0
+        Box.Text = tostring(value)
+        Box.TextColor3 = Color3.new(1,1,1)
+        Box.TextSize = 13
+        Box.Font = Enum.Font.Gotham
+        Box.ClearTextOnFocus = false
+        Box.Parent = Content
+
+        local C = Instance.new("UICorner")
+        C.CornerRadius = UDim.new(0,7)
+        C.Parent = Box
+
+        Connect(Box.FocusLost,function()
+
+            local n = tonumber(Box.Text)
+
+            if n then
+                callback(n)
+            end
+
+        end)
+
+        return Box
+    end
+
+    --====================================================--
+    -- ESP GUI
+    --====================================================--
+
+    local ESPGui = Instance.new("ScreenGui")
+    ESPGui.Name = "TnhVN_ESP"
+    ESPGui.ResetOnSpawn = false
+    ESPGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ESPGui.Parent = game:GetService("CoreGui")
+
+    local ESPObjects = {}
+
+    local function RemoveESP(obj)
+
+        local data = ESPObjects[obj]
+
+        if data then
+
+            for _,v in pairs(data) do
+                pcall(function()
+                    v:Destroy()
+                end)
+            end
+
+            ESPObjects[obj] = nil
+        end
+    end
+
+    local function ClearAllESP()
+
+        for obj in pairs(ESPObjects) do
+            RemoveESP(obj)
+        end
+    end
+
+    local function CreateESP(obj)
+
+        if ESPObjects[obj] then
+            return ESPObjects[obj]
+        end
+
+        local box = Instance.new("Frame")
+        box.BackgroundTransparency = 1
+        box.BorderSizePixel = 0
+        box.Visible = false
+        box.Parent = ESPGui
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 2
+        stroke.Parent = box
+
+        local name = Instance.new("TextLabel")
+        name.BackgroundTransparency = 1
+        name.TextSize = 12
+        name.Font = Enum.Font.GothamBold
+        name.TextStrokeTransparency = 0
+        name.Visible = false
+        name.Parent = ESPGui
+
+        local dist = Instance.new("TextLabel")
+        dist.BackgroundTransparency = 1
+        dist.TextSize = 11
+        dist.Font = Enum.Font.Gotham
+        dist.TextStrokeTransparency = 0
+        dist.Visible = false
+        dist.Parent = ESPGui
+
+        ESPObjects[obj] = {
+            box = box,
+            stroke = stroke,
+            name = name,
+            dist = dist
+        }
+
         return ESPObjects[obj]
     end
 
-    local box = Instance.new("Frame")
-    box.BackgroundTransparency = 1
-    box.BorderSizePixel = 0
-    box.Visible = false
-    box.Parent = ESPFolder
+    local function IsESPObject(obj)
 
-    local outline = Instance.new("UIStroke")
-    outline.Thickness = 2
-    outline.Parent = box
+        if not obj:IsA("BasePart") then
+            return false
+        end
 
-    local name = Instance.new("TextLabel")
-    name.BackgroundTransparency = 1
-    name.TextSize = 13
-    name.Font = Enum.Font.GothamBold
-    name.TextStrokeTransparency = 0
-    name.Visible = false
-    name.Parent = ESPFolder
+        local n = obj.Name:lower()
 
-    local dist = Instance.new("TextLabel")
-    dist.BackgroundTransparency = 1
-    dist.TextSize = 11
-    dist.Font = Enum.Font.Gotham
-    dist.TextStrokeTransparency = 0
-    dist.Visible = false
-    dist.Parent = ESPFolder
+        return
+            n:find("egg",1,true)
+            or n:find("trung",1,true)
+            or n:find("pet",1,true)
+            or n:find("nest",1,true)
 
-    ESPObjects[obj] = {
-        box = box,
-        name = name,
-        dist = dist,
-        stroke = outline
+    end
+
+    Connect(RunService.RenderStepped,function()
+
+        if not State.ESP then
+            return
+        end
+
+        local Camera = Workspace.CurrentCamera
+
+        if not Camera then
+            return
+        end
+
+        local Seen = {}
+
+        for _,obj in ipairs(Workspace:GetDescendants()) do
+
+            if IsESPObject(obj) then
+
+                Seen[obj] = true
+
+                local data = CreateESP(obj)
+
+                local screenPos,visible =
+                    Camera:WorldToViewportPoint(obj.Position)
+
+                if visible then
+
+                    local distance =
+                        (Camera.CFrame.Position - obj.Position).Magnitude
+
+                    local size =
+                        math.clamp(3000 / math.max(distance,1),35,130)
+
+                    data.box.Position = UDim2.fromOffset(
+                        screenPos.X-size/2,
+                        screenPos.Y-size/2
+                    )
+
+                    data.box.Size =
+                        UDim2.fromOffset(size,size)
+
+                    data.stroke.Color = State.ESPColor
+                    data.box.Visible = true
+
+                    data.name.Text = obj.Name
+                    data.name.TextColor3 = State.ESPColor
+                    data.name.Position = UDim2.fromOffset(
+                        screenPos.X-size/2,
+                        screenPos.Y-size/2-22
+                    )
+                    data.name.Size = UDim2.fromOffset(size,20)
+                    data.name.Visible = State.ESPShowName
+
+                    data.dist.Text =
+                        math.floor(distance).." studs"
+
+                    data.dist.TextColor3 = State.ESPColor
+                    data.dist.Position = UDim2.fromOffset(
+                        screenPos.X-size/2,
+                        screenPos.Y+size/2
+                    )
+                    data.dist.Size =
+                        UDim2.fromOffset(size,18)
+
+                    data.dist.Visible = State.ESPShowDist
+
+                else
+
+                    data.box.Visible = false
+                    data.name.Visible = false
+                    data.dist.Visible = false
+
+                end
+            end
+        end
+
+        for obj in pairs(ESPObjects) do
+
+            if not Seen[obj]
+            or not obj.Parent then
+
+                RemoveESP(obj)
+            end
+        end
+
+    end)
+
+    --====================================================--
+    -- HOME PAGE
+    --====================================================--
+
+    local function HomePage()
+
+        ClearContent()
+
+        Label("Tnh-VN Hub",5,35)
+        Label("Steal An Egg",40,25)
+        Label("Mobile / Delta",70,25)
+
+        Label(
+            "ESP + Speed + Fly + FixLag + Auto Steal",
+           110,
+           30
+        )
+
+        Label(
+            "Auto Steal dùng prompt + xác nhận pickup/delivery.",
+           150,
+           45
+        )
+
+    end
+
+    --====================================================--
+    -- ESP PAGE
+    --====================================================--
+
+    local function ESPPage()
+
+        ClearContent()
+
+        Label("ESP",5,35)
+
+        Toggle(
+            "ESP",
+            State.ESP,
+            45,
+            function(v)
+                State.ESP = v
+
+                if not v then
+                    ClearAllESP()
+                end
+            end
+        )
+
+        Toggle(
+            "Tên",
+            State.ESPShowName,
+            95,
+            function(v)
+                State.ESPShowName = v
+            end
+        )
+
+        Toggle(
+            "Khoảng cách",
+            State.ESPShowDist,
+            145,
+            function(v)
+                State.ESPShowDist = v
+            end
+        )
+
+        Label("Chọn màu ESP",200,30)
+
+        local colors = {
+            {"Đỏ",Color3.fromRGB(255,60,60)},
+            {"Xanh lá",Color3.fromRGB(60,255,100)},
+            {"Xanh dương",Color3.fromRGB(70,140,255)},
+            {"Tím",Color3.fromRGB(190,70,255)},
+            {"Vàng",Color3.fromRGB(255,230,50)},
+            {"Cyan",Color3.fromRGB(50,255,255)},
+            {"Hồng",Color3.fromRGB(255,70,180)},
+            {"Trắng",Color3.fromRGB(255,255,255)}
+        }
+
+        for i,data in ipairs(colors) do
+
+            local col = (i-1)%2
+            local row = math.floor((i-1)/2)
+
+            local B = Instance.new("TextButton")
+
+            B.Size = UDim2.fromOffset(115,34)
+            B.Position =
+                UDim2.fromOffset(
+                    5 + col*125,
+                    235 + row*40
+                )
+
+            B.BackgroundColor3 = data[2]
+            B.BorderSizePixel = 0
+            B.Text = data[1]
+            B.TextColor3 = Color3.new(0,0,0)
+            B.TextSize = 11
+            B.Font = Enum.Font.GothamBold
+            B.Parent = Content
+
+            local C = Instance.new("UICorner")
+            C.CornerRadius = UDim.new(0,7)
+            C.Parent = B
+
+            Connect(B.MouseButton1Click,function()
+                State.ESPColor = data[2]
+            end)
+        end
+
+    end
+
+    --====================================================--
+    -- PLAYER PAGE
+    --====================================================--
+
+    local function PlayerPage()
+
+        ClearContent()
+
+        Label("Player",5,35)
+
+        Toggle(
+            "Speed",
+            State.Speed,
+            45,
+            function(v)
+
+                if v then
+                    StartSpeed()
+                else
+                    StopSpeed()
+                end
+
+            end
+        )
+
+        NumberBox(
+            "WalkSpeed",
+            State.SpeedValue,
+            95,
+            function(v)
+
+                State.SpeedValue =
+                    math.clamp(math.floor(v),1,500)
+
+                if State.Speed then
+                    StartSpeed()
+                end
+
+            end
+        )
+
+        Toggle(
+            "Fly",
+            State.Fly,
+            145,
+            function(v)
+
+                if v then
+                    StartFly()
+                else
+                    StopFly()
+                end
+
+            end
+        )
+
+        NumberBox(
+            "Fly Speed",
+            State.FlyValue,
+            195,
+            function(v)
+
+                State.FlyValue =
+                    math.clamp(math.floor(v),1,500)
+
+            end
+        )
+
+    end
+
+    --====================================================--
+    -- STEAL PAGE
+    --====================================================--
+
+    local function StealPage()
+
+        ClearContent()
+
+        Label("Auto Steal Egg",5,35)
+
+        Toggle(
+            "Auto Steal",
+            State.AutoSteal,
+            45,
+            function(v)
+
+                if v then
+                    StartAutoSteal()
+                else
+                    StopAutoSteal()
+                end
+
+            end
+        )
+
+        NumberBox(
+            "Move Speed",
+            State.StealSpeed or 70,
+            95,
+            function(v)
+
+                State.StealSpeed =
+                    math.clamp(math.floor(v),20,150)
+
+            end
+        )
+
+        Label(
+            "Quy trình:",
+           145,
+           25
+        )
+
+        Label(
+            "1. Tìm prompt Egg",
+           175,
+           25
+        )
+
+        Label(
+            "2. Lấy Egg",
+           205,
+           25
+        )
+
+        Label(
+            "3. Xác nhận đang mang Egg",
+           235,
+           25
+        )
+
+        Label(
+            "4. Về Pen/Base",
+           265,
+           25
+        )
+
+        Label(
+            "5. Giao Egg rồi mới lấy quả tiếp",
+           295,
+           30
+        )
+
+    end
+
+    --====================================================--
+    -- PERFORMANCE PAGE
+    --====================================================--
+
+    local function PerformancePage()
+
+        ClearContent()
+
+        Label("Performance",5,35)
+
+        Toggle(
+            "FixLag",
+            State.FixLag,
+            45,
+            function(v)
+
+                if v then
+                    StartFixLag()
+                else
+                    StopFixLag()
+                end
+
+            end
+        )
+
+        Label(
+            "Tắt hiệu ứng nặng / giảm shadow / giảm texture.",
+           100,
+           45
+        )
+
+    end
+
+    --====================================================--
+    -- PAGE CONNECTIONS
+    --====================================================--
+
+    Connect(HomeBtn.MouseButton1Click,HomePage)
+    Connect(StealBtn.MouseButton1Click,StealPage)
+    Connect(PlayerBtn.MouseButton1Click,PlayerPage)
+    Connect(ESPBtn.MouseButton1Click,ESPPage)
+    Connect(PerformanceBtn.MouseButton1Click,PerformancePage)
+
+    --====================================================--
+    -- MINIMIZE
+    --====================================================--
+
+    Connect(Min.MouseButton1Click,function()
+
+        Main.Visible = false
+
+        if FloatingT then
+            FloatingT.Visible = true
+        end
+
+    end)
+
+    --====================================================--
+    -- FLOATING T
+    --====================================================--
+
+    FloatingT = Instance.new("TextButton")
+    FloatingT.Name = "TnhVN_Floating"
+    FloatingT.Size = UDim2.fromOffset(55,55)
+    FloatingT.Position = UDim2.new(1,-75,0.5,-27)
+    FloatingT.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    FloatingT.Text = "T"
+    FloatingT.TextColor3 = Color3.new(1,1,1)
+    FloatingT.TextSize = 25
+    FloatingT.Font = Enum.Font.GothamBold
+    FloatingT.Visible = true
+    FloatingT.Parent = MainGui
+
+    local TC = Instance.new("UICorner")
+    TC.CornerRadius = UDim.new(1,0)
+    TC.Parent = FloatingT
+
+    local TS = Instance.new("UIStroke")
+    TS.Color = Color3.fromRGB(180,180,180)
+    TS.Thickness = 2
+    TS.Parent = FloatingT
+
+    do
+
+        local dragging = false
+        local dragStart
+        local startPos
+
+        Connect(FloatingT.InputBegan,function(input)
+
+            if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+                dragging = true
+                dragStart = input.Position
+                startPos = FloatingT.Position
+
+                input.Changed:Connect(function()
+
+                    if input.UserInputState == Enum.UserInputState.End then
+                        dragging = false
+                    end
+
+                end)
+            end
+
+        end)
+
+        Connect(UIS.InputChanged,function(input)
+
+            if not dragging then return end
+
+            if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+                local delta = input.Position - dragStart
+
+                FloatingT.Position = UDim2.new(
+                    startPos.X.Scale,
+                    startPos.X.Offset + delta.X,
+                    startPos.Y.Scale,
+                    startPos.Y.Offset + delta.Y
+                )
+            end
+
+        end)
+
+    end
+
+    Connect(FloatingT.MouseButton1Click,function()
+
+        Main.Visible = true
+        FloatingT.Visible = false
+
+    end)
+
+    --====================================================--
+    -- CLOSE
+    --====================================================--
+
+    Connect(Close.MouseButton1Click,function()
+
+        State.Destroyed = true
+
+        State.ESP = false
+        State.AutoSteal = false
+
+        StopSpeed()
+        StopFly()
+        StopFixLag()
+        StopAutoSteal()
+
+        ClearAllESP()
+
+        pcall(function()
+            ESPGui:Destroy()
+        end)
+
+        pcall(function()
+            MainGui:Destroy()
+        end)
+
+    end)
+
+    --====================================================--
+    -- START HOME
+    --====================================================--
+
+    HomePage()
+    FloatingT.Visible = false
+end
+
+--========================================================--
+-- KEY CHECK
+--========================================================--
+
+Connect(EnterKey.MouseButton1Click,function()
+
+    if KeyBox.Text == "Tnh-VN" then
+
+        KeyGui:Destroy()
+
+        CreateMain()
+
+    else
+
+        KeyBox.Text = ""
+        KeyBox.PlaceholderText = "Sai key!"
+
+        task.delay(1,function()
+
+            if KeyBox and KeyBox.Parent then
+                KeyBox.PlaceholderText = "Key..."
+            end
+
+        end)
+
+    end
+
+end)
+
+--========================================================--
+-- SPEED
+--========================================================--
+
+local SpeedConn
+
+StartSpeed = function()
+
+    State.Speed = true
+
+    if SpeedConn then
+        SpeedConn:Disconnect()
+        SpeedConn = nil
+    end
+
+    SpeedConn = RunService.Heartbeat:Connect(function()
+
+        if not State.Speed then
+            return
+        end
+
+        local char = LP.Character
+        local hum =
+            char and char:FindFirstChildOfClass("Humanoid")
+
+        if hum then
+            hum.WalkSpeed =
+                math.clamp(State.SpeedValue,1,500)
+        end
+
+    end)
+
+end
+
+StopSpeed = function()
+
+    State.Speed = false
+
+    if SpeedConn then
+        SpeedConn:Disconnect()
+        SpeedConn = nil
+    end
+
+    local char = LP.Character
+
+    if char then
+
+        local hum =
+            char:FindFirstChildOfClass("Humanoid")
+
+        if hum then
+            hum.WalkSpeed = 16
+        end
+
+    end
+
+end
+
+--========================================================--
+-- FLY
+--========================================================--
+
+local FlyVel
+local FlyGyro
+local FlyConn
+local FlyKeys = {}
+
+Connect(UIS.InputBegan,function(input,gp)
+
+    if gp then return end
+
+    FlyKeys[input.KeyCode] = true
+
+end)
+
+Connect(UIS.InputEnded,function(input)
+
+    FlyKeys[input.KeyCode] = nil
+
+end)
+
+StartFly = function()
+
+    if State.Fly then
+        return
+    end
+
+    State.Fly = true
+
+    local char = GetChar()
+
+    Root =
+        char:FindFirstChild("HumanoidRootPart")
+        or char:WaitForChild("HumanoidRootPart")
+
+    Humanoid =
+        char:FindFirstChildOfClass("Humanoid")
+
+    if FlyVel then
+        FlyVel:Destroy()
+    end
+
+    if FlyGyro then
+        FlyGyro:Destroy()
+    end
+
+    FlyVel = Instance.new("BodyVelocity")
+    FlyVel.MaxForce = Vector3.new(
+        math.huge,
+        math.huge,
+        math.huge
+    )
+    FlyVel.Velocity = Vector3.zero
+    FlyVel.Parent = Root
+
+    FlyGyro = Instance.new("BodyGyro")
+    FlyGyro.MaxTorque = Vector3.new(
+        math.huge,
+        math.huge,
+        math.huge
+    )
+    FlyGyro.P = 10000
+    FlyGyro.CFrame = Root.CFrame
+    FlyGyro.Parent = Root
+
+    if FlyConn then
+        FlyConn:Disconnect()
+    end
+
+    FlyConn = RunService.RenderStepped:Connect(function()
+
+        if not State.Fly then
+            return
+        end
+
+        if not Root or not Root.Parent then
+            return
+        end
+
+        local Camera = Workspace.CurrentCamera
+
+        if not Camera then
+            return
+        end
+
+        local move = Vector3.zero
+
+        if FlyKeys[Enum.KeyCode.W] then
+            move += Camera.CFrame.LookVector
+        end
+
+        if FlyKeys[Enum.KeyCode.S] then
+            move -= Camera.CFrame.LookVector
+        end
+
+        if FlyKeys[Enum.KeyCode.A] then
+            move -= Camera.CFrame.RightVector
+        end
+
+        if FlyKeys[Enum.KeyCode.D] then
+            move += Camera.CFrame.RightVector
+        end
+
+        if FlyKeys[Enum.KeyCode.Space] then
+            move += Vector3.new(0,1,0)
+        end
+
+        if FlyKeys[Enum.KeyCode.LeftControl] then
+            move -= Vector3.new(0,1,0)
+        end
+
+        if Humanoid and Humanoid.MoveDirection.Magnitude > 0 then
+
+            move += Humanoid.MoveDirection
+
+        end
+
+        if move.Magnitude > 0 then
+            move = move.Unit * State.FlyValue
+        else
+            move = Vector3.zero
+        end
+
+        FlyVel.Velocity = move
+        FlyGyro.CFrame = Camera.CFrame
+
+    end)
+
+end
+
+StopFly = function()
+
+    State.Fly = false
+
+    if FlyConn then
+        FlyConn:Disconnect()
+        FlyConn = nil
+    end
+
+    if FlyVel then
+        FlyVel:Destroy()
+        FlyVel = nil
+    end
+
+    if FlyGyro then
+        FlyGyro:Destroy()
+        FlyGyro = nil
+    end
+
+end
+
+--========================================================--
+-- FIX LAG
+--========================================================--
+
+local FixCache = {}
+local FixConnection
+
+local function DisableObject(obj)
+
+    if FixCache[obj] then
+        return
+    end
+
+    local data = {
+        obj = obj
     }
 
-    return ESPObjects[obj]
-end
+    if obj:IsA("ParticleEmitter")
+    or obj:IsA("Trail")
+    or obj:IsA("Beam")
+    or obj:IsA("Smoke")
+    or obj:IsA("Fire")
+    or obj:IsA("Sparkles")
+    or obj:IsA("PostEffect") then
 
-local function IsESPTarget(obj)
+        data.type = "Enabled"
+        data.value = obj.Enabled
 
-    if not obj:IsA("BasePart") then
-        return false
-    end
+        obj.Enabled = false
 
-    local n = obj.Name:lower()
+    elseif obj:IsA("PointLight")
+    or obj:IsA("SpotLight")
+    or obj:IsA("SurfaceLight") then
 
-    if n:find("egg")
-    or n:find("trung")
-    or n:find("pet")
-    or n:find("nest") then
-        return true
-    end
+        data.type = "Enabled"
+        data.value = obj.Enabled
 
-    return false
-end
+        obj.Enabled = false
 
-local function ClearESP()
+    elseif obj:IsA("Decal")
+    or obj:IsA("Texture") then
 
-    for obj in pairs(ESPObjects) do
-        RemoveESP(obj)
-    end
-end
+        data.type = "Transparency"
+        data.value = obj.Transparency
 
-RunService.RenderStepped:Connect(function()
+        obj.Transparency = 1
 
-    if not State.ESP then
-        ClearESP()
+    elseif obj:IsA("BasePart") then
+
+        data.type = "Part"
+        data.cast = obj.CastShadow
+        data.reflect = obj.Reflectance
+        data.material = obj.Material
+
+        obj.CastShadow = false
+        obj.Reflectance = 0
+
+        pcall(function()
+            obj.Material = Enum.Material.Plastic
+        end)
+
+    elseif obj:IsA("Sound") then
+
+        data.type = "Volume"
+        data.value = obj.Volume
+
+        obj.Volume = 0
+
+    elseif obj:IsA("Sky") then
+
+        data.type = "Parent"
+        data.value = obj.Parent
+
+        obj.Parent = nil
+
+    else
         return
     end
 
-    local Camera = workspace.CurrentCamera
+    FixCache[obj] = data
+end
 
-    if not Camera then
+StartFixLag = function()
+
+    if State.FixLag then
         return
     end
 
-    for _,obj in ipairs(workspace:GetDescendants()) do
+    State.FixLag = true
 
-        if IsESPTarget(obj) then
+    for _,obj in ipairs(Lighting:GetDescendants()) do
+        DisableObject(obj)
+    end
 
-            local e = CreateESP(obj)
+    for _,obj in ipairs(Workspace:GetDescendants()) do
+        DisableObject(obj)
+    end
 
-            local pos,visible = Camera:WorldToViewportPoint(obj.Position)
+    if FixConnection then
+        FixConnection:Disconnect()
+    end
 
-            if visible then
+    FixConnection = Workspace.DescendantAdded:Connect(function(obj)
 
-                local distance = (Camera.CFrame.Position - obj.Position).Magnitude
-                local size = math.clamp(3500 / math.max(distance,1),35,150)
+        if State.FixLag then
+            task.defer(function()
+                DisableObject(obj)
+            end)
+        end
 
-                e.box.Position = UDim2.fromOffset(
-                    pos.X-size/2,
-                    pos.Y-size/2
-                )
+    end)
 
-                e.box.Size = UDim2.fromOffset(size,size)
+    pcall(function()
+        Lighting.GlobalShadows = false
+    end)
 
-                e.stroke.Color = State.ESPColor
-                e.box.Visible = true
+end
 
-                e.name.Text = obj.Name
-                e.name.TextColor3 = State.ESPColor
-                e.name.Position = UDim2.fromOffset(
-                    pos.X-size/2,
-                    pos.Y-size/2-22
-                )
-                e.name.Size = UDim2.fromOffset(size,20)
-                e.name.Visible = State.ShowName
+StopFixLag = function()
 
-                e.dist.Text = math.floor(distance).." studs"
-                e.dist.TextColor3 = State.ESPColor
-                e.dist.Position = UDim2.fromOffset(
-                    pos.X-size/2,
-                    pos.Y+size/2
-                )
-                e.dist.Size = UDim2.fromOffset(size,18)
-                e.dist.Visible = State.ShowDistance
+    if not State.FixLag then
+        return
+    end
 
-            else
+    State.FixLag = false
 
-                e.box.Visible = false
-                e.name.Visible = false
-                e.dist.Visible = false
+    if FixConnection then
+        FixConnection:Disconnect()
+        FixConnection = nil
+    end
+
+    for obj,data in pairs(FixCache) do
+
+        if obj and obj.Parent then
+
+            if data.type == "Enabled" then
+
+                pcall(function()
+                    obj.Enabled = data.value
+                end)
+
+            elseif data.type == "Transparency" then
+
+                pcall(function()
+                    obj.Transparency = data.value
+                end)
+
+            elseif data.type == "Volume" then
+
+                pcall(function()
+                    obj.Volume = data.value
+                end)
+
+            elseif data.type == "Part" then
+
+                pcall(function()
+                    obj.CastShadow = data.cast
+                    obj.Reflectance = data.reflect
+                    obj.Material = data.material
+                end)
+
+            elseif data.type == "Parent" then
+
+                pcall(function()
+                    obj.Parent = data.value
+                end)
 
             end
         end
     end
-end)
 
-ESPBtn.MouseButton1Click:Connect(function()
+    table.clear(FixCache)
 
-    State.ESP = not State.ESP
+    pcall(function()
+        Lighting.GlobalShadows = true
+    end)
 
-    if State.ESP then
-        ESPBtn.Text = "ESP : ON"
-    else
-        ESPBtn.Text = "ESP : OFF"
-        ClearESP()
-    end
-end)
+end
 
---==================================================
+--========================================================--
 -- AUTO STEAL
---==================================================
+--========================================================--
 
-local AutoRunning = false
+local AutoThread = false
+local AutoStopToken = 0
 
 local EggWords = {
     "egg",
     "trung",
+    "steal egg",
+    "take egg",
+    "grab egg",
+    "pickup egg",
+    "pick up egg",
     "steal",
     "take",
     "grab",
-    "carry",
-    "pickup",
-    "pick up"
+    "pickup"
 }
 
-local BadWords = {
-    "machine",
+local DeliveryWords = {
+    "place egg",
+    "drop egg",
+    "deliver egg",
+    "deposit egg",
+    "hatch egg",
+    "place",
+    "deliver",
+    "deposit"
+}
+
+local BadEggWords = {
     "shop",
     "upgrade",
+    "machine",
     "treadmill",
-    "sell",
     "fuse",
     "display",
-    "decor"
+    "sell"
 }
 
-local function StringContains(text,words)
+local function Lower(v)
+    return tostring(v or ""):lower()
+end
 
-    if not text then
-        return false
-    end
+local function HasWord(text,list)
 
-    text = tostring(text):lower()
+    text = Lower(text)
 
-    for _,word in ipairs(words) do
+    for _,word in ipairs(list) do
+
         if text:find(word,1,true) then
             return true
         end
+
     end
 
     return false
 end
 
---==================================================
--- GET OBJECT TEXT
---==================================================
+local function PromptText(prompt)
 
-local function GetPromptText(prompt)
+    if not prompt then
+        return ""
+    end
 
-    local t = ""
+    local text = ""
 
     pcall(function()
-        t = t .. " " .. tostring(prompt.ActionText)
+        text = text .. " " .. Lower(prompt.ActionText)
     end)
 
     pcall(function()
-        t = t .. " " .. tostring(prompt.ObjectText)
+        text = text .. " " .. Lower(prompt.ObjectText)
     end)
 
-    local p = prompt.Parent
+    local obj = prompt.Parent
 
-    for i = 1,5 do
+    for i = 1,6 do
 
-        if not p then
+        if not obj then
             break
         end
 
-        t = t .. " " .. tostring(p.Name)
+        text = text .. " " .. Lower(obj.Name)
 
-        p = p.Parent
+        obj = obj.Parent
     end
 
-    return t:lower()
+    return text
 end
 
---==================================================
--- FIND EGG PROMPT
---==================================================
+local function PromptPart(prompt)
+
+    if not prompt then
+        return nil
+    end
+
+    local parent = prompt.Parent
+
+    if parent and parent:IsA("BasePart") then
+        return parent
+    end
+
+    if parent then
+
+        local p =
+            parent:FindFirstChildWhichIsA(
+                "BasePart",
+                true
+            )
+
+        if p then
+            return p
+        end
+    end
+
+    return nil
+end
+
+--========================================================--
+-- EGG PROMPT FINDER
+--========================================================--
 
 local function FindEggPrompt()
 
@@ -523,35 +1630,25 @@ local function FindEggPrompt()
         return nil
     end
 
-    local nearest = nil
+    local nearest
     local nearestDistance = math.huge
 
-    for _,obj in ipairs(workspace:GetDescendants()) do
+    for _,obj in ipairs(Workspace:GetDescendants()) do
 
-        if obj:IsA("ProximityPrompt") then
+        if obj:IsA("ProximityPrompt")
+        and obj.Enabled ~= false then
 
-            local text = GetPromptText(obj)
+            local text = PromptText(obj)
 
-            local hasEggWord = StringContains(text,EggWords)
-            local bad = StringContains(text,BadWords)
+            if HasWord(text,EggWords)
+            and not HasWord(text,BadEggWords) then
 
-            if hasEggWord and not bad then
-
-                local part
-
-                if obj.Parent:IsA("BasePart") then
-                    part = obj.Parent
-                else
-                    part = obj.Parent:FindFirstChildWhichIsA(
-                        "BasePart",
-                        true
-                    )
-                end
+                local part = PromptPart(obj)
 
                 if part then
 
                     local distance =
-                        (root.Position - part.Position).Magnitude
+                        (root.Position-part.Position).Magnitude
 
                     if distance < nearestDistance then
 
@@ -567,159 +1664,11 @@ local function FindEggPrompt()
     return nearest
 end
 
---==================================================
--- PROMPT POSITION
---==================================================
+--========================================================--
+-- DELIVERY PROMPT FINDER
+--========================================================--
 
-local function GetPromptPart(prompt)
-
-    if not prompt then
-        return nil
-    end
-
-    if prompt.Parent:IsA("BasePart") then
-        return prompt.Parent
-    end
-
-    return prompt.Parent:FindFirstChildWhichIsA(
-        "BasePart",
-        true
-    )
-end
-
---==================================================
--- FIRE PROMPT
---==================================================
-
-local function FirePrompt(prompt)
-
-    if not prompt then
-        return false
-    end
-
-    local success = false
-
-    pcall(function()
-
-        if fireproximityprompt then
-
-            fireproximityprompt(
-                prompt,
-                prompt.HoldDuration or 0
-            )
-
-            success = true
-        end
-
-    end)
-
-    if not success then
-
-        pcall(function()
-
-            prompt:InputHoldBegin()
-
-            task.wait(
-                math.max(
-                    prompt.HoldDuration,
-                    0.05
-                )
-            )
-
-            prompt:InputHoldEnd()
-
-            success = true
-
-        end)
-    end
-
-    return success
-end
-
---==================================================
--- CHECK CARRYING EGG
---==================================================
-
-local function IsCarryingEgg()
-
-    local char = LP.Character
-
-    if not char then
-        return false
-    end
-
-    -- attributes
-    local attrs = {
-        "HasEgg",
-        "CarryingEgg",
-        "CarryEgg",
-        "HoldingEgg",
-        "IsCarrying",
-        "Holding"
-    }
-
-    for _,a in ipairs(attrs) do
-
-        local value = char:GetAttribute(a)
-
-        if value == true then
-            return true
-        end
-    end
-
-    -- tool / model
-    for _,obj in ipairs(char:GetChildren()) do
-
-        if obj:IsA("Tool") or obj:IsA("Model") then
-
-            local n = obj.Name:lower()
-
-            if n:find("egg")
-            or n:find("trung") then
-                return true
-            end
-        end
-    end
-
-    -- backpack
-    local backpack = LP:FindFirstChildOfClass("Backpack")
-
-    if backpack then
-
-        for _,obj in ipairs(backpack:GetChildren()) do
-
-            if obj:IsA("Tool") then
-
-                local n = obj.Name:lower()
-
-                if n:find("egg")
-                or n:find("trung") then
-                    return true
-                end
-            end
-        end
-    end
-
-    -- character descendant names
-    for _,obj in ipairs(char:GetDescendants()) do
-
-        local n = obj.Name:lower()
-
-        if n == "carryingegg"
-        or n == "heldegg"
-        or n == "carriedegg" then
-            return true
-        end
-    end
-
-    return false
-end
-
---==================================================
--- FIND PLAYER BASE
---==================================================
-
-local function FindBase()
+local function FindDeliveryPrompt()
 
     local root = GetRoot()
 
@@ -727,120 +1676,30 @@ local function FindBase()
         return nil
     end
 
-    local possibleContainers = {
-        "Bases",
-        "Base",
-        "Plots",
-        "Plot",
-        "Players",
-        "Spawns",
-        "SpawnLocations"
-    }
+    local nearest
+    local nearestDistance = math.huge
 
-    -- ưu tiên object có tên player
-    for _,containerName in ipairs(possibleContainers) do
+    for _,obj in ipairs(Workspace:GetDescendants()) do
 
-        local container = workspace:FindFirstChild(containerName)
+        if obj:IsA("ProximityPrompt")
+        and obj.Enabled ~= false then
 
-        if container then
+            local text = PromptText(obj)
 
-            for _,obj in ipairs(container:GetDescendants()) do
+            if HasWord(text,DeliveryWords) then
 
-                local n = obj.Name:lower()
-
-                if n:find(LP.Name:lower(),1,true)
-                or n:find(LP.DisplayName:lower(),1,true) then
-
-                    if obj:IsA("BasePart") then
-                        return obj
-                    end
-
-                    local p = obj:FindFirstChildWhichIsA(
-                        "BasePart",
-                        true
-                    )
-
-                    if p then
-                        return p
-                    end
-                end
-            end
-        end
-    end
-
-    -- tìm prompt base/deliver
-    for _,obj in ipairs(workspace:GetDescendants()) do
-
-        if obj:IsA("ProximityPrompt") then
-
-            local text = GetPromptText(obj)
-
-            if StringContains(
-                text,
-                {
-                    "deliver",
-                    "deposit",
-                    "drop egg",
-                    "place egg",
-                    "your base",
-                    "base"
-                }
-            ) then
-
-                local part = GetPromptPart(obj)
-
-                if part then
-                    return part
-                end
-            end
-        end
-    end
-
-    return nil
-end
-
---==================================================
--- FIND BASE PROMPT
---==================================================
-
-local function FindBasePrompt()
-
-    local root = GetRoot()
-
-    if not root then
-        return nil
-    end
-
-    local nearest = nil
-    local best = math.huge
-
-    for _,obj in ipairs(workspace:GetDescendants()) do
-
-        if obj:IsA("ProximityPrompt") then
-
-            local text = GetPromptText(obj)
-
-            if StringContains(
-                text,
-                {
-                    "deliver",
-                    "deposit",
-                    "drop egg",
-                    "place egg",
-                    "base"
-                }
-            ) then
-
-                local part = GetPromptPart(obj)
+                local part = PromptPart(obj)
 
                 if part then
 
-                    local d =
-                        (root.Position - part.Position).Magnitude
+                    local distance =
+                        (root.Position-part.Position).Magnitude
 
-                    if d < best then
-                        best = d
+                    if distance < nearestDistance then
+
+                        nearestDistance = distance
                         nearest = obj
+
                     end
                 end
             end
@@ -850,11 +1709,211 @@ local function FindBasePrompt()
     return nearest
 end
 
---==================================================
--- MOVE BY SHORT STEPS
---==================================================
+--========================================================--
+-- FIRE PROMPT
+--========================================================--
 
-local function MoveToPosition(target)
+local function FirePrompt(prompt)
+
+    if not prompt then
+        return false
+    end
+
+    local fired = false
+
+    if typeof(fireproximityprompt) == "function" then
+
+        pcall(function()
+
+            fireproximityprompt(
+                prompt,
+                prompt.HoldDuration or 0
+            )
+
+            fired = true
+
+        end)
+
+    end
+
+    if fired then
+        return true
+    end
+
+    pcall(function()
+
+        prompt:InputHoldBegin()
+
+        local duration =
+            math.max(
+                tonumber(prompt.HoldDuration) or 0,
+                0.08
+            )
+
+        task.wait(duration)
+
+        prompt:InputHoldEnd()
+
+        fired = true
+
+    end)
+
+    return fired
+end
+
+--========================================================--
+-- CARRY DETECTION
+--========================================================--
+
+local function IsCarryingEgg()
+
+    local char = LP.Character
+
+    if not char then
+        return false
+    end
+
+    local attrs = {
+        "HasEgg",
+        "CarryingEgg",
+        "CarryEgg",
+        "HoldingEgg",
+        "IsCarrying",
+        "Holding",
+        "HasCarriedEgg"
+    }
+
+    for _,attribute in ipairs(attrs) do
+
+        local value = char:GetAttribute(attribute)
+
+        if value == true then
+            return true
+        end
+    end
+
+    -- tool / model
+    for _,obj in ipairs(char:GetChildren()) do
+
+        local n = Lower(obj.Name)
+
+        if n:find("egg",1,true)
+        or n:find("trung",1,true) then
+
+            if obj:IsA("Tool")
+            or obj:IsA("Model")
+            or obj:IsA("BasePart") then
+
+                return true
+            end
+        end
+    end
+
+    -- backpack
+    local backpack =
+        LP:FindFirstChildOfClass("Backpack")
+
+    if backpack then
+
+        for _,obj in ipairs(backpack:GetChildren()) do
+
+            local n = Lower(obj.Name)
+
+            if n:find("egg",1,true)
+            or n:find("trung",1,true) then
+
+                return true
+            end
+        end
+    end
+
+    -- descendant check
+    for _,obj in ipairs(char:GetDescendants()) do
+
+        local n = Lower(obj.Name)
+
+        if n == "carryingegg"
+        or n == "carriedegg"
+        or n == "heldegg" then
+
+            return true
+        end
+    end
+
+    return false
+end
+
+--========================================================--
+-- BASE / PEN FINDER
+--========================================================--
+
+local function FindOwnBase()
+
+    local root = GetRoot()
+
+    if not root then
+        return nil
+    end
+
+    local playerName = Lower(LP.Name)
+    local displayName = Lower(LP.DisplayName)
+
+    local containers = {
+        "Bases",
+        "Base",
+        "Plots",
+        "Plot",
+        "Pens",
+        "Pans",
+        "PlayerBases",
+        "PlayerPlots"
+    }
+
+    -- ưu tiên container có tên player
+    for _,containerName in ipairs(containers) do
+
+        local container =
+            Workspace:FindFirstChild(containerName)
+
+        if container then
+
+            for _,obj in ipairs(container:GetDescendants()) do
+
+                local n = Lower(obj.Name)
+
+                if n:find(playerName,1,true)
+                or n:find(displayName,1,true) then
+
+                    if obj:IsA("BasePart") then
+                        return obj
+                    end
+
+                    local part =
+                        obj:FindFirstChildWhichIsA(
+                            "BasePart",
+                            true
+                        )
+
+                    if part then
+                        return part
+                    end
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+--========================================================--
+-- MOVE
+--========================================================--
+
+local function MoveSmooth(target)
+
+    if not target then
+        return false
+    end
 
     local root = GetRoot()
 
@@ -862,20 +1921,34 @@ local function MoveToPosition(target)
         return false
     end
 
-    local start = root.Position
-    local distance = (target - start).Magnitude
+    local targetPosition
 
-    if distance <= 5 then
+    if typeof(target) == "Vector3" then
+        targetPosition = target
+    elseif target:IsA("BasePart") then
+        targetPosition = target.Position
+    else
+        return false
+    end
+
+    local distance =
+        (root.Position-targetPosition).Magnitude
+
+    if distance < 5 then
         return true
     end
 
-    local stepDistance =
-        math.clamp(State.StealSpeed / 7,6,14)
+    -- chia thành nhiều đoạn để không teleport một phát
+    local segment = math.clamp(
+        35 + State.StealSpeed * 0.18,
+        35,
+        65
+    )
 
-    local steps =
-        math.ceil(distance / stepDistance)
+    local segments =
+        math.max(1,math.ceil(distance/segment))
 
-    for i = 1,steps do
+    for i = 1,segments do
 
         if not State.AutoSteal then
             return false
@@ -887,166 +1960,340 @@ local function MoveToPosition(target)
             return false
         end
 
-        local alpha = i / steps
+        local current = root.Position
 
-        local pos = start:Lerp(target,alpha)
+        local alpha =
+            math.min(
+                1,
+                segment /
+                math.max(
+                    (targetPosition-current).Magnitude,
+                    0.01
+                )
+            )
 
-        root.CFrame = CFrame.new(pos)
+        local nextPosition =
+            current:Lerp(targetPosition,alpha)
 
-        RunService.Heartbeat:Wait()
+        local distanceToMove =
+            (nextPosition-current).Magnitude
+
+        local duration =
+            math.clamp(
+                distanceToMove /
+                math.max(State.StealSpeed,1),
+                0.08,
+                0.35
+            )
+
+        local tween = TweenService:Create(
+            root,
+            TweenInfo.new(
+                duration,
+                Enum.EasingStyle.Linear
+            ),
+            {
+                CFrame =
+                    CFrame.new(nextPosition)
+            }
+        )
+
+        tween:Play()
+        tween.Completed:Wait()
+
+        if (root.Position-targetPosition).Magnitude < 6 then
+            return true
+        end
     end
 
     return true
 end
 
---==================================================
--- AUTO STEAL LOOP
---==================================================
+--========================================================--
+-- WAIT FOR CARRY
+--========================================================--
 
-local function StartAutoSteal()
+local function WaitForCarry(timeout)
 
-    if AutoRunning then
+    local start = tick()
+
+    while tick()-start < timeout do
+
+        if not State.AutoSteal then
+            return false
+        end
+
+        if IsCarryingEgg() then
+            return true
+        end
+
+        task.wait(0.1)
+    end
+
+    return false
+end
+
+--========================================================--
+-- WAIT FOR DELIVERY
+--========================================================--
+
+local function WaitForDelivery(timeout)
+
+    local start = tick()
+
+    while tick()-start < timeout do
+
+        if not State.AutoSteal then
+            return false
+        end
+
+        if not IsCarryingEgg() then
+            return true
+        end
+
+        task.wait(0.12)
+    end
+
+    return false
+end
+
+--========================================================--
+-- AUTO STEAL
+--========================================================--
+
+StartAutoSteal = function()
+
+    if AutoThread then
         return
     end
 
-    AutoRunning = true
+    State.AutoSteal = true
+    AutoThread = true
+
+    AutoStopToken += 1
+
+    local myToken = AutoStopToken
 
     task.spawn(function()
 
-        while State.AutoSteal do
+        while State.AutoSteal
+        and not State.Destroyed
+        and myToken == AutoStopToken do
+
+            ------------------------------------------------
+            -- CHARACTER READY
+            ------------------------------------------------
 
             local root = GetRoot()
 
             if not root then
-                task.wait(1)
+                task.wait(0.5)
                 continue
             end
 
             ------------------------------------------------
-            -- PHASE 1: IF ALREADY CARRYING -> RETURN BASE
+            -- ALREADY CARRYING
             ------------------------------------------------
 
             if IsCarryingEgg() then
 
-                local basePrompt = FindBasePrompt()
+                local delivered = false
 
-                if basePrompt then
+                -- ưu tiên delivery prompt
+                for attempt = 1,3 do
 
-                    local part = GetPromptPart(basePrompt)
-
-                    if part then
-
-                        MoveToPosition(part.Position)
-
-                        task.wait(0.15)
-
-                        FirePrompt(basePrompt)
-
-                        task.wait(0.5)
-
+                    if not State.AutoSteal then
+                        break
                     end
 
-                else
+                    local prompt =
+                        FindDeliveryPrompt()
 
-                    local base = FindBase()
+                    if prompt then
+
+                        local part =
+                            PromptPart(prompt)
+
+                        if part then
+
+                            MoveSmooth(part.Position)
+
+                            task.wait(0.15)
+
+                            FirePrompt(prompt)
+
+                            if WaitForDelivery(2.5) then
+
+                                delivered = true
+                                break
+
+                            end
+                        end
+                    else
+                        break
+                    end
+
+                    task.wait(0.3)
+                end
+
+                ------------------------------------------------
+                -- fallback: own base
+                ------------------------------------------------
+
+                if not delivered then
+
+                    local base =
+                        FindOwnBase()
 
                     if base then
 
-                        MoveToPosition(base.Position)
+                        MoveSmooth(base.Position)
 
-                        task.wait(0.5)
+                        task.wait(0.25)
 
-                        -- tìm prompt lần nữa
-                        local p = FindBasePrompt()
+                        local prompt =
+                            FindDeliveryPrompt()
 
-                        if p then
-                            FirePrompt(p)
+                        if prompt then
+
+                            local part =
+                                PromptPart(prompt)
+
+                            if part then
+
+                                MoveSmooth(part.Position)
+
+                                task.wait(0.15)
+
+                                FirePrompt(prompt)
+
+                                delivered =
+                                    WaitForDelivery(3)
+
+                            end
                         end
                     end
                 end
 
-                task.wait(0.5)
+                if delivered then
+                    task.wait(0.45)
+                else
+                    -- Không coi như thành công.
+                    -- Chờ prompt giao xuất hiện lại.
+                    task.wait(0.6)
+                end
 
             ------------------------------------------------
-            -- PHASE 2: FIND EGG
+            -- NOT CARRYING
             ------------------------------------------------
 
             else
 
-                local eggPrompt = FindEggPrompt()
+                local eggPrompt =
+                    FindEggPrompt()
 
                 if eggPrompt then
 
-                    local part = GetPromptPart(eggPrompt)
+                    local part =
+                        PromptPart(eggPrompt)
 
                     if part then
 
-                        MoveToPosition(part.Position)
+                        local moved =
+                            MoveSmooth(part.Position)
 
-                        task.wait(0.15)
+                        if moved and State.AutoSteal then
 
-                        FirePrompt(eggPrompt)
+                            task.wait(0.12)
 
-                        -- chờ game xác nhận pickup
-                        local gotEgg = false
+                            FirePrompt(eggPrompt)
 
-                        for i = 1,20 do
+                            -- xác nhận thực sự đã lấy
+                            local gotEgg =
+                                WaitForCarry(2.2)
 
-                            task.wait(0.1)
+                            if gotEgg then
 
-                            if IsCarryingEgg() then
-                                gotEgg = true
-                                break
+                                task.wait(0.15)
+
+                            else
+
+                                -- prompt cũ có thể đã hết hiệu lực
+                                task.wait(0.35)
                             end
-                        end
-
-                        if not gotEgg then
-                            task.wait(0.4)
                         end
                     end
 
                 else
 
-                    -- không thấy egg
-                    task.wait(0.5)
-
+                    -- không có target
+                    task.wait(0.35)
                 end
             end
+
+            task.wait(0.08)
         end
 
-        AutoRunning = false
+        AutoThread = false
+
     end)
+
 end
 
-AutoBtn.MouseButton1Click:Connect(function()
-
-    State.AutoSteal = not State.AutoSteal
-
-    if State.AutoSteal then
-
-        AutoBtn.Text = "AUTO STEAL : ON"
-        AutoBtn.BackgroundColor3 = Color3.fromRGB(35,120,65)
-
-        StartAutoSteal()
-
-    else
-
-        AutoBtn.Text = "AUTO STEAL : OFF"
-        AutoBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
-
-    end
-end)
-
---==================================================
--- CLOSE
---==================================================
-
-Close.MouseButton1Click:Connect(function()
+StopAutoSteal = function()
 
     State.AutoSteal = false
-    State.ESP = false
+    AutoStopToken += 1
 
-    ClearESP()
+end
 
-    Gui:Destroy()
+--========================================================--
+-- CHARACTER RESPAWN
+--========================================================--
+
+Connect(LP.CharacterAdded,function(char)
+
+    Character = char
+
+    Humanoid =
+        char:WaitForChild(
+            "Humanoid",
+            10
+        )
+
+    Root =
+        char:WaitForChild(
+            "HumanoidRootPart",
+            10
+        )
+
+    task.wait(0.5)
+
+    if State.Speed then
+        StartSpeed()
+    end
+
+    if State.Fly then
+
+        task.wait(0.25)
+
+        StopFly()
+        StartFly()
+
+    end
+
+    -- Auto Steal tự chạy lại sau respawn
+    if State.AutoSteal then
+
+        task.wait(0.5)
+
+        AutoThread = false
+        StartAutoSteal()
+
+    end
+
 end)
+
+--========================================================--
+-- END
+--========================================================--
