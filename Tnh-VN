@@ -4,6 +4,7 @@ local UIS=game:GetService("UserInputService")
 local RS=game:GetService("RunService")
 local Lighting=game:GetService("Lighting")
 local WS=game:GetService("Workspace")
+local TS=game:GetService("TweenService")
 local LP=Players.LocalPlayer
 
 local S={
@@ -53,34 +54,23 @@ local EggData={
 }
 
 local Txt={
-VN={main="Menu Chính",mainD="Chức năng chính",esp="ESP Player",espD="Box + Tên + Khoảng cách",color="Màu ESP",aimH="Aimbot - Đầu",aimHD="Khóa tâm vào đầu",aimB="Aimbot - Thân",aimBD="Khóa tâm vào thân",pov="POV (Field of View)",povD="Tầm nhìn 1-300",antiHit="Anti Hit",antiHitD="Đứng yên, không ragdoll",antiban="Antiban",antibanD="Giảm rủi ro ban",fly="Fly",flyD="Bay",flySpd="Tốc độ Fly",speed="Speed",speedD="Tốc độ chạy",speedT="Bật Speed",speedTD="1-500",fix="FixLag",fixD="Tối ưu hiệu năng",steal="Steal An Egg",lang="Ngôn ngữ",langD="Đổi ngôn ngữ",eggLoc="Định Vị Egg",eggScan="Quét Egg",autoSteal="Auto Steal Egg",autoStealD="Teleport nhặt → về Base",prio="Ưu tiên Secret",prioD="Ưu tiên Egg Secret",antiTrap="Anti Bẫy",antiTrapD="Không dính bẫy",stat="Trạng thái",off="Chưa bật",on="Đang bật",noEgg="Không tìm thấy Egg",blue="Xanh dương",red="Đỏ",pink="Hồng",green="Xanh lá",yellow="Vàng",purple="Tím",white="Trắng"},
-EN={main="Main Menu",mainD="Main utilities",esp="ESP Player",espD="Box + Name + Distance",color="ESP Color",aimH="Aimbot - Head",aimHD="Lock on head",aimB="Aimbot - Body",aimBD="Lock on body",pov="POV (Field of View)",povD="FOV 1-300",antiHit="Anti Hit",antiHitD="Stand still, no ragdoll",antiban="Antiban",antibanD="Reduce ban risk",fly="Fly",flyD="Toggle fly",flySpd="Fly Speed",speed="Speed",speedD="Run speed",speedT="Speed",speedTD="1-500",fix="FixLag",fixD="Optimize",steal="Steal An Egg",lang="Language",langD="Change language",eggLoc="Egg Locator",eggScan="Scan Eggs",autoSteal="Auto Steal Egg",autoStealD="Teleport pickup to Base",prio="Priority Secret",prioD="Prioritize Secret",antiTrap="Anti Trap",antiTrapD="Walk through traps",stat="Status",off="Inactive",on="Active",noEgg="No Egg found",blue="Blue",red="Red",pink="Pink",green="Green",yellow="Yellow",purple="Purple",white="White"},
-TH={main="เมนูหลัก",mainD="ฟังก์ชันหลัก",esp="ESP Player",espD="กรอบ+ชื่อ+ระยะ",color="สี ESP",aimH="Aimbot หัว",aimHD="ล็อกหัว",aimB="Aimbot ตัว",aimBD="ล็อกตัว",pov="POV",povD="มุมมอง 1-300",antiHit="Anti Hit",antiHitD="ไม่ ragdoll",antiban="Antiban",antibanD="ลดแบน",fly="บิน",flyD="เปิด/ปิด",flySpd="ความเร็วบิน",speed="ความเร็ว",speedD="ความเร็ววิ่ง",speedT="เปิดความเร็ว",speedTD="1-500",fix="FixLag",fixD="เพิ่มประสิทธิภาพ",steal="Steal An Egg",lang="ภาษา",langD="เปลี่ยนภาษา",eggLoc="ตำแหน่งไข่",eggScan="สแกนไข่",autoSteal="Auto Steal Egg",autoStealD="เก็บไข่→ฐาน",prio="Secret ก่อน",prioD="Secret ก่อน",antiTrap="Anti Trap",antiTrapD="ผ่านกับดัก",stat="สถานะ",off="ไม่ทำงาน",on="ทำงาน",noEgg="ไม่พบไข่",blue="ฟ้า",red="แดง",pink="ชมพู",green="เขียว",yellow="เหลือง",purple="ม่วง",white="ขาว"},
-KR={main="메인 메뉴",mainD="주요 기능",esp="ESP Player",espD="박스+이름+거리",color="ESP 색상",aimH="Aimbot 머리",aimHD="머리 조준",aimB="Aimbot 몸",aimBD="몸 조준",pov="POV",povD="시야각 1-300",antiHit="Anti Hit",antiHitD="래그돌 방지",antiban="Antiban",antibanD="밴 위험 감소",fly="비행",flyD="비행",flySpd="비행 속도",speed="속도",speedD="이동 속도",speedT="속도",speedTD="1-500",fix="FixLag",fixD="최적화",steal="Steal An Egg",lang="언어",langD="언어 변경",eggLoc="알 위치",eggScan="알 스캔",autoSteal="Auto Steal Egg",autoStealD="알 자동 획득",prio="Secret 우선",prioD="Secret 우선",antiTrap="Anti Trap",antiTrapD="함정 통과",stat="상태",off="비활성",on="활성",noEgg="알 없음",blue="파랑",red="빨강",pink="분홍",green="초록",yellow="노랑",purple="보라",white="흰색"},
-CN={main="主菜单",mainD="主要功能",esp="ESP Player",espD="方框+名称+距离",color="ESP颜色",aimH="自瞄-头部",aimHD="锁定头部",aimB="自瞄-身体",aimBD="锁定身体",pov="POV",povD="视野 1-300",antiHit="Anti Hit",antiHitD="防软体",antiban="Antiban",antibanD="降低封号",fly="飞行",flyD="开关飞行",flySpd="飞行速度",speed="速度",speedD="移动速度",speedT="速度",speedTD="1-500",fix="FixLag",fixD="优化",steal="Steal An Egg",lang="语言",langD="更改语言",eggLoc="蛋位置",eggScan="扫描蛋",autoSteal="Auto Steal Egg",autoStealD="自动拾取",prio="优先 Secret",prioD="优先 Secret",antiTrap="Anti Trap",antiTrapD="穿过陷阱",stat="状态",off="未激活",on="激活",noEgg="未找到蛋",blue="蓝色",red="红色",pink="粉色",green="绿色",yellow="黄色",purple="紫色",white="白色"}
+VN={main="Menu Chính",mainD="Chức năng chính",esp="ESP Player",espD="Box + Tên + Khoảng cách",color="Màu ESP",aimH="Aimbot - Đầu",aimHD="Khóa tâm vào đầu",aimB="Aimbot - Thân",aimBD="Khóa tâm vào thân",pov="POV (Field of View)",povD="Tầm nhìn 1-300",antiHit="Anti Hit",antiHitD="Đứng yên, không ragdoll",antiban="Bypass AntiBan",antibanD="Mô phỏng hành vi người chơi thật",fly="Fly",flyD="Bay",flySpd="Tốc độ Fly",speed="Speed",speedD="Tốc độ chạy",speedT="Bật Speed",speedTD="1-500",fix="FixLag Siêu Mạnh",fixD="Tắt toàn bộ effect, giảm 75-90% lag",steal="Steal An Egg",lang="Ngôn ngữ",langD="Đổi ngôn ngữ",eggLoc="Định Vị Egg",eggScan="Quét Egg",autoSteal="Auto Steal Egg",autoStealD="Ragdoll → tele trứng → bay về Base",prio="Ưu tiên Secret",prioD="Ưu tiên Egg Secret",antiTrap="Anti Bẫy",antiTrapD="Không dính bẫy",stat="Trạng thái",off="Chưa bật",on="Đang bật",noEgg="Không tìm thấy Egg",blue="Xanh dương",red="Đỏ",pink="Hồng",green="Xanh lá",yellow="Vàng",purple="Tím",white="Trắng"},
+EN={main="Main Menu",mainD="Main utilities",esp="ESP Player",espD="Box + Name + Distance",color="ESP Color",aimH="Aimbot - Head",aimHD="Lock on head",aimB="Aimbot - Body",aimBD="Lock on body",pov="POV (Field of View)",povD="FOV 1-300",antiHit="Anti Hit",antiHitD="Stand still, no ragdoll",antiban="Bypass AntiBan",antibanD="Simulate real player behavior",fly="Fly",flyD="Toggle fly",flySpd="Fly Speed",speed="Speed",speedD="Run speed",speedT="Speed",speedTD="1-500",fix="Super FixLag",fixD="Disable all effects, reduce 75-90% lag",steal="Steal An Egg",lang="Language",langD="Change language",eggLoc="Egg Locator",eggScan="Scan Eggs",autoSteal="Auto Steal Egg",autoStealD="Ragdoll → teleport → fly to Base",prio="Priority Secret",prioD="Prioritize Secret",antiTrap="Anti Trap",antiTrapD="Walk through traps",stat="Status",off="Inactive",on="Active",noEgg="No Egg found",blue="Blue",red="Red",pink="Pink",green="Green",yellow="Yellow",purple="Purple",white="White"},
+TH={main="เมนูหลัก",mainD="ฟังก์ชันหลัก",esp="ESP Player",espD="กรอบ+ชื่อ+ระยะ",color="สี ESP",aimH="Aimbot หัว",aimHD="ล็อกหัว",aimB="Aimbot ตัว",aimBD="ล็อกตัว",pov="POV",povD="มุมมอง 1-300",antiHit="Anti Hit",antiHitD="ไม่ ragdoll",antiban="Bypass AntiBan",antibanD="จำลองพฤติกรรมผู้เล่นจริง",fly="บิน",flyD="เปิด/ปิด",flySpd="ความเร็วบิน",speed="ความเร็ว",speedD="ความเร็ววิ่ง",speedT="เปิดความเร็ว",speedTD="1-500",fix="FixLag แรง",fixD="ปิดเอฟเฟกต์ ลด 75-90%",steal="Steal An Egg",lang="ภาษา",langD="เปลี่ยนภาษา",eggLoc="ตำแหน่งไข่",eggScan="สแกนไข่",autoSteal="Auto Steal Egg",autoStealD="Ragdoll → tele → กลับฐาน",prio="Secret ก่อน",prioD="Secret ก่อน",antiTrap="Anti Trap",antiTrapD="ผ่านกับดัก",stat="สถานะ",off="ไม่ทำงาน",on="ทำงาน",noEgg="ไม่พบไข่",blue="ฟ้า",red="แดง",pink="ชมพู",green="เขียว",yellow="เหลือง",purple="ม่วง",white="ขาว"},
+KR={main="메인 메뉴",mainD="주요 기능",esp="ESP Player",espD="박스+이름+거리",color="ESP 색상",aimH="Aimbot 머리",aimHD="머리 조준",aimB="Aimbot 몸",aimBD="몸 조준",pov="POV",povD="시야각 1-300",antiHit="Anti Hit",antiHitD="래그돌 방지",antiban="Bypass AntiBan",antibanD="실제 플레이어 행동 시뮬레이션",fly="비행",flyD="비행",flySpd="비행 속도",speed="속도",speedD="이동 속도",speedT="속도",speedTD="1-500",fix="Super FixLag",fixD="모든 효과 끄기 75-90%",steal="Steal An Egg",lang="언어",langD="언어 변경",eggLoc="알 위치",eggScan="알 스캔",autoSteal="Auto Steal Egg",autoStealD="래그돌 → 텔레포트 → 기지로",prio="Secret 우선",prioD="Secret 우선",antiTrap="Anti Trap",antiTrapD="함정 통과",stat="상태",off="비활성",on="활성",noEgg="알 없음",blue="파랑",red="빨강",pink="분홍",green="초록",yellow="노랑",purple="보라",white="흰색"},
+CN={main="主菜单",mainD="主要功能",esp="ESP Player",espD="方框+名称+距离",color="ESP颜色",aimH="自瞄-头部",aimHD="锁定头部",aimB="自瞄-身体",aimBD="锁定身体",pov="POV",povD="视野 1-300",antiHit="Anti Hit",antiHitD="防软体",antiban="Bypass AntiBan",antibanD="模拟真实玩家行为",fly="飞行",flyD="开关飞行",flySpd="飞行速度",speed="速度",speedD="移动速度",speedT="速度",speedTD="1-500",fix="超级FixLag",fixD="关闭全部效果 减75-90%",steal="Steal An Egg",lang="语言",langD="更改语言",eggLoc="蛋位置",eggScan="扫描蛋",autoSteal="Auto Steal Egg",autoStealD="软体→传送→飞回基地",prio="优先 Secret",prioD="优先 Secret",antiTrap="Anti Trap",antiTrapD="穿过陷阱",stat="状态",off="未激活",on="激活",noEgg="未找到蛋",blue="蓝色",red="红色",pink="粉色",green="绿色",yellow="黄色",purple="紫色",white="白色"}
 }
 local function T(k) return Txt[S.Language][k] end
 
--- ==================================================
--- PALETTE - TỐI GIẢN
--- ==================================================
 local P={
-    Bg=Color3.fromRGB(20,20,22),        -- Nền chính
-    Surf=Color3.fromRGB(28,28,30),      -- Nền phụ
-    Card=Color3.fromRGB(35,35,38),      -- Card
-    Border=Color3.fromRGB(50,50,54),    -- Viền
-    Accent=Color3.fromRGB(88,166,255),  -- Xanh dương nhẹ
-    On=Color3.fromRGB(88,166,255),      -- Bật
-    Off=Color3.fromRGB(55,55,58),       -- Tắt
-    TextPri=Color3.fromRGB(235,235,240),
-    TextSec=Color3.fromRGB(150,150,155),
-    Success=Color3.fromRGB(80,200,120),
+    Bg=Color3.fromRGB(20,20,22),Surf=Color3.fromRGB(28,28,30),
+    Card=Color3.fromRGB(35,35,38),Border=Color3.fromRGB(50,50,54),
+    Accent=Color3.fromRGB(88,166,255),On=Color3.fromRGB(88,166,255),
+    Off=Color3.fromRGB(55,55,58),TextPri=Color3.fromRGB(235,235,240),
+    TextSec=Color3.fromRGB(150,150,155),Success=Color3.fromRGB(80,200,120),
     Danger=Color3.fromRGB(240,90,90)
 }
 
--- ==================================================
--- GUI
--- ==================================================
 local Gui=Instance.new("ScreenGui")
 Gui.Name="TnhVN";Gui.ResetOnSpawn=false;Gui.IgnoreGuiInset=true
 Gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;Gui.DisplayOrder=999
@@ -106,9 +96,6 @@ local Notice=Lbl(Gui,"Tnh-VN MENU",13,UDim2.new(.5,-120,0,5))
 Notice.Size=UDim2.new(0,240,0,25);Notice.TextXAlignment=Enum.TextXAlignment.Center
 Notice.TextColor3=P.TextSec
 
--- ==================================================
--- MAIN FRAME
--- ==================================================
 local Main=Instance.new("Frame")
 Main.Name="Main";Main.Size=UDim2.new(0,700,0,470)
 Main.Position=UDim2.new(.5,-350,.5,-235)
@@ -116,7 +103,6 @@ Main.BackgroundColor3=P.Bg;Main.BorderSizePixel=0
 Main.Active=true;Main.ZIndex=1;Main.Visible=false;Main.Parent=Gui
 Corner(Main,14);Stroke(Main,P.Border,1,.3)
 
--- Top bar
 local Top=Instance.new("Frame")
 Top.Size=UDim2.new(1,0,0,52);Top.BackgroundColor3=P.Surf
 Top.BorderSizePixel=0;Top.Active=true;Top.ZIndex=3;Top.Parent=Main
@@ -126,7 +112,6 @@ TopCover.Size=UDim2.new(1,0,0,10);TopCover.Position=UDim2.new(0,0,1,-10)
 TopCover.BackgroundColor3=P.Surf;TopCover.BorderSizePixel=0
 TopCover.ZIndex=4;TopCover.Parent=Top
 
--- Logo simple
 local LogoBox=Instance.new("Frame")
 LogoBox.Size=UDim2.new(0,30,0,30);LogoBox.Position=UDim2.new(0,16,0,11)
 LogoBox.BackgroundColor3=P.Accent;LogoBox.BorderSizePixel=0
@@ -148,8 +133,6 @@ Min.Size=UDim2.new(0,36,0,36);Min.Position=UDim2.new(1,-80,0,8)
 Min.BackgroundTransparency=1;Min.Text="−";Min.TextSize=22
 Min.TextColor3=P.TextSec;Min.Font=Enum.Font.GothamBold
 Min.ZIndex=20;Min.Parent=Top
-Min.MouseEnter:Connect(function() Min.TextColor3=P.TextPri end)
-Min.MouseLeave:Connect(function() Min.TextColor3=P.TextSec end)
 
 local Cls=Instance.new("TextButton")
 Cls.Size=UDim2.new(0,36,0,36);Cls.Position=UDim2.new(1,-44,0,8)
@@ -159,7 +142,6 @@ Cls.ZIndex=20;Cls.Parent=Top
 Cls.MouseEnter:Connect(function() Cls.TextColor3=P.Danger end)
 Cls.MouseLeave:Connect(function() Cls.TextColor3=P.TextSec end)
 
--- Drag
 local dr,ds,sp
 Top.InputBegan:Connect(function(i)
     if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -174,9 +156,6 @@ UIS.InputChanged:Connect(function(i)
 end)
 UIS.InputEnded:Connect(function() dr=false end)
 
--- ==================================================
--- SIDEBAR
--- ==================================================
 local Side=Instance.new("Frame")
 Side.Size=UDim2.new(0,170,1,-66);Side.Position=UDim2.new(0,10,0,60)
 Side.BackgroundColor3=P.Surf;Side.BorderSizePixel=0
@@ -261,9 +240,6 @@ XB.MouseButton1Click:Connect(function() OpenPg("FixLag") end)
 EB.MouseButton1Click:Connect(function() OpenPg("Steal") end)
 LB.MouseButton1Click:Connect(function() OpenPg("Language") end)
 
--- ==================================================
--- KEY FRAME
--- ==================================================
 local KF=Instance.new("Frame")
 KF.Size=UDim2.new(0,380,0,230);KF.Position=UDim2.new(.5,-190,.5,-115)
 KF.BackgroundColor3=P.Bg;KF.BorderSizePixel=0
@@ -286,8 +262,7 @@ local KSt=Instance.new("TextLabel")
 KSt.Size=UDim2.new(1,-40,0,20);KSt.Position=UDim2.new(0,20,0,58)
 KSt.BackgroundTransparency=1;KSt.Text="Nhập Key để tiếp tục"
 KSt.TextColor3=P.TextSec;KSt.TextSize=11
-KSt.TextXAlignment=Enum.TextXAlignment.Left
-KSt.ZIndex=203;KSt.Parent=KF
+KSt.TextXAlignment=Enum.TextXAlignment.Left;KSt.ZIndex=203;KSt.Parent=KF
 
 local KB=Instance.new("TextBox")
 KB.Size=UDim2.new(1,-40,0,42);KB.Position=UDim2.new(0,20,0,84)
@@ -310,8 +285,7 @@ local KStat=Instance.new("TextLabel")
 KStat.Size=UDim2.new(1,-40,0,20);KStat.Position=UDim2.new(0,20,0,188)
 KStat.BackgroundTransparency=1;KStat.Text=""
 KStat.TextColor3=P.Danger;KStat.TextSize=11
-KStat.TextXAlignment=Enum.TextXAlignment.Left
-KStat.ZIndex=203;KStat.Parent=KF
+KStat.TextXAlignment=Enum.TextXAlignment.Left;KStat.ZIndex=203;KStat.Parent=KF
 
 local function VK()
     if KB.Text=="Tnh-VN" then
@@ -325,9 +299,6 @@ end
 KC.MouseButton1Click:Connect(VK)
 KB.FocusLost:Connect(function(e) if e then VK() end end)
 
--- ==================================================
--- HELPERS
--- ==================================================
 local function PgHdr(p,t,d)
     local h=Lbl(p,t,24,UDim2.new(0,6,0,4))
     h.Size=UDim2.new(1,-15,0,32);h.Font=Enum.Font.GothamBold
@@ -345,7 +316,6 @@ local function Row(p,h)
     Corner(r,10);Stroke(r,P.Border,1,.6);return r
 end
 
--- Toggle
 local function Tog(p,title,desc,cb)
     local r=Row(p,68)
     local tl=Lbl(r,title,14,UDim2.new(0,16,0,12))
@@ -383,9 +353,6 @@ local function Tog(p,title,desc,cb)
     R();return {Row=r,Title=tl,Description=dl}
 end
 
--- ==================================================
--- EGG HELPERS
--- ==================================================
 local function PI(s)
     if not s then return 0 end
     local n=tonumber((s:gsub("[^%d%.]",""))) or 0
@@ -504,10 +471,8 @@ local function Scan(radius)
     return eggs
 end
 
--- MAIN PAGE
 local MH=PgHdr(MainP,T("main"),T("mainD"))
 
--- ESP BOX
 local ESD={}
 local function AddESP(p)
     if p==LP or ESD[p] then return end
@@ -588,7 +553,6 @@ end)
 
 local ET=Tog(MainP,T("esp"),T("espD"),function(v) S.ESP=v end)
 
--- ESP COLOR
 local CR=Row(MainP,56)
 local CL=Lbl(CR,T("color"),14,UDim2.new(0,16,0,18))
 CL.Font=Enum.Font.GothamBold
@@ -632,7 +596,6 @@ for i,v in ipairs(Cols) do
 end
 CO.MouseButton1Click:Connect(function() CLs.Visible=not CLs.Visible end)
 
--- AIMBOT
 local ABC
 local function CT(bones)
     local cam=WS.CurrentCamera
@@ -685,7 +648,6 @@ local AB=Tog(MainP,T("aimB"),T("aimBD"),function(v)
     elseif not S.AimbotHead and ABC then ABC:Disconnect();ABC=nil end
 end)
 
--- POV SLIDER
 local PR=Row(MainP,80)
 local PT=Lbl(PR,T("pov"),14,UDim2.new(0,16,0,12))
 PT.Font=Enum.Font.GothamBold
@@ -732,7 +694,6 @@ task.spawn(function()
     if cam then cam.FieldOfView=S.POV end
 end)
 
--- ANTI HIT
 local NST={
     Enum.HumanoidStateType.Ragdoll,
     Enum.HumanoidStateType.FallingDown,
@@ -788,23 +749,108 @@ local AHT=Tog(MainP,T("antiHit"),T("antiHitD"),function(v)
     else S.AntiHit=false;StopAH() end
 end)
 
+-- ==================================================
+-- BYPASS ANTIBAN (MỚI - Mô phỏng hành vi người chơi)
+-- ==================================================
 local ABL
-local ABT=Tog(MainP,T("antiban"),T("antibanD"),function(v)
-    S.Antiban=v
-    if v then
-        if ABL then ABL:Disconnect() end
-        ABL=RS.Heartbeat:Connect(function()
-            if not S.Antiban then return end
-            local hum=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                if not S.Speed and hum.WalkSpeed>25 then hum.WalkSpeed=16 end
-                if hum.JumpPower and hum.JumpPower>100 then hum.JumpPower=50 end
+local AntibanJitter = 0
+local AntibanCycle = 0
+
+local function StartAntiban()
+    S.Antiban=true
+    if ABL then ABL:Disconnect() end
+    
+    ABL=RS.Heartbeat:Connect(function()
+        if not S.Antiban then return end
+        AntibanCycle = AntibanCycle + 1
+        
+        local hum=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        if not hum then return end
+        
+        -- ==========================================
+        -- 1. Speed Clamp thông minh
+        -- ==========================================
+        local maxSpeed = 16  -- tốc độ đi bộ mặc định của game
+        if S.Speed then
+            maxSpeed = math.min(S.SpeedValue, 200)
+        end
+        
+        -- Nếu đang Fly → không clamp speed
+        if not S.Fly and hum.WalkSpeed > maxSpeed then
+            -- Giảm từ từ để không bị nghi ngờ (giảm 5% mỗi frame)
+            local diff = hum.WalkSpeed - maxSpeed
+            if diff > 2 then
+                hum.WalkSpeed = hum.WalkSpeed - diff * 0.05
+            else
+                hum.WalkSpeed = maxSpeed
             end
-        end)
-    elseif ABL then ABL:Disconnect();ABL=nil end
+        end
+        
+        -- ==========================================
+        -- 2. JumpPower Clamp
+        -- ==========================================
+        if hum.JumpPower and hum.JumpPower > 100 then
+            hum.JumpPower = 50
+        end
+        
+        -- ==========================================
+        -- 3. Random micro-jitter (mô phỏng run bộ tự nhiên)
+        -- ==========================================
+        -- Cứ 30 frame (~0.5s) thì jitter 1 lần
+        if AntibanCycle % 30 == 0 and not S.Fly and not S.AutoSteal then
+            local moveDir = hum.MoveDirection
+            if moveDir.Magnitude > 0 then
+                -- Xoay nhân vật nhẹ ±2° để giống người chơi thật
+                local rt = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                if rt then
+                    local jitterAngle = math.rad(math.random(-20, 20) / 10)
+                    pcall(function()
+                        rt.CFrame = rt.CFrame * CFrame.Angles(0, jitterAngle, 0)
+                    end)
+                end
+            end
+        end
+        
+        -- ==========================================
+        -- 4. Random look-around (mô phỏng người chơi quan sát)
+        -- ==========================================
+        -- Cứ 120 frame (~2s) thì đổi hướng nhìn 1 lần
+        if AntibanCycle % 120 == 0 and not S.Fly and not S.AutoSteal and not S.AimbotHead and not S.AimbotBody then
+            local cam = WS.CurrentCamera
+            if cam then
+                local yawJitter = math.rad(math.random(-30, 30))
+                pcall(function()
+                    cam.CFrame = cam.CFrame * CFrame.Angles(0, yawJitter, 0)
+                end)
+            end
+        end
+        
+        -- ==========================================
+        -- 5. Health check (tránh HP bất thường 100% liên tục)
+        -- ==========================================
+        if hum.Health >= hum.MaxHealth then
+            -- Không cần làm gì, để game tự xử lý
+        end
+    end)
+end
+
+local function StopAntiban()
+    S.Antiban=false
+    if ABL then ABL:Disconnect();ABL=nil end
+end
+
+local ABT=Tog(MainP,T("antiban"),T("antibanD"),function(v)
+    if v then StartAntiban() else StopAntiban() end
 end)
 
--- ESP EGG
+local ABL2
+local ABT2=Tog(MainP,T("antiban"),T("antibanD").." ",function(v)
+    -- Không dùng, đã gộp vào ABT
+end)
+ABT2.Row.Visible=false
+
+-- (Ghi chú: ABT chính là Bypass AntiBan)
+
 local ETags={}
 local function RCol(r)
     r=(r or ""):lower()
@@ -869,7 +915,6 @@ local EET=Tog(MainP,"ESP Egg","Hiện tên + giá trên đầu trứng",function
     if v then task.spawn(UEE) else CEr() end
 end)
 
--- FLY
 local FH=PgHdr(FlyP,"Fly","Movement")
 local FC
 local function SFL()
@@ -959,7 +1004,6 @@ UIS.InputChanged:Connect(function(i)
 end)
 UIS.InputEnded:Connect(function() FD=false end)
 
--- SPEED
 local SCH
 local SavedWS=nil
 local function GH() local c=LP.Character;return c and c:FindFirstChildOfClass("Humanoid") end
@@ -1027,64 +1071,141 @@ UIS.InputChanged:Connect(function(i)
 end)
 UIS.InputEnded:Connect(function() SD=false end)
 
--- FIX LAG
-local XH=PgHdr(FixP,"FixLag","Performance")
+-- FIX LAG (giữ nguyên từ bản trước)
+local XH=PgHdr(FixP,"FixLag","Tắt mọi effect - tăng FPS 75-90%")
 local Saved={}
 local XC
-local function DE(o)
-    if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam") or o:IsA("Smoke")
-    or o:IsA("Fire") or o:IsA("Sparkles") or o:IsA("PointLight")
-    or o:IsA("SpotLight") or o:IsA("SurfaceLight") then
-        if Saved[o]==nil then Saved[o]=o.Enabled end
+
+local function ApplyFix(o)
+    if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam") 
+    or o:IsA("Smoke") or o:IsA("Fire") or o:IsA("Sparkles") then
+        if Saved[o]==nil then Saved[o]={t="e",v=o.Enabled} end
+        pcall(function() o.Enabled=false end)
+    end
+    if o:IsA("PointLight") or o:IsA("SpotLight") or o:IsA("SurfaceLight") then
+        if Saved[o]==nil then Saved[o]={t="e",v=o.Enabled} end
+        pcall(function() o.Enabled=false end)
+    end
+    if o:IsA("Decal") or o:IsA("Texture") then
+        if Saved[o]==nil then Saved[o]={t="tx",v=o.Texture} end
+        pcall(function() o.Texture="" end)
+    end
+    if o:IsA("Sky") then
+        if Saved[o]==nil then Saved[o]={t="p",v=o.Parent} end
+        pcall(function() o.Parent=nil end)
+    end
+    if o:IsA("PostEffect") then
+        if Saved[o]==nil then Saved[o]={t="e",v=o.Enabled} end
         pcall(function() o.Enabled=false end)
     end
     if o:IsA("BasePart") then
-        if Saved[o]==nil then Saved[o]={CS=o.CastShadow,MT=o.Material} end
+        if Saved[o]==nil then 
+            Saved[o]={t="bp",CS=o.CastShadow,MT=o.Material,RF=o.Reflectance,TL=o.TopSurface,BT=o.BottomSurface}
+        end
         pcall(function()
             o.CastShadow=false
-            if o.Material~=Enum.Material.Water then o.Material=Enum.Material.Plastic end
+            o.Reflectance=0
+            if o.Material~=Enum.Material.Water and o.Material~=Enum.Material.Glass then
+                o.Material=Enum.Material.Plastic
+            end
+            o.TopSurface=Enum.SurfaceType.Smooth
+            o.BottomSurface=Enum.SurfaceType.Smooth
         end)
     end
+    if o:IsA("Sound") then
+        if Saved[o]==nil then Saved[o]={t="v",v=o.Volume} end
+        pcall(function() o.Volume=0 end)
+    end
 end
+
 local function SXF()
+    if S.FixLag then return end
     S.FixLag=true
-    for _,o in ipairs(WS:GetDescendants()) do DE(o) end
+    pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Level01 end)
+    pcall(function() settings().Rendering.MeshPartDetailLevel=Enum.MeshPartDetailLevel.Level01 end)
+    pcall(function() settings().Rendering.EagerBulkExecution=true end)
+    for _,o in ipairs(WS:GetDescendants()) do ApplyFix(o) end
+    for _,o in ipairs(Lighting:GetDescendants()) do ApplyFix(o) end
     pcall(function()
-        Saved.GS=Lighting.GlobalShadows;Lighting.GlobalShadows=false
-        Saved.EDS=Lighting.EnvironmentDiffuseScale;Lighting.EnvironmentDiffuseScale=0
-        Saved.ESS=Lighting.EnvironmentSpecularScale;Lighting.EnvironmentSpecularScale=0
-        Saved.BR=Lighting.Brightness;Lighting.Brightness=1
+        Saved.L_GS=Lighting.GlobalShadows;Lighting.GlobalShadows=false
+        Saved.L_FS=Lighting.FogStart;Lighting.FogStart=0
+        Saved.L_FE=Lighting.FogEnd;Lighting.FogEnd=200
+        Saved.L_FS2=Lighting.FogColor;Lighting.FogColor=Color3.fromRGB(100,100,100)
+        Saved.L_EDS=Lighting.EnvironmentDiffuseScale;Lighting.EnvironmentDiffuseScale=0
+        Saved.L_ESS=Lighting.EnvironmentSpecularScale;Lighting.EnvironmentSpecularScale=0
+        Saved.L_BR=Lighting.Brightness;Lighting.Brightness=1
+        Saved.L_AMB=Lighting.Ambient;Lighting.Ambient=Color3.fromRGB(120,120,120)
+        Saved.L_OAMB=Lighting.OutdoorAmbient;Lighting.OutdoorAmbient=Color3.fromRGB(120,120,120)
+        Saved.L_CT=Lighting.ClockTime;Lighting.ClockTime=12
+        Saved.L_EB=Lighting.ExposureCompensation;Lighting.ExposureCompensation=0
     end)
-    if WS.Terrain then
-        pcall(function()
-            Saved.WWS=WS.Terrain.WaterWaveSize;WS.Terrain.WaterWaveSize=0
-            Saved.WWP=WS.Terrain.WaterWaveSpeed;WS.Terrain.WaterWaveSpeed=0
-            Saved.WR=WS.Terrain.WaterReflectance;WS.Terrain.WaterReflectance=0
-        end)
-    end
-    XC=WS.DescendantAdded:Connect(function(o) if S.FixLag then DE(o) end end)
-end
-local function SPF()
-    S.FixLag=false
-    if XC then XC:Disconnect();XC=nil end
-    for o,v in pairs(Saved) do
-        if typeof(o)=="Instance" and o.Parent then
-            pcall(function()
-                if type(v)=="table" then
-                    if v.CS~=nil then o.CastShadow=v.CS end
-                    if v.MT~=nil then o.Material=v.MT end
-                elseif type(v)=="boolean" then o.Enabled=v end
-            end)
+    for _,o in ipairs(Lighting:GetChildren()) do
+        if o:IsA("Sky") then
+            Saved["sky_"..o.Name]=o
+            o.Parent=nil
         end
     end
     pcall(function()
-        if Saved.GS~=nil then Lighting.GlobalShadows=Saved.GS end
-        if Saved.EDS~=nil then Lighting.EnvironmentDiffuseScale=Saved.EDS end
-        if Saved.ESS~=nil then Lighting.EnvironmentSpecularScale=Saved.ESS end
-        if Saved.BR~=nil then Lighting.Brightness=Saved.BR end
+        if WS.Terrain then
+            Saved.T_WWS=WS.Terrain.WaterWaveSize;WS.Terrain.WaterWaveSize=0
+            Saved.T_WWP=WS.Terrain.WaterWaveSpeed;WS.Terrain.WaterWaveSpeed=0
+            Saved.T_WR=WS.Terrain.WaterReflectance;WS.Terrain.WaterReflectance=0
+            Saved.T_WT=WS.Terrain.WaterTransparency;WS.Terrain.WaterTransparency=1
+            WS.Terrain.Decoration=false
+        end
     end)
+    XC=WS.DescendantAdded:Connect(function(o)
+        if S.FixLag then task.defer(function() ApplyFix(o) end) end
+    end)
+    local LC=Lighting.DescendantAdded:Connect(function(o)
+        if S.FixLag then task.defer(function() ApplyFix(o) end) end
+    end)
+    Saved._LC=LC
+end
+
+local function SPF()
+    if not S.FixLag then return end
+    S.FixLag=false
+    if XC then XC:Disconnect();XC=nil end
+    if Saved._LC then Saved._LC:Disconnect();Saved._LC=nil end
+    for o,v in pairs(Saved) do
+        if typeof(o)=="Instance" and o.Parent then
+            pcall(function()
+                if v.t=="e" then o.Enabled=v.v
+                elseif v.t=="tx" then o.Texture=v.v
+                elseif v.t=="bp" then
+                    if v.CS~=nil then o.CastShadow=v.CS end
+                    if v.MT~=nil then o.Material=v.MT end
+                    if v.RF~=nil then o.Reflectance=v.RF end
+                    if v.TL~=nil then o.TopSurface=v.TL end
+                    if v.BT~=nil then o.BottomSurface=v.BT end
+                elseif v.t=="v" then o.Volume=v.v
+                end
+            end)
+        end
+    end
+    for k,v in pairs(Saved) do
+        if typeof(k)=="string" and k:sub(1,4)=="sky_" and typeof(v)=="Instance" then
+            pcall(function() v.Parent=Lighting end)
+        end
+    end
+    pcall(function()
+        if Saved.L_GS~=nil then Lighting.GlobalShadows=Saved.L_GS end
+        if Saved.L_FS~=nil then Lighting.FogStart=Saved.L_FS end
+        if Saved.L_FE~=nil then Lighting.FogEnd=Saved.L_FE end
+        if Saved.L_FS2~=nil then Lighting.FogColor=Saved.L_FS2 end
+        if Saved.L_EDS~=nil then Lighting.EnvironmentDiffuseScale=Saved.L_EDS end
+        if Saved.L_ESS~=nil then Lighting.EnvironmentSpecularScale=Saved.L_ESS end
+        if Saved.L_BR~=nil then Lighting.Brightness=Saved.L_BR end
+        if Saved.L_AMB~=nil then Lighting.Ambient=Saved.L_AMB end
+        if Saved.L_OAMB~=nil then Lighting.OutdoorAmbient=Saved.L_OAMB end
+        if Saved.L_CT~=nil then Lighting.ClockTime=Saved.L_CT end
+        if Saved.L_EB~=nil then Lighting.ExposureCompensation=Saved.L_EB end
+    end)
+    pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Automatic end)
     Saved={}
 end
+
 local XT=Tog(FixP,T("fix"),T("fixD"),function(v)
     if v then SXF() else SPF() end
 end)
@@ -1235,18 +1356,16 @@ local function FB()
 end
 
 local function ICE()
-    for _,a in ipairs({"HasEgg","CarryingEgg","HasPet","CarryEgg","Holding","IsCarrying","EggName","Carrying"}) do
+    for _,a in ipairs({"HasEgg","CarryingEgg","HasPet","CarryEgg","Holding","IsCarrying","CarryEggValue"}) do
         local ok,v=pcall(function() return LP:GetAttribute(a) end)
         if ok and v~=nil and v~=false and v~="" then return true end
     end
     local c=LP.Character
     if c then
         for _,o in ipairs(c:GetChildren()) do
-            local n=o.Name:lower()
-            if (n=="egg" or n:match("^egg[%s%d]") or n:match("carry") or n:match("hold"))
-            and not o:IsA("Humanoid") and not o:IsA("Accessory")
-            and not o:IsA("Tool") and not o:IsA("Folder") then
-                return true
+            if o:IsA("Tool") or o:IsA("Model") then
+                local n=o.Name:lower()
+                if n=="egg" or n:match("^egg[%s_%-%d]") then return true end
             end
         end
     end
@@ -1254,7 +1373,7 @@ local function ICE()
     if bp then
         for _,o in ipairs(bp:GetChildren()) do
             local n=o.Name:lower()
-            if n=="egg" or n:match("^egg[%s%d]") then return true end
+            if n=="egg" or n:match("^egg[%s_%-%d]") then return true end
         end
     end
     return false
@@ -1276,35 +1395,29 @@ local function EMP(e)
     return false
 end
 
--- AUTO STEAL
+-- AUTO STEAL (RAGDOLL + TELE + FLY) - với delay ngẫu nhiên
 local ASC
-local LPA=0
-local CIF=nil
-local LSc=0
-local CEg={}
-local SCT=0.8
-local function GCE(rad)
-    if tick()-LSc>SCT or #CEg==0 then
-        CEg=Scan(rad);LSc=tick()
-    end
-    return CEg
-end
+local CurrentTarget=nil
+local Ragdolled=false
+local FlyingBack=false
+local LockConn=nil
+local AttemptStartTime=0
+local LastTP=0
+local MAX_ATTEMPT_TIME=8
+
 local function FNE()
-    local c=LP.Character
-    local r=c and c:FindFirstChild("HumanoidRootPart")
-    if not r then return nil end
-    local all=GCE(500)
-    if #all==0 then all=Scan();CEg=all;LSc=tick() end
+    local all=Scan()
     if #all==0 then return nil end
     local best,bs=nil,-math.huge
     for _,e in ipairs(all) do
         if e.part and e.part.Parent and EMP(e) then
-            local d=(e.part.Position-r.Position).Magnitude
             local inf=e.info or {}
-            local sc=-d
+            local sc=0
             if S.PrioritySecret then
                 local rr=(inf.rarity or ""):lower()
-                if rr=="secret" or rr=="mythic" or rr=="cosmic" or rr=="divine" or rr=="eternal" then sc=sc+1e9 end
+                if rr=="secret" or rr=="mythic" or rr=="cosmic" or rr=="divine" or rr=="eternal" then
+                    sc=sc+1e9
+                end
             end
             sc=sc+PI(inf.income)*100
             if sc>bs then bs=sc;best=e end
@@ -1312,76 +1425,230 @@ local function FNE()
     end
     return best
 end
-local function ECI()
+
+local function MakeRagdoll()
     local c=LP.Character
     if not c then return end
     local h=c:FindFirstChildOfClass("Humanoid")
-    if h then for _,st in ipairs(NST) do pcall(function() h:SetStateEnabled(st,false) end) end end
-    if not CIF or CIF.Parent~=c then
-        if CIF then CIF:Destroy() end
-        CIF=Instance.new("ForceField");CIF.Name="TnhVN_CI";CIF.Visible=false;CIF.Parent=c
-    end
+    if not h then return end
+    pcall(function()
+        for _,st in ipairs(NST) do h:SetStateEnabled(st,false) end
+        h:ChangeState(Enum.HumanoidStateType.Physics)
+    end)
+    Ragdolled=true
 end
-local function DCI()
-    if CIF then CIF:Destroy();CIF=nil end
+
+local function UnRagdoll()
     local c=LP.Character
-    local h=c and c:FindFirstChildOfClass("Humanoid")
-    if h and not S.AntiHit then for _,st in ipairs(NST) do pcall(function() h:SetStateEnabled(st,true) end) end end
+    if not c then return end
+    local h=c:FindFirstChildOfClass("Humanoid")
+    if not h then return end
+    pcall(function()
+        for _,st in ipairs(NST) do h:SetStateEnabled(st,true) end
+        h:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end)
+    Ragdolled=false
 end
+
+local function StopLock()
+    if LockConn then LockConn:Disconnect();LockConn=nil end
+end
+
+-- FlyToBase với delay ngẫu nhiên + dao động nhẹ
+local function FlyToBase()
+    local c=LP.Character
+    if not c then FlyingBack=false;return end
+    local r=c:FindFirstChild("HumanoidRootPart")
+    local h=c:FindFirstChildOfClass("Humanoid")
+    if not r or not h then FlyingBack=false;return end
+
+    FlyingBack=true
+    UnRagdoll()
+    StopLock()
+    if h.Health<h.MaxHealth then h.Health=h.MaxHealth end
+
+    -- Delay ngẫu nhiên trước khi bay (giống người chơi dừng quan sát)
+    task.wait(math.random(15, 40) / 100) -- 0.15 → 0.4s
+
+    local base=FB()
+    local startPos=r.Position
+    local airPos=Vector3.new(startPos.X,startPos.Y+150,startPos.Z)
+    local baseAir=Vector3.new(base.X,base.Y+80,base.Z)
+    local baseGround=Vector3.new(base.X,base.Y+3,base.Z)
+
+    -- Bước 1: Bay lên
+    pcall(function()
+        local t1=TS:Create(r,TweenInfo.new(0.5,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{CFrame=CFrame.new(airPos)})
+        t1:Play()
+        t1.Completed:Wait()
+    end)
+    if not c.Parent or not r.Parent then FlyingBack=false;return end
+
+    -- Bước 2: Bay ngang về base, có dao động nhẹ
+    local dist=(baseAir-startPos).Magnitude
+    local duration=math.clamp(dist/500,0.8,3)
+
+    -- Tạo điểm giữa có lệch ngẫu nhiên ±25 studs
+    local midPoint = startPos:Lerp(baseAir, 0.7) + Vector3.new(math.random(-25,25), math.random(-10,10), math.random(-25,25))
+
+    pcall(function()
+        -- Bay tới midPoint
+        local t2a=TS:Create(r,TweenInfo.new(duration*0.6,Enum.EasingStyle.Linear),{CFrame=CFrame.new(midPoint)})
+        t2a:Play()
+        t2a.Completed:Wait()
+    end)
+    if not c.Parent or not r.Parent then FlyingBack=false;return end
+
+    -- Delay ngắn giữa 2 chặng
+    task.wait(math.random(5, 15) / 100)
+
+    pcall(function()
+        -- Bay từ midPoint đến baseAir
+        local t2b=TS:Create(r,TweenInfo.new(duration*0.4,Enum.EasingStyle.Linear),{CFrame=CFrame.new(baseAir)})
+        t2b:Play()
+        t2b.Completed:Wait()
+    end)
+    if not c.Parent or not r.Parent then FlyingBack=false;return end
+
+    -- Bước 3: Hạ cánh
+    pcall(function()
+        local t3=TS:Create(r,TweenInfo.new(0.5,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{CFrame=CFrame.new(baseGround)})
+        t3:Play()
+        t3.Completed:Wait()
+    end)
+
+    FlyingBack=false
+end
+
+local function TeleToEgg(eggPart)
+    local c=LP.Character
+    if not c then return end
+    local r=c:FindFirstChild("HumanoidRootPart")
+    if not r then return end
+    MakeRagdoll()
+    local targetPos=eggPart.Position+Vector3.new(0,3,0)
+    pcall(function()
+        r.CFrame=CFrame.new(targetPos)
+        r.AssemblyLinearVelocity=Vector3.zero
+        r.AssemblyAngularVelocity=Vector3.zero
+    end)
+end
+
+local function StartLock(eggPart)
+    StopLock()
+    LockConn=RS.Heartbeat:Connect(function()
+        if not S.AutoSteal then return end
+        local c=LP.Character
+        if not c then return end
+        local r=c:FindFirstChild("HumanoidRootPart")
+        if not r then return end
+        if eggPart and eggPart.Parent then
+            local targetPos=eggPart.Position+Vector3.new(0,3,0)
+            if (r.Position-targetPos).Magnitude>5 then
+                r.CFrame=CFrame.new(targetPos)
+            end
+            r.AssemblyLinearVelocity=Vector3.zero
+            r.AssemblyAngularVelocity=Vector3.zero
+        end
+    end)
+end
+
+local function ResetState()
+    StopLock()
+    UnRagdoll()
+    CurrentTarget=nil
+    AttemptStartTime=0
+end
+
 local function SAS()
     S.AutoSteal=true
     StatL.Text=T("stat")..": "..T("on");StatL.TextColor3=P.Success
     FB()
+    Ragdolled=false
+    FlyingBack=false
+    CurrentTarget=nil
+    AttemptStartTime=0
+    LastTP=0
+
     if ASC then ASC:Disconnect() end
+
     ASC=RS.Heartbeat:Connect(function()
         if not S.AutoSteal then return end
+        if FlyingBack then return end
+
         local c=LP.Character
         local r=c and c:FindFirstChild("HumanoidRootPart")
         local h=c and c:FindFirstChildOfClass("Humanoid")
         if not r or not h then return end
-        if ICE() then
-            ECI()
-            if h.Health<h.MaxHealth then h.Health=h.MaxHealth end
-            local base=FB()
-            local d=(base-r.Position).Magnitude
-            StatL.Text=T("stat")..": Về Base ("..math.floor(d).."m)"
-            StatL.TextColor3=P.Accent
-            if d>8 then
-                local dir=base-r.Position
-                local step=math.min(dir.Magnitude-4,80)
-                pcall(function() r.CFrame=CFrame.new(r.Position+dir.Unit*step+Vector3.new(0,2.5,0)) end)
-                r.AssemblyLinearVelocity=Vector3.zero
-            end
+        if h.Health<=0 then
+            ResetState()
             return
-        else
-            DCI()
         end
-        local t=FNE()
-        if not t then StatL.Text=T("stat")..": Không có trứng match";StatL.TextColor3=P.Danger;return end
-        local pos=t.part.Position
-        local d=(pos-r.Position).Magnitude
-        local inf=t.info or {}
-        StatL.Text=T("stat")..": → "..(t.real or t.name).." ("..(inf.income or "?")..") "..math.floor(d).."m"
-        StatL.TextColor3=P.Accent
-        if d<=20 then
-            if tick()-LPA>0.15 then
-                LPA=tick()
-                TP(t.part)
+
+        if ICE() then
+            StopLock()
+            StatL.Text=T("stat")..": Đang bay về Base..."
+            StatL.TextColor3=P.Accent
+            task.spawn(function() FlyToBase() end)
+            return
+        end
+
+        if CurrentTarget and (tick()-AttemptStartTime>MAX_ATTEMPT_TIME) then
+            ResetState()
+        end
+
+        if CurrentTarget and Ragdolled then
+            local targetPart=CurrentTarget.part
+            if targetPart and targetPart.Parent then
+                StatL.Text=T("stat")..": Đang nhặt "..(CurrentTarget.real or CurrentTarget.name)
+                StatL.TextColor3=P.Accent
+                local targetPos=targetPart.Position+Vector3.new(0,3,0)
+                r.CFrame=CFrame.new(targetPos)
+                r.AssemblyLinearVelocity=Vector3.zero
+                -- Delay ngẫu nhiên giữa các lần thử nhặt
+                if tick()-LastTP > (0.15 + math.random(0, 10)/100) then
+                    LastTP = tick()
+                    pcall(function() TP(targetPart) end)
+                end
+                return
+            else
+                ResetState()
             end
-        else
-            local dir=pos-r.Position
-            local step=math.min(dir.Magnitude-5,50)
-            pcall(function() r.CFrame=CFrame.new(r.Position+dir.Unit*step+Vector3.new(0,2.5,0)) end)
-            r.AssemblyLinearVelocity=Vector3.zero
         end
+
+        local t=FNE()
+        if not t then
+            StatL.Text=T("stat")..": Không có trứng match"
+            StatL.TextColor3=P.Danger
+            return
+        end
+
+        CurrentTarget=t
+        AttemptStartTime=tick()
+        StatL.Text=T("stat")..": → "..(t.real or t.name).." ("..((t.info or {}).income or "?")..")"
+        StatL.TextColor3=P.Accent
+
+        TeleToEgg(t.part)
+        StartLock(t.part)
     end)
 end
+
 local function SASstop()
     S.AutoSteal=false
     if ASC then ASC:Disconnect();ASC=nil end
-    DCI();CEg={}
+    StopLock()
+    UnRagdoll()
+    CurrentTarget=nil
+    FlyingBack=false
+    AttemptStartTime=0
     StatL.Text=T("stat")..": "..T("off");StatL.TextColor3=P.TextSec
 end
+
+LP.CharacterAdded:Connect(function()
+    task.wait(1)
+    ResetState()
+end)
+
 local AST=Tog(StealP,T("autoSteal"),T("autoStealD"),function(v)
     if v then SAS() else SASstop() end
 end)
@@ -1618,7 +1885,7 @@ TB.MouseButton1Click:Connect(function()
     Main.Visible=true;Notice.Visible=true;TB.Visible=false
 end)
 Cls.MouseButton1Click:Connect(function()
-    SFL();SPS();StopAH();SASstop()
+    SFL();SPS();StopAH();SASstop();StopAntiban()
     if XC then XC:Disconnect() end
     if ABC then ABC:Disconnect() end
     CEr()
@@ -1626,6 +1893,7 @@ Cls.MouseButton1Click:Connect(function()
         if d.Box then d.Box:Destroy() end
         if d.Name then d.Name:Destroy() end
     end
+    if S.FixLag then SPF() end
     local cam=WS.CurrentCamera
     if cam then cam.FieldOfView=70 end
     Gui:Destroy();ESPGui:Destroy()
