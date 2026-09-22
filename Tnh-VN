@@ -1127,4 +1127,4 @@ Confirm.MouseButton1Click:Connect(function()
 
     end
 
-end)card
+end)
