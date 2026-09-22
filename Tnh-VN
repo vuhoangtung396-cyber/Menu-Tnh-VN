@@ -1,4 +1,4 @@
--- Tnh-VN Hub (Full Features - Delta Optimized Edition)
+-- Tnh-VN Hub (Full Original Version - Delta Fixed)
 local P = game:GetService("Players")
 local U = game:GetService("UserInputService")
 local R = game:GetService("RunService")
@@ -9,51 +9,20 @@ local CoreGui = game:GetService("CoreGui")
 local LP = P.LocalPlayer
 local PlayerGui = LP:WaitForChild("PlayerGui")
 
-local S = {
-    ESP = false, ESPEgg = false, ESPColor = Color3.fromRGB(255,200,60), 
-    AH1 = false, AH2 = false, POV = 70, AntiHit = false, AntiBan = false, 
-    Fly = false, FlyS = 100, Speed = false, SpeedV = 100, FixLag = false, 
-    AutoSteal = false, PSec = false, PEggs = {}, AntiTrap = false, Lang = "VN"
-}
+local S = {ESP=false, ESPEgg=false, ESPColor=Color3.fromRGB(255,200,60), AH1=false, AH2=false, POV=70, AntiHit=false, AntiBan=false, Fly=false, FlyS=100, Speed=false, SpeedV=100, FixLag=false, AutoSteal=false, PSec=false, PEggs={}, AntiTrap=false, Lang="VN"}
 
-local ED = {
-    ["Chicken Egg"] = {p="Chicken", r="Common", i="$1/s"},
-    ["Dog Egg"] = {p="Dog", r="Common", i="$2/s"},
-    ["Bird Egg"] = {p="Bird", r="Uncommon", i="$8/s"},
-    ["Fox Egg"] = {p="Fox", r="Epic", i="$180/s"},
-    ["Bear Egg"] = {p="Bear", r="Epic", i="$240/s"}
-}
+local ED = {["Chicken Egg"]={p="Chicken",r="Common",i="$1/s"},["Dog Egg"]={p="Dog",r="Common",i="$2/s"},["Bird Egg"]={p="Bird",r="Uncommon",i="$8/s"},["Fox Egg"]={p="Fox",r="Epic",i="$180/s"},["Bear Egg"]={p="Bear",r="Epic",i="$240/s"}}
 
 local TX = {
-    VN = {
-        main = "Trang Chủ", esp = "ESP Player", espD = "Box + Tên", ah1 = "Aimbot Đầu", 
-        ah2 = "Aimbot Thân", pov = "POV", antiHit = "Anti Hit", antiBan = "Bypass AntiBan", 
-        fly = "Fly", speed = "Speed", fix = "FixLag", steal = "Steal Egg", lang = "Ngôn ngữ", 
-        eggLoc = "Định Vị Egg", eggScan = "Quét Egg", autoSteal = "Auto Steal", prio = "Ưu tiên Secret", 
-        antiTrap = "Anti Bẫy", stat = "Trạng thái", off = "Chưa bật", on = "Đang bật", noEgg = "Không thấy Egg"
-    },
-    EN = {
-        main = "Home", esp = "ESP Player", espD = "Box + Name", ah1 = "Aimbot Head", 
-        ah2 = "Aimbot Body", pov = "FOV", antiHit = "Anti Hit", antiBan = "Simulate real player", 
-        fly = "Fly", speed = "Run speed", fix = "Reduce lag", steal = "Egg Stealer", lang = "Language", 
-        eggLoc = "Egg Locator", eggScan = "Scan Eggs", autoSteal = "Auto Steal", prio = "Priority Secret", 
-        antiTrap = "Anti Trap", stat = "Status", off = "Inactive", on = "Active", noEgg = "No Egg found"
-    }
+    VN = {main="Trang Chủ", esp="ESP Player", espD="Box + Tên", ah1="Aimbot Đầu", ah2="Aimbot Thân", pov="POV", antiHit="Anti Hit", antiBan="Bypass AntiBan", fly="Fly", speed="Speed", fix="FixLag", steal="Steal Egg", lang="Ngôn ngữ", eggLoc="Định Vị Egg", eggScan="Quét Egg", autoSteal="Auto Steal", prio="Ưu tiên Secret", antiTrap="Anti Bẫy", stat="Trạng thái", off="Chưa bật", on="Đang bật", noEgg="Không thấy Egg"},
+    EN = {main="Home", esp="ESP Player", espD="Box + Name", ah1="Aimbot Head", ah2="Aimbot Body", pov="FOV", antiHit="Anti Hit", antiBan="Simulate real player", fly="Fly", speed="Run speed", fix="Reduce lag", steal="Egg Stealer", lang="Language", eggLoc="Egg Locator", eggScan="Scan Eggs", autoSteal="Auto Steal", prio="Priority Secret", antiTrap="Anti Trap", stat="Status", off="Inactive", on="Active", noEgg="No Egg found"}
 }
 local function TT(k) return TX[S.Lang][k] end
 
-local C = {
-    Bg = Color3.fromRGB(15,13,35), Side = Color3.fromRGB(20,17,48), Card = Color3.fromRGB(30,27,60), 
-    Bord = Color3.fromRGB(60,55,110), Gold = Color3.fromRGB(255,200,60), Txt = Color3.fromRGB(240,238,255), 
-    Txt2 = Color3.fromRGB(150,145,185), TxtM = Color3.fromRGB(100,95,140), Off = Color3.fromRGB(55,50,100), 
-    Succ = Color3.fromRGB(80,220,130), Dang = Color3.fromRGB(255,90,90)
-}
-local B = {
-    Bg = Color3.fromRGB(15,20,36), Head = Color3.fromRGB(20,26,48), Blu = Color3.fromRGB(59,130,246), 
-    BluH = Color3.fromRGB(96,165,250), BluD = Color3.fromRGB(37,99,235), Mute = Color3.fromRGB(148,163,184)
-}
+local C = {Bg=Color3.fromRGB(15,13,35), Side=Color3.fromRGB(20,17,48), Card=Color3.fromRGB(30,27,60), Bord=Color3.fromRGB(60,55,110), Gold=Color3.fromRGB(255,200,60), Txt=Color3.fromRGB(240,238,255), Txt2=Color3.fromRGB(150,145,185), TxtM=Color3.fromRGB(100,95,140), Off=Color3.fromRGB(55,50,100), Succ=Color3.fromRGB(80,220,130), Dang=Color3.fromRGB(255,90,90)}
+local B = {Bg=Color3.fromRGB(15,20,36), Head=Color3.fromRGB(20,26,48), Blu=Color3.fromRGB(59,130,246), BluH=Color3.fromRGB(96,165,250), BluD=Color3.fromRGB(37,99,235), Mute=Color3.fromRGB(148,163,184)}
 
--- Safe GUI Container for Delta
+-- Safe GUI Container
 local G = Instance.new("ScreenGui")
 G.Name = "TnhVNHub"
 G.ResetOnSpawn = false
@@ -68,9 +37,7 @@ pcall(function()
         G.Parent = CoreGui
     end
 end)
-if not G.Parent then
-    G.Parent = PlayerGui
-end
+if not G.Parent then G.Parent = PlayerGui end
 
 local function CR(o,r) local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,r);c.Parent=o end
 local function SK(o,c,t,tr) local s=Instance.new("UIStroke");s.Color=c;s.Thickness=t or 1;s.Transparency=tr or .5;s.Parent=o;return s end
@@ -122,10 +89,10 @@ local KSt = LB(KF,"",12,UDim2.new(0,20,0,230))
 KSt.Size = UDim2.new(1,-40,0,20)
 KSt.TextXAlignment = Enum.TextXAlignment.Center
 
--- MAIN MENU FRAME (Đầy đủ giao diện quản lý chức năng)
+-- MAIN MENU FRAME (Giao diện chuẩn đầy đủ Sidebar như bản gốc)
 local M = Instance.new("Frame")
-M.Size = UDim2.new(0,460,0,320)
-M.Position = UDim2.new(.5,-230,.5,-160)
+M.Size = UDim2.new(0,520,0,340)
+M.Position = UDim2.new(.5,-260,.5,-170)
 M.BackgroundColor3 = C.Bg
 M.Visible = false
 M.Active = true
@@ -133,7 +100,7 @@ M.Draggable = true
 M.Parent = G
 CR(M,14); SK(M,C.Bord,1,.3)
 
-local Ttl = LB(M,"Tnh-VN Hub - Full Features Active",14,UDim2.new(0,15,0,12))
+local Ttl = LB(M,"Tnh-VN Hub - Full Original Menu",14,UDim2.new(0,15,0,12))
 Ttl.TextColor3 = C.Gold; Ttl.Font = Enum.Font.GothamBold
 
 local CloseBtn = Instance.new("TextButton")
@@ -144,85 +111,51 @@ CloseBtn.Text = "×"
 CloseBtn.TextSize = 22
 CloseBtn.TextColor3 = C.Txt
 CloseBtn.Parent = M
-CloseBtn.MouseButton1Click:Connect(function()
-    G:Destroy()
-end)
+CloseBtn.MouseButton1Click:Connect(function() G:Destroy() end)
 
--- Container chứa các tính năng trạng thái
-local ContentBox = Instance.new("ScrollingFrame")
-ContentBox.Size = UDim2.new(1, -20, 1, -60)
-ContentBox.Position = UDim2.new(0, 10, 0, 50)
-ContentBox.BackgroundTransparency = 1
-ContentBox.CanvasSize = UDim2.new(0, 0, 0, 400)
-ContentBox.ScrollBarThickness = 4
-ContentBox.Parent = M
+-- Sidebar Menu bên trái
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 135, 1, -45)
+Sidebar.Position = UDim2.new(0, 0, 0, 40)
+Sidebar.BackgroundColor3 = C.Side
+Sidebar.Parent = M
+CR(Sidebar, 10)
 
-local StatusLbl = LB(ContentBox, "Trạng thái: Đã kích hoạt toàn bộ tính năng ngầm (ESP, Aimbot, FixLag, AutoSteal...).", 12, UDim2.new(0, 5, 0, 5))
-StatusLbl.Size = UDim2.new(1, -10, 0, 40)
-StatusLbl.TextColor3 = C.Succ
-StatusLbl.TextWrapped = true
-
--- Toggle mẫu cho phần tính năng
-local function CreateToggle(name, callback)
+-- Danh sách các nút chọn danh mục ở Sidebar
+local function AddSidebarBtn(name, yPos)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 35)
+    btn.Size = UDim2.new(1, -10, 0, 35)
+    btn.Position = UDim2.new(0, 5, 0, yPos)
     btn.BackgroundColor3 = C.Card
-    btn.Text = "  " .. name .. ": [TẮT]"
-    btn.TextColor3 = C.Txt2
-    btn.TextSize = 13
-    btn.Font = Enum.Font.Gotham
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    btn.Parent = ContentBox
-    CR(btn, 8)
-    
-    local state = false
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        if state then
-            btn.Text = "  " .. name .. ": [BẬT]"
-            btn.TextColor3 = C.Succ
-        else
-            btn.Text = "  " .. name .. ": [TẮT]"
-            btn.TextColor3 = C.Txt2
-        end
-        callback(state)
-    end)
+    btn.Text = name
+    btn.TextColor3 = C.Txt
+    btn.TextSize = 12
+    btn.Font = Enum.Font.GothamBold
+    btn.Parent = Sidebar
+    CR(btn, 6)
+    return btn
 end
 
--- Thêm các nút chức năng vào giao diện
-local yPos = 50
-local function AddUIElement(item)
-    item.Position = UDim2.new(0, 5, 0, yPos)
-    yPos = yPos + 42
-end
+local btnHome = AddSidebarBtn("Trang Chủ", 10)
+local btnEsp = AddSidebarBtn("ESP & Combat", 50)
+local btnSteal = AddSidebarBtn("Egg Stealer", 90)
+local btnSettings = AddSidebarBtn("Cài đặt / Khác", 130)
 
--- Tạo danh sách các nút điều khiển
-local t1 = Instance.new("TextButton")
-t1.Size = UDim2.new(1, -10, 0, 35); t1.BackgroundColor3 = C.Card; t1.Text = "  Bật ESP Player"; t1.TextColor3 = C.Txt; t1.TextSize = 13; t1.Font = Enum.Font.Gotham; t1.TextXAlignment = Enum.TextXAlignment.Left; t1.Parent = ContentBox; CR(t1, 8)
-AddUIElement(t1)
+-- Main Container hiển thị nội dung bên phải
+local MainContainer = Instance.new("ScrollingFrame")
+MainContainer.Size = UDim2.new(1, -150, 1, -50)
+MainContainer.Position = UDim2.new(0, 145, 0, 42)
+MainContainer.BackgroundTransparency = 1
+MainContainer.CanvasSize = UDim2.new(0, 0, 0, 500)
+MainContainer.ScrollBarThickness = 4
+MainContainer.Parent = M
 
-local t2 = Instance.new("TextButton")
-t2.Size = UDim2.new(1, -10, 0, 35); t2.BackgroundColor3 = C.Card; t2.Text = "  Bật Aimbot Đầu (AH1)"; t2.TextColor3 = C.Txt; t2.TextSize = 13; t2.Font = Enum.Font.Gotham; t2.TextXAlignment = Enum.TextXAlignment.Left; t2.Parent = ContentBox; CR(t2, 8)
-AddUIElement(t2)
+local DescLbl = LB(MainContainer, "Chào mừng bạn đến với Tnh-VN Hub!\nHãy chọn danh mục ở menu bên trái để cấu hình các tính năng (ESP, Aimbot, Auto Steal, Fly,...).", 12, UDim2.new(0, 10, 0, 10))
+DescLbl.Size = UDim2.new(1, -20, 0, 80)
+DescLbl.TextWrapped = true
+DescLbl.TextColor3 = C.Succ
 
-local t3 = Instance.new("TextButton")
-t3.Size = UDim2.new(1, -10, 0, 35); t3.BackgroundColor3 = C.Card; t3.Text = "  Bật FixLag / Giảm đồ họa"; t3.TextColor3 = C.Txt; t3.TextSize = 13; t3.Font = Enum.Font.Gotham; t3.TextXAlignment = Enum.TextXAlignment.Left; t3.Parent = ContentBox; CR(t3, 8)
-AddUIElement(t3)
-
-t1.MouseButton1Click:Connect(function() S.ESP = not S.ESP t1.TextColor3 = S.ESP and C.Succ or C.Txt end)
-t2.MouseButton1Click:Connect(function() S.AH1 = not S.AH1 t2.TextColor3 = S.AH1 and C.Succ or C.Txt end)
-t3.MouseButton1Click:Connect(function() 
-    S.FixLag = not S.FixLag 
-    t3.TextColor3 = S.FixLag and C.Succ or C.Txt
-    if S.FixLag then
-        pcall(function()
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-            for _, v in pairs(L:GetChildren()) do if v:IsA("PostEffect") then v.Enabled = false end end
-        end)
-    end
-end)
-
--- Key Logic Handler
+-- Xử lý Key
 KC.MouseButton1Click:Connect(function()
     if KIn.Text == "Tnh-VN" then
         KSt.Text = "Thành công! Đang tải Menu..."
