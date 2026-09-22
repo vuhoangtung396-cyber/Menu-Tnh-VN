@@ -1,1 +1,1027 @@
-TextSiz
+--// TNH-VN HUB | STEAL AN EGG
+--// Key: Tnh-VN
+repeat task.wait() until game:IsLoaded()
+
+local Players=game:GetService("Players")
+local TweenService=game:GetService("TweenService")
+local RunService=game:GetService("RunService")
+local Lighting=game:GetService("Lighting")
+local UIS=game:GetService("UserInputService")
+local WS=game:GetService("Workspace")
+local LP=Players.LocalPlayer
+
+local KEY="Tnh-VN"
+local State={ESP=false,ESPColor=Color3.fromRGB(255,80,80),ESPShowName=true,ESPShowDist=true,Speed=false,SpeedValue=50,Fly=false,FlyValue=50,FixLag=false,AutoSteal=false,MenuOpen=true,Destroyed=false}
+
+local Connections={}
+local ESPData={}
+local Original={}
+
+--==================================================
+-- CONNECTION MANAGER
+--==================================================
+local function Connect(sig,cb)
+    local c=sig:Connect(cb)
+    table.insert(Connections,c)
+    return c
+end
+local function DisconnectAll()
+    for _,c in ipairs(Connections) do pcall(function() c:Disconnect() end) end
+    table.clear(Connections)
+end
+
+--==================================================
+-- CHARACTER
+--==================================================
+local Character,Humanoid,Root
+local function GetChar()
+    Character=LP.Character or LP.Character:Wait()
+    Humanoid=Character:FindFirstChildOfClass("Humanoid")
+    Root=Character:FindFirstChild("HumanoidRootPart")
+    return Character,Humanoid,Root
+end
+GetChar()
+
+Connect(LP.CharacterAdded,function(char)
+    Character=char
+    Humanoid=char:WaitForChild("Humanoid",10)
+    Root=char:WaitForChild("HumanoidRootPart",10)
+    task.wait(0.5)
+    if State.Speed and Humanoid then Humanoid.WalkSpeed=State.SpeedValue end
+    if State.Fly then task.wait(0.3); StartFly() end
+end)
+
+--==================================================
+-- ESP GUI
+--==================================================
+local ESPGui=Instance.new("ScreenGui")
+ESPGui.Name="TNHVN_ESP"
+ESPGui.ResetOnSpawn=false
+ESPGui.IgnoreGuiInset=true
+ESPGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+ESPGui.DisplayOrder=1
+ESPGui.Parent=game:GetService("CoreGui")
+
+local function CreateESPFor(p)
+    if p==LP or ESPData[p] then return end
+    local box=Instance.new("Frame")
+    box.BackgroundTransparency=1
+    box.BorderSizePixel=0
+    box.Visible=false
+    box.ZIndex=10
+    box.Parent=ESPGui
+    local stroke=Instance.new("UIStroke")
+    stroke.Color=State.ESPColor
+    stroke.Thickness=1.8
+    stroke.Transparency=0
+    stroke.Parent=box
+    local name=Instance.new("TextLabel")
+    name.BackgroundTransparency=1
+    name.Font=Enum.Font.GothamBold
+    name.TextSize=13
+    name.TextColor3=State.ESPColor
+    name.TextStrokeTransparency=0
+    name.TextStrokeColor3=Color3.new(0,0,0)
+    name.TextXAlignment=Enum.TextXAlignment.Center
+    name.ZIndex=11
+    name.Parent=ESPGui
+    ESPData[p]={Box=box,Stroke=stroke,Name=name}
+end
+
+local function RemoveESPFor(p)
+    if ESPData[p] then
+        if ESPData[p].Box then ESPData[p].Box:Destroy() end
+        if ESPData[p].Name then ESPData[p].Name:Destroy() end
+        ESPData[p]=nil
+    end
+end
+
+local function ClearAllESP()
+    for p,_ in pairs(ESPData) do RemoveESPFor(p) end
+end
+
+for _,p in ipairs(Players:GetPlayers()) do CreateESPFor(p) end
+Connect(Players.PlayerAdded,function(p) CreateESPFor(p) end)
+Connect(Players.PlayerRemoving,function(p) RemoveESPFor(p) end)
+
+-- Update box mỗi frame
+Connect(RunService.RenderStepped,function()
+    if not State.ESP then
+        for _,d in pairs(ESPData) do
+            if d.Box then d.Box.Visible=false end
+            if d.Name then d.Name.Visible=false end
+        end
+        return
+    end
+    local cam=WS.CurrentCamera
+    if not cam then return end
+    local myChar=LP.Character
+    local myRoot=myChar and myChar:FindFirstChild("HumanoidRootPart")
+    for p,d in pairs(ESPData) do
+        local c=p.Character
+        local show=false
+        if c and p~=LP then
+            local head=c:FindFirstChild("Head")
+            local root=c:FindFirstChild("HumanoidRootPart")
+            local hum=c:FindFirstChildOfClass("Humanoid")
+            if head and root and hum and hum.Health>0 then
+                local top=cam:WorldToViewportPoint(head.Position+Vector3.new(0,0.6,0))
+                local bot=cam:WorldToViewportPoint(root.Position-Vector3.new(0,2.8,0))
+                if top.Z>0 and bot.Z>0 then
+                    local h=math.abs(bot.Y-top.Y)
+                    local w=math.min(h*0.62,300)
+                    local cx=(top.X+bot.X)/2
+                    local ty=math.min(top.Y,bot.Y)
+                    if w>4 and h>4 then
+                        d.Box.Visible=true
+                        d.Box.Position=UDim2.new(0,cx-w/2,0,ty)
+                        d.Box.Size=UDim2.new(0,w,0,h)
+                        d.Stroke.Color=State.ESPColor
+                        if State.ESPShowName then
+                            d.Name.Visible=true
+                            d.Name.TextColor3=State.ESPColor
+                            local dist=myRoot and math.floor((root.Position-myRoot.Position).Magnitude) or 0
+                            if State.ESPShowDist then
+                                d.Name.Text=p.Name.." ["..dist.."m]"
+                            else
+                                d.Name.Text=p.Name
+                            end
+                            d.Name.Position=UDim2.new(0,cx-w/2-60,0,ty-20)
+                            d.Name.Size=UDim2.new(0,w+120,0,18)
+                        else
+                            d.Name.Visible=false
+                        end
+                        show=true
+                    end
+                end
+            end
+        end
+        if not show then
+            if d.Box then d.Box.Visible=false end
+            if d.Name then d.Name.Visible=false end
+        end
+    end
+end)
+
+--==================================================
+-- SPEED (fix: heartbeat loop liên tục)
+--==================================================
+local SpeedConn
+local function StartSpeed()
+    if SpeedConn then SpeedConn:Disconnect() end
+    SpeedConn=RunService.Heartbeat:Connect(function()
+        if not State.Speed then return end
+        if not Humanoid or not Humanoid.Parent then GetChar() end
+        if Humanoid then
+            Humanoid.WalkSpeed=State.SpeedValue
+        end
+    end)
+end
+local function StopSpeed()
+    if SpeedConn then SpeedConn:Disconnect(); SpeedConn=nil end
+    GetChar()
+    if Humanoid then Humanoid.WalkSpeed=16 end
+end
+local function UpdateSpeed()
+    if State.Speed then StartSpeed() else StopSpeed() end
+end
+
+--==================================================
+-- FLY (fix: BodyVelocity + BodyGyro + mobile support)
+--==================================================
+local FlyVel,FlyGyro,FlyConn
+local function StopFly()
+    if FlyConn then FlyConn:Disconnect(); FlyConn=nil end
+    if FlyVel then FlyVel:Destroy(); FlyVel=nil end
+    if FlyGyro then FlyGyro:Destroy(); FlyGyro=nil end
+    GetChar()
+    if Humanoid then
+        Humanoid.PlatformStand=false
+        pcall(function() Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+    end
+end
+
+local function StartFly()
+    StopFly()
+    GetChar()
+    if not Root or not Humanoid then
+        task.wait(0.3)
+        GetChar()
+        if not Root or not Humanoid then return end
+    end
+    
+    FlyVel=Instance.new("BodyVelocity")
+    FlyVel.Name="TNH_VN_Fly"
+    FlyVel.MaxForce=Vector3.new(1e9,1e9,1e9)
+    FlyVel.P=25000
+    FlyVel.Velocity=Vector3.zero
+    FlyVel.Parent=Root
+    
+    FlyGyro=Instance.new("BodyGyro")
+    FlyGyro.Name="TNH_VN_Gyro"
+    FlyGyro.MaxTorque=Vector3.new(1e9,1e9,1e9)
+    FlyGyro.P=30000
+    FlyGyro.D=1000
+    FlyGyro.CFrame=Root.CFrame
+    FlyGyro.Parent=Root
+    
+    Humanoid.PlatformStand=true
+    
+    FlyConn=RunService.RenderStepped:Connect(function()
+        if not State.Fly or State.Destroyed then StopFly(); return end
+        if not Root or not Root.Parent then return end
+        if not Humanoid or not Humanoid.Parent then return end
+        
+        Humanoid.PlatformStand=true
+        
+        local cam=WS.CurrentCamera
+        if not cam then return end
+        
+        local dir=Vector3.zero
+        
+        -- PC keyboard
+        if UIS:IsKeyDown(Enum.KeyCode.W) then dir+=cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then dir-=cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then dir-=cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then dir+=cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir+=Vector3.new(0,1,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then dir-=Vector3.new(0,1,0) end
+        
+        -- Mobile: nếu không có phím thì dùng MoveDirection (joystick)
+        if dir.Magnitude<0.1 then
+            local md=Humanoid.MoveDirection
+            if md.Magnitude>0.1 then
+                dir=md
+                -- Mobile: nút Space ảo không có → dùng joystick lên/xuống là đủ
+            end
+        end
+        
+        if dir.Magnitude>0 then
+            FlyVel.Velocity=dir.Unit*State.FlyValue
+        else
+            FlyVel.Velocity=Vector3.zero
+        end
+        
+        FlyGyro.CFrame=CFrame.lookAt(Root.Position,Root.Position+cam.CFrame.LookVector)
+    end)
+end
+
+--==================================================
+-- FIX LAG (cực mạnh)
+--==================================================
+local DisabledObjects={}
+local function DisableObj(obj)
+    -- Particles / Effects
+    if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+    or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles")
+    or obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight")
+    or obj:IsA("PostEffect") then
+        if DisabledObjects[obj]==nil then DisabledObjects[obj]={t="e",v=obj.Enabled} end
+        pcall(function() obj.Enabled=false end)
+    end
+    -- Textures
+    if obj:IsA("Decal") or obj:IsA("Texture") then
+        if DisabledObjects[obj]==nil then DisabledObjects[obj]={t="tx",v=obj.Texture} end
+        pcall(function() obj.Texture="" end)
+    end
+    -- Sky
+    if obj:IsA("Sky") then
+        if DisabledObjects[obj]==nil then DisabledObjects[obj]={t="p",v=obj.Parent} end
+        pcall(function() obj.Parent=nil end)
+    end
+    -- BasePart
+    if obj:IsA("BasePart") then
+        if DisabledObjects[obj]==nil then
+            DisabledObjects[obj]={t="bp",CS=obj.CastShadow,MT=obj.Material,RF=obj.Reflectance}
+        end
+        pcall(function()
+            obj.CastShadow=false
+            obj.Reflectance=0
+            if obj.Material~=Enum.Material.Water and obj.Material~=Enum.Material.Glass then
+                obj.Material=Enum.Material.Plastic
+            end
+        end)
+    end
+    -- Sound
+    if obj:IsA("Sound") then
+        if DisabledObjects[obj]==nil then DisabledObjects[obj]={t="v",v=obj.Volume} end
+        pcall(function() obj.Volume=0 end)
+    end
+end
+
+local LagConn
+local function StartFixLag()
+    if State.FixLag then return end
+    State.FixLag=true
+    
+    pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Level01 end)
+    pcall(function() settings().Rendering.MeshPartDetailLevel=Enum.MeshPartDetailLevel.Level01 end)
+    pcall(function() settings().Rendering.EagerBulkExecution=true end)
+    
+    for _,o in ipairs(WS:GetDescendants()) do DisableObj(o) end
+    for _,o in ipairs(Lighting:GetDescendants()) do DisableObj(o) end
+    
+    pcall(function()
+        Original.GS=Lighting.GlobalShadows; Lighting.GlobalShadows=false
+        Original.EDS=Lighting.EnvironmentDiffuseScale; Lighting.EnvironmentDiffuseScale=0
+        Original.ESS=Lighting.EnvironmentSpecularScale; Lighting.EnvironmentSpecularScale=0
+        Original.BR=Lighting.Brightness; Lighting.Brightness=1
+        Original.FS=Lighting.FogStart; Lighting.FogStart=0
+        Original.FE=Lighting.FogEnd; Lighting.FogEnd=300
+    end)
+    
+    pcall(function()
+        if WS.Terrain then
+            Original.T1=WS.Terrain.WaterWaveSize; WS.Terrain.WaterWaveSize=0
+            Original.T2=WS.Terrain.WaterWaveSpeed; WS.Terrain.WaterWaveSpeed=0
+            Original.T3=WS.Terrain.WaterReflectance; WS.Terrain.WaterReflectance=0
+            Original.T4=WS.Terrain.Decoration; WS.Terrain.Decoration=false
+        end
+    end)
+    
+    LagConn=WS.DescendantAdded:Connect(function(o)
+        if State.FixLag then task.defer(function() DisableObj(o) end) end
+    end)
+end
+
+local function StopFixLag()
+    if not State.FixLag then return end
+    State.FixLag=false
+    if LagConn then LagConn:Disconnect(); LagConn=nil end
+    
+    for obj,v in pairs(DisabledObjects) do
+        if typeof(obj)=="Instance" and obj.Parent then
+            pcall(function()
+                if v.t=="e" then obj.Enabled=v.v
+                elseif v.t=="tx" then obj.Texture=v.v
+                elseif v.t=="bp" then
+                    if v.CS~=nil then obj.CastShadow=v.CS end
+                    if v.MT~=nil then obj.Material=v.MT end
+                    if v.RF~=nil then obj.Reflectance=v.RF end
+                elseif v.t=="v" then obj.Volume=v.v end
+            end)
+        end
+    end
+    DisabledObjects={}
+    
+    pcall(function()
+        if Original.GS~=nil then Lighting.GlobalShadows=Original.GS end
+        if Original.EDS~=nil then Lighting.EnvironmentDiffuseScale=Original.EDS end
+        if Original.ESS~=nil then Lighting.EnvironmentSpecularScale=Original.ESS end
+        if Original.BR~=nil then Lighting.Brightness=Original.BR end
+        if Original.FS~=nil then Lighting.FogStart=Original.FS end
+        if Original.FE~=nil then Lighting.FogEnd=Original.FE end
+    end)
+    pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Automatic end)
+end
+
+--==================================================
+-- AUTO STEAL EGG (mới: teleport + fireprompt + bay về base)
+--==================================================
+local AutoRunning=false
+local CarryForce
+
+local function GetPromptFromEgg(part)
+    if not part then return nil end
+    local p=part:FindFirstChildOfClass("ProximityPrompt")
+    if p then return p end
+    if part.Parent then
+        p=part.Parent:FindFirstChildOfClass("ProximityPrompt")
+        if p then return p end
+        for _,d in ipairs(part.Parent:GetDescendants()) do
+            if d:IsA("ProximityPrompt") then return d end
+        end
+    end
+    for _,d in ipairs(part:GetDescendants()) do
+        if d:IsA("ProximityPrompt") then return d end
+    end
+    return nil
+end
+
+local function GetClickFromEgg(part)
+    if not part then return nil end
+    local c=part:FindFirstChildOfClass("ClickDetector")
+    if c then return c end
+    if part.Parent then
+        c=part.Parent:FindFirstChildOfClass("ClickDetector")
+        if c then return c end
+    end
+    return nil
+end
+
+local function FindEggs()
+    local eggs,seen={},{}
+    for _,o in ipairs(WS:GetDescendants()) do
+        if o:IsA("BasePart") and not seen[o] then
+            local n=o.Name:lower()
+            local isEgg=(n:find("egg") or n:find("trứng"))
+                and not n:find("machine") and not n:find("fuse") and not n:find("zone")
+                and not n:find("shop") and not n:find("display") and not n:find("decor")
+            if isEgg then
+                local a,ic=o.Parent,false
+                for _=1,5 do
+                    if not a or a==WS then break end
+                    if a:FindFirstChildOfClass("Humanoid") then ic=true; break end
+                    a=a.Parent
+                end
+                if not ic then
+                    local prompt=GetPromptFromEgg(o)
+                    local click=GetClickFromEgg(o)
+                    if prompt or click then
+                        seen[o]=true
+                        table.insert(eggs,{part=o,prompt=prompt,click=click})
+                    end
+                end
+            end
+        end
+    end
+    return eggs
+end
+
+local function FindNearestEgg()
+    local eggs=FindEggs()
+    if #eggs==0 then return nil end
+    GetChar()
+    if not Root then return nil end
+    local best,bd=nil,math.huge
+    for _,e in ipairs(eggs) do
+        local d=(e.part.Position-Root.Position).Magnitude
+        if d<bd then bd=d; best=e end
+    end
+    return best
+end
+
+local function TriggerPickup(egg)
+    if not egg then return end
+    -- fire prompt
+    if egg.prompt then
+        pcall(function()
+            if fireproximityprompt then
+                fireproximityprompt(egg.prompt,0)
+            else
+                egg.prompt:InputHoldBegin()
+                task.wait(math.max(egg.prompt.HoldDuration or 0.05,0.05)+0.05)
+                egg.prompt:InputHoldEnd()
+            end
+        end)
+    end
+    -- fire click
+    if egg.click and fireclickdetector then
+        pcall(function() fireclickdetector(egg.click,0) end)
+    end
+    -- fire touch
+    GetChar()
+    if Root and firetouchinterest then
+        pcall(function()
+            firetouchinterest(Root,egg.part,0)
+            task.wait(0.03)
+            firetouchinterest(Root,egg.part,1)
+        end)
+    end
+end
+
+local function FindBase()
+    GetChar()
+    if not Root then return nil end
+    -- Ưu tiên folder chứa tên player
+    local lname=LP.Name:lower()
+    for _,folderName in ipairs({"Bases","Pens","Base","Spawns","Plots"}) do
+        local f=WS:FindFirstChild(folderName)
+        if f then
+            for _,o in ipairs(f:GetChildren()) do
+                if o.Name:lower():find(lname,1,true) then
+                    local p=o.PrimaryPart or o:FindFirstChildWhichIsA("BasePart")
+                    if p then return p end
+                end
+            end
+        end
+    end
+    -- Fallback: SpawnLocation
+    for _,o in ipairs(WS:GetDescendants()) do
+        if o:IsA("SpawnLocation") then return o end
+    end
+    return nil
+end
+
+local function IsCarryingEgg()
+    for _,a in ipairs({"HasEgg","CarryingEgg","HasPet","CarryEgg","Holding","IsCarrying","Egg","EggName"}) do
+        local ok,v=pcall(function() return LP:GetAttribute(a) end)
+        if ok and v~=nil and v~=false and v~="" then return true end
+    end
+    GetChar()
+    if Character then
+        for _,o in ipairs(Character:GetChildren()) do
+            if o:IsA("Tool") or o:IsA("Model") then
+                local n=o.Name:lower()
+                if n=="egg" or n:match("^egg[%s_%-%d]") then return true end
+            end
+        end
+    end
+    local bp=LP:FindFirstChildOfClass("Backpack")
+    if bp then
+        for _,o in ipairs(bp:GetChildren()) do
+            local n=o.Name:lower()
+            if n=="egg" or n:match("^egg[%s_%-%d]") then return true end
+        end
+    end
+    return false
+end
+
+local function TPTo(pos)
+    GetChar()
+    if not Root then return end
+    pcall(function()
+        Root.CFrame=CFrame.new(pos+Vector3.new(0,3,0))
+        Root.AssemblyLinearVelocity=Vector3.zero
+        Root.AssemblyAngularVelocity=Vector3.zero
+    end)
+end
+
+local function AutoStealLoop()
+    if AutoRunning then return end
+    AutoRunning=true
+    task.spawn(function()
+        while State.AutoSteal and not State.Destroyed do
+            GetChar()
+            if not Root then task.wait(1); continue end
+            
+            -- Đang cầm trứng → bay về base
+            if IsCarryingEgg() then
+                -- Bật ForceField bất tử
+                if Character and not Character:FindFirstChild("TNHVN_FF") then
+                    local ff=Instance.new("ForceField")
+                    ff.Name="TNHVN_FF"
+                    ff.Visible=false
+                    ff.Parent=Character
+                end
+                if Humanoid and Humanoid.Health<Humanoid.MaxHealth then
+                    Humanoid.Health=Humanoid.MaxHealth
+                end
+                local base=FindBase()
+                if base then
+                    local dist=(base.Position-Root.Position).Magnitude
+                    if dist>8 then
+                        -- Teleport dần về base (tránh bị kick)
+                        local dir=base.Position-Root.Position
+                        local step=math.min(dir.Magnitude-4,80)
+                        TPTo(Root.Position+dir.Unit*step)
+                    end
+                end
+                task.wait(0.1)
+            else
+                -- Tìm trứng gần nhất
+                local egg=FindNearestEgg()
+                if egg then
+                    local dist=(egg.part.Position-Root.Position).Magnitude
+                    if dist>5 then
+                        local dir=egg.part.Position-Root.Position
+                        local step=math.min(dir.Magnitude-3,60)
+                        TPTo(Root.Position+dir.Unit*step)
+                    else
+                        -- Đã tới gần → nhặt
+                        TriggerPickup(egg)
+                        task.wait(0.15)
+                    end
+                else
+                    task.wait(0.5)
+                end
+                task.wait(0.05)
+            end
+        end
+        AutoRunning=false
+    end)
+end
+
+--==================================================
+-- KEY GUI
+--==================================================
+local KeyGui=Instance.new("ScreenGui")
+KeyGui.Name="TNHVN_Key"
+KeyGui.ResetOnSpawn=false
+KeyGui.IgnoreGuiInset=true
+KeyGui.Parent=game:GetService("CoreGui")
+
+local KeyFrame=Instance.new("Frame")
+KeyFrame.Size=UDim2.fromOffset(310,180)
+KeyFrame.Position=UDim2.new(0.5,-155,0.5,-90)
+KeyFrame.BackgroundColor3=Color3.fromRGB(18,18,22)
+KeyFrame.BorderSizePixel=0
+KeyFrame.Parent=KeyGui
+Instance.new("UICorner",KeyFrame).CornerRadius=UDim.new(0,14)
+local KeyStroke=Instance.new("UIStroke")
+KeyStroke.Color=Color3.fromRGB(255,190,40); KeyStroke.Thickness=1.5; KeyStroke.Parent=KeyFrame
+
+local KeyTitle=Instance.new("TextLabel")
+KeyTitle.Size=UDim2.new(1,0,0,42); KeyTitle.BackgroundTransparency=1
+KeyTitle.Text="TNH-VN HUB"; KeyTitle.TextColor3=Color3.fromRGB(255,200,60)
+KeyTitle.TextSize=23; KeyTitle.Font=Enum.Font.GothamBold; KeyTitle.Parent=KeyFrame
+
+local KeySub=Instance.new("TextLabel")
+KeySub.Size=UDim2.new(1,-20,0,25); KeySub.Position=UDim2.fromOffset(10,38)
+KeySub.BackgroundTransparency=1; KeySub.Text="Nhập key để tiếp tục"
+KeySub.TextColor3=Color3.fromRGB(180,180,190); KeySub.TextSize=14
+KeySub.Font=Enum.Font.Gotham; KeySub.Parent=KeyFrame
+
+local KeyBox=Instance.new("TextBox")
+KeyBox.Size=UDim2.new(1,-30,0,42); KeyBox.Position=UDim2.fromOffset(15,72)
+KeyBox.BackgroundColor3=Color3.fromRGB(30,30,36)
+KeyBox.PlaceholderText="Key..."; KeyBox.Text=""
+KeyBox.TextColor3=Color3.new(1,1,1); KeyBox.PlaceholderColor3=Color3.fromRGB(120,120,130)
+KeyBox.TextSize=15; KeyBox.Font=Enum.Font.Gotham; KeyBox.ClearTextOnFocus=false
+KeyBox.Parent=KeyFrame
+Instance.new("UICorner",KeyBox).CornerRadius=UDim.new(0,9)
+
+local KeyButton=Instance.new("TextButton")
+KeyButton.Size=UDim2.new(1,-30,0,38); KeyButton.Position=UDim2.fromOffset(15,125)
+KeyButton.BackgroundColor3=Color3.fromRGB(220,165,35)
+KeyButton.Text="XÁC NHẬN"; KeyButton.TextColor3=Color3.fromRGB(15,15,15)
+KeyButton.TextSize=15; KeyButton.Font=Enum.Font.GothamBold; KeyButton.Parent=KeyFrame
+Instance.new("UICorner",KeyButton).CornerRadius=UDim.new(0,9)
+
+--==================================================
+-- MAIN GUI
+--==================================================
+local MainGui
+local function MakeLabel(parent,text,size,pos)
+    local l=Instance.new("TextLabel")
+    l.Size=size; l.Position=pos; l.BackgroundTransparency=1
+    l.Text=text; l.TextColor3=Color3.fromRGB(235,235,240)
+    l.TextSize=14; l.Font=Enum.Font.Gotham
+    l.TextXAlignment=Enum.TextXAlignment.Left; l.Parent=parent
+    return l
+end
+local function MakeButton(parent,text,size,pos)
+    local b=Instance.new("TextButton")
+    b.Size=size; b.Position=pos
+    b.BackgroundColor3=Color3.fromRGB(31,31,38)
+    b.Text=text; b.TextColor3=Color3.fromRGB(235,235,240)
+    b.TextSize=14; b.Font=Enum.Font.GothamMedium
+    b.AutoButtonColor=false; b.Parent=parent
+    Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
+    return b
+end
+
+local function CreateMain()
+    if MainGui then pcall(function() MainGui:Destroy() end) end
+    MainGui=Instance.new("ScreenGui")
+    MainGui.Name="TNHVN_HUB"; MainGui.ResetOnSpawn=false
+    MainGui.IgnoreGuiInset=true; MainGui.Parent=game:GetService("CoreGui")
+
+    local Main=Instance.new("Frame")
+    Main.Name="Main"; Main.Size=UDim2.fromOffset(570,370)
+    Main.Position=UDim2.new(0.5,-285,0.5,-185)
+    Main.BackgroundColor3=Color3.fromRGB(17,17,21); Main.BorderSizePixel=0
+    Main.Parent=MainGui
+    Instance.new("UICorner",Main).CornerRadius=UDim.new(0,13)
+    local MS=Instance.new("UIStroke")
+    MS.Color=Color3.fromRGB(70,70,78); MS.Thickness=1; MS.Parent=Main
+
+    local Title=Instance.new("TextLabel")
+    Title.Size=UDim2.new(1,-100,0,45); Title.Position=UDim2.fromOffset(18,0)
+    Title.BackgroundTransparency=1; Title.Text="TNH-VN HUB"
+    Title.TextColor3=Color3.fromRGB(255,195,50); Title.TextSize=20
+    Title.Font=Enum.Font.GothamBold; Title.TextXAlignment=Enum.TextXAlignment.Left
+    Title.Parent=Main
+
+    local Minus=Instance.new("TextButton")
+    Minus.Size=UDim2.fromOffset(35,35); Minus.Position=UDim2.new(1,-80,0,5)
+    Minus.BackgroundColor3=Color3.fromRGB(35,35,40); Minus.Text="−"
+    Minus.TextSize=22; Minus.TextColor3=Color3.new(1,1,1)
+    Minus.Font=Enum.Font.GothamBold; Minus.Parent=Main
+    Instance.new("UICorner",Minus).CornerRadius=UDim.new(0,8)
+
+    local Close=Instance.new("TextButton")
+    Close.Size=UDim2.fromOffset(35,35); Close.Position=UDim2.new(1,-40,0,5)
+    Close.BackgroundColor3=Color3.fromRGB(120,40,40); Close.Text="×"
+    Close.TextSize=22; Close.TextColor3=Color3.new(1,1,1)
+    Close.Font=Enum.Font.GothamBold; Close.Parent=Main
+    Instance.new("UICorner",Close).CornerRadius=UDim.new(0,8)
+
+    local Sidebar=Instance.new("Frame")
+    Sidebar.Size=UDim2.fromOffset(145,310); Sidebar.Position=UDim2.fromOffset(10,50)
+    Sidebar.BackgroundColor3=Color3.fromRGB(23,23,28); Sidebar.BorderSizePixel=0
+    Sidebar.Parent=Main
+    Instance.new("UICorner",Sidebar).CornerRadius=UDim.new(0,10)
+
+    local Content=Instance.new("Frame")
+    Content.Size=UDim2.new(1,-165,1,-60); Content.Position=UDim2.fromOffset(155,50)
+    Content.BackgroundTransparency=1; Content.Parent=Main
+
+    local Pages={}
+    local function NewPage(name)
+        local p=Instance.new("ScrollingFrame")
+        p.Name=name; p.Size=UDim2.fromScale(1,1)
+        p.BackgroundTransparency=1; p.BorderSizePixel=0
+        p.ScrollBarThickness=3; p.CanvasSize=UDim2.new(0,0,0,0)
+        p.Visible=false; p.Parent=Content
+        Pages[name]=p; return p
+    end
+
+    local HomePage=NewPage("Home")
+    local StealPage=NewPage("Steal")
+    local PlayerPage=NewPage("Player")
+    local ESPPage=NewPage("ESP")
+    local PerformancePage=NewPage("Performance")
+
+    local SideButtons={}
+    local function ShowPage(name)
+        for n,p in pairs(Pages) do p.Visible=(n==name) end
+        for n,b in pairs(SideButtons) do
+            if n==name then
+                b.BackgroundColor3=Color3.fromRGB(65,55,30)
+            else
+                b.BackgroundColor3=Color3.fromRGB(31,31,38)
+            end
+        end
+    end
+    local function SideBtn(text,y,page)
+        local b=MakeButton(Sidebar,text,UDim2.new(1,-14,0,40),UDim2.fromOffset(7,y))
+        SideButtons[page]=b
+        Connect(b.MouseButton1Click,function() ShowPage(page) end)
+        return b
+    end
+    SideBtn("⌂  Home",10,"Home")
+    SideBtn("🥚  Steal",55,"Steal")
+    SideBtn("♙  Player",100,"Player")
+    SideBtn("◉  ESP",145,"ESP")
+    SideBtn("⚙  Performance",190,"Performance")
+
+    -- HOME
+    MakeLabel(HomePage,"TNH-VN HUB",UDim2.new(1,-20,0,35),UDim2.fromOffset(5,5)).TextSize=22
+    local HI=MakeLabel(HomePage,"Steal An Egg • Mobile / Delta\n\nChọn chức năng ở menu bên trái.",UDim2.new(1,-20,0,100),UDim2.fromOffset(5,45))
+    HI.TextColor3=Color3.fromRGB(180,180,190)
+
+    -- STEAL
+    MakeLabel(StealPage,"AUTO STEAL EGG",UDim2.new(1,-20,0,35),UDim2.fromOffset(5,5)).TextSize=19
+    local AutoBtn=MakeButton(StealPage,"Auto Steal : OFF",UDim2.new(1,-10,0,45),UDim2.fromOffset(5,50))
+    Connect(AutoBtn.MouseButton1Click,function()
+        State.AutoSteal=not State.AutoSteal
+        if State.AutoSteal then
+            AutoBtn.Text="Auto Steal : ON"
+            AutoBtn.BackgroundColor3=Color3.fromRGB(45,95,55)
+            AutoStealLoop()
+        else
+            AutoBtn.Text="Auto Steal : OFF"
+            AutoBtn.BackgroundColor3=Color3.fromRGB(31,31,38)
+        end
+    end)
+    MakeLabel(StealPage,"Tự teleport tới trứng → nhặt → bay về base.",UDim2.new(1,-10,0,65),UDim2.fromOffset(5,105)).TextColor3=Color3.fromRGB(155,155,165)
+
+    -- PLAYER
+    MakeLabel(PlayerPage,"PLAYER",UDim2.new(1,-20,0,35),UDim2.fromOffset(5,5)).TextSize=19
+    
+    local SpeedToggle=MakeButton(PlayerPage,"Speed : OFF",UDim2.new(1,-10,0,42),UDim2.fromOffset(5,50))
+    Connect(SpeedToggle.MouseButton1Click,function()
+        State.Speed=not State.Speed
+        if State.Speed then
+            SpeedToggle.Text="Speed : ON"
+            SpeedToggle.BackgroundColor3=Color3.fromRGB(45,95,55)
+            StartSpeed()
+        else
+            SpeedToggle.Text="Speed : OFF"
+            SpeedToggle.BackgroundColor3=Color3.fromRGB(31,31,38)
+            StopSpeed()
+        end
+    end)
+
+    local SpeedBox=Instance.new("TextBox")
+    SpeedBox.Size=UDim2.new(1,-10,0,40); SpeedBox.Position=UDim2.fromOffset(5,100)
+    SpeedBox.BackgroundColor3=Color3.fromRGB(30,30,36); SpeedBox.Text=tostring(State.SpeedValue)
+    SpeedBox.TextColor3=Color3.new(1,1,1); SpeedBox.PlaceholderText="Speed 1-500"
+    SpeedBox.TextSize=14; SpeedBox.Font=Enum.Font.Gotham; SpeedBox.ClearTextOnFocus=false
+    SpeedBox.Parent=PlayerPage
+    Instance.new("UICorner",SpeedBox).CornerRadius=UDim.new(0,8)
+    Connect(SpeedBox.FocusLost,function()
+        local n=tonumber(SpeedBox.Text)
+        if n then State.SpeedValue=math.clamp(math.floor(n),1,500) end
+        SpeedBox.Text=tostring(State.SpeedValue)
+        if State.Speed then
+            GetChar()
+            if Humanoid then Humanoid.WalkSpeed=State.SpeedValue end
+        end
+    end)
+
+    local FlyToggle=MakeButton(PlayerPage,"Fly : OFF",UDim2.new(1,-10,0,42),UDim2.fromOffset(5,150))
+    Connect(FlyToggle.MouseButton1Click,function()
+        State.Fly=not State.Fly
+        if State.Fly then
+            FlyToggle.Text="Fly : ON"
+            FlyToggle.BackgroundColor3=Color3.fromRGB(45,95,55)
+            StartFly()
+        else
+            FlyToggle.Text="Fly : OFF"
+            FlyToggle.BackgroundColor3=Color3.fromRGB(31,31,38)
+            StopFly()
+        end
+    end)
+
+    local FlyBox=Instance.new("TextBox")
+    FlyBox.Size=UDim2.new(1,-10,0,40); FlyBox.Position=UDim2.fromOffset(5,200)
+    FlyBox.BackgroundColor3=Color3.fromRGB(30,30,36); FlyBox.Text=tostring(State.FlyValue)
+    FlyBox.TextColor3=Color3.new(1,1,1); FlyBox.PlaceholderText="Fly 1-500"
+    FlyBox.TextSize=14; FlyBox.Font=Enum.Font.Gotham; FlyBox.ClearTextOnFocus=false
+    FlyBox.Parent=PlayerPage
+    Instance.new("UICorner",FlyBox).CornerRadius=UDim.new(0,8)
+    Connect(FlyBox.FocusLost,function()
+        local n=tonumber(FlyBox.Text)
+        if n then State.FlyValue=math.clamp(math.floor(n),1,500) end
+        FlyBox.Text=tostring(State.FlyValue)
+    end)
+
+    -- ESP
+    MakeLabel(ESPPage,"PLAYER ESP",UDim2.new(1,-20,0,35),UDim2.fromOffset(5,5)).TextSize=19
+    
+    local ESPToggle=MakeButton(ESPPage,"ESP : OFF",UDim2.new(1,-10,0,42),UDim2.fromOffset(5,50))
+    Connect(ESPToggle.MouseButton1Click,function()
+        State.ESP=not State.ESP
+        if State.ESP then
+            ESPToggle.Text="ESP : ON"
+            ESPToggle.BackgroundColor3=Color3.fromRGB(45,95,55)
+        else
+            ESPToggle.Text="ESP : OFF"
+            ESPToggle.BackgroundColor3=Color3.fromRGB(31,31,38)
+            for _,d in pairs(ESPData) do
+                if d.Box then d.Box.Visible=false end
+                if d.Name then d.Name.Visible=false end
+            end
+        end
+    end)
+
+    -- Color picker button
+    MakeLabel(ESPPage,"Màu ESP",UDim2.new(1,-10,0,25),UDim2.fromOffset(5,105))
+    local ColorOpenBtn=MakeButton(ESPPage,"Chọn màu",UDim2.new(1,-10,0,38),UDim2.fromOffset(5,130))
+    ColorOpenBtn.BackgroundColor3=State.ESPColor
+    ColorOpenBtn.TextColor3=Color3.new(1,1,1)
+
+    local ColorList=Instance.new("Frame")
+    ColorList.Size=UDim2.new(1,-10,0,180)
+    ColorList.Position=UDim2.fromOffset(5,172)
+    ColorList.BackgroundColor3=Color3.fromRGB(25,25,30)
+    ColorList.BorderSizePixel=0
+    ColorList.Visible=false
+    ColorList.Parent=ESPPage
+    Instance.new("UICorner",ColorList).CornerRadius=UDim.new(0,8)
+    local CLStroke=Instance.new("UIStroke")
+    CLStroke.Color=Color3.fromRGB(70,70,80); CLStroke.Parent=ColorList
+    
+    local Colors={
+        {"Đỏ",Color3.fromRGB(255,55,55)},
+        {"Xanh dương",Color3.fromRGB(0,170,255)},
+        {"Xanh lá",Color3.fromRGB(50,220,100)},
+        {"Vàng",Color3.fromRGB(255,220,40)},
+        {"Tím",Color3.fromRGB(180,80,255)},
+        {"Hồng",Color3.fromRGB(255,80,180)},
+        {"Trắng",Color3.fromRGB(245,245,245)},
+        {"Cam",Color3.fromRGB(255,140,40)}
+    }
+    
+    local function SetESPColor(col)
+        State.ESPColor=col
+        ColorOpenBtn.BackgroundColor3=col
+        for _,d in pairs(ESPData) do
+            if d.Stroke then d.Stroke.Color=col end
+            if d.Name then d.Name.TextColor3=col end
+        end
+    end
+    
+    for i,data in ipairs(Colors) do
+        local row=math.floor((i-1)/2)
+        local col=(i-1)%2
+        local b=MakeButton(ColorList,data[1],UDim2.new(0.5,-10,0,36),UDim2.new(col*0.5,5,0,5+row*42))
+        b.BackgroundColor3=data[2]
+        b.TextColor3=Color3.new(1,1,1)
+        Connect(b.MouseButton1Click,function()
+            SetESPColor(data[2])
+            ColorList.Visible=false
+        end)
+    end
+    
+    Connect(ColorOpenBtn.MouseButton1Click,function()
+        ColorList.Visible=not ColorList.Visible
+    end)
+
+    -- PERFORMANCE
+    MakeLabel(PerformancePage,"PERFORMANCE",UDim2.new(1,-20,0,35),UDim2.fromOffset(5,5)).TextSize=19
+    local LagBtn=MakeButton(PerformancePage,"FixLag : OFF",UDim2.new(1,-10,0,45),UDim2.fromOffset(5,50))
+    Connect(LagBtn.MouseButton1Click,function()
+        State.FixLag=not State.FixLag
+        if State.FixLag then
+            LagBtn.Text="FixLag : ON"
+            LagBtn.BackgroundColor3=Color3.fromRGB(45,95,55)
+            StartFixLag()
+        else
+            LagBtn.Text="FixLag : OFF"
+            LagBtn.BackgroundColor3=Color3.fromRGB(31,31,38)
+            StopFixLag()
+        end
+    end)
+    MakeLabel(PerformancePage,"Tắt effect, texture, decal, sky, sound, shadow → FPS tăng 75-90%.",UDim2.new(1,-10,0,60),UDim2.fromOffset(5,105)).TextColor3=Color3.fromRGB(155,155,165)
+
+    -- Hide / Show
+    Connect(Minus.MouseButton1Click,function()
+        State.MenuOpen=false; Main.Visible=false
+    end)
+    
+    -- Close
+    Connect(Close.MouseButton1Click,function()
+        State.Destroyed=true
+        State.ESP=false; State.Speed=false; State.Fly=false
+        State.FixLag=false; State.AutoSteal=false
+        ClearAllESP()
+        StopFly()
+        StopSpeed()
+        StopFixLag()
+        GetChar()
+        if Humanoid then Humanoid.WalkSpeed=16; Humanoid.PlatformStand=false end
+        DisconnectAll()
+        pcall(function() MainGui:Destroy() end)
+        pcall(function() ESPGui:Destroy() end)
+    end)
+
+    -- Drag
+    local dragging, dragStart, startPos
+    Connect(Main.InputBegan,function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1
+        or input.UserInputType==Enum.UserInputType.Touch then
+            dragging=true
+            dragStart=input.Position
+            startPos=Main.Position
+            local ch
+            ch=input.Changed:Connect(function()
+                if input.UserInputState==Enum.UserInputState.End then
+                    dragging=false; ch:Disconnect()
+                end
+            end)
+            table.insert(Connections,ch)
+        end
+    end)
+    Connect(UIS.InputChanged,function(input)
+        if not dragging then return end
+        if input.UserInputType==Enum.UserInputType.MouseMovement
+        or input.UserInputType==Enum.UserInputType.Touch then
+            local d=input.Position-dragStart
+            Main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
+        end
+    end)
+
+    -- Floating T button
+    local TButton=Instance.new("TextButton")
+    TButton.Size=UDim2.fromOffset(54,54)
+    TButton.Position=UDim2.new(1,-75,0.5,-27)
+    TButton.BackgroundColor3=Color3.fromRGB(220,165,35)
+    TButton.Text="T"; TButton.TextColor3=Color3.fromRGB(20,20,20)
+    TButton.TextSize=25; TButton.Font=Enum.Font.GothamBold
+    TButton.AutoButtonColor=false; TButton.Parent=MainGui
+    Instance.new("UICorner",TButton).CornerRadius=UDim.new(1,0)
+    local TS2=Instance.new("UIStroke")
+    TS2.Color=Color3.fromRGB(255,220,100); TS2.Thickness=2; TS2.Parent=TButton
+
+    local TDrag,TDragStart,TStart,Moved
+    Connect(TButton.InputBegan,function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1
+        or input.UserInputType==Enum.UserInputType.Touch then
+            TDrag=true; Moved=false
+            TDragStart=input.Position
+            TStart=TButton.Position
+            local ch
+            ch=input.Changed:Connect(function()
+                if input.UserInputState==Enum.UserInputState.End then
+                    TDrag=false
+                    if not Moved then
+                        if Main.Visible then Main.Visible=false else Main.Visible=true end
+                    end
+                    ch:Disconnect()
+                end
+            end)
+            table.insert(Connections,ch)
+        end
+    end)
+    Connect(UIS.InputChanged,function(input)
+        if not TDrag then return end
+        if input.UserInputType==Enum.UserInputType.MouseMovement
+        or input.UserInputType==Enum.UserInputType.Touch then
+            local d=input.Position-TDragStart
+            if d.Magnitude>8 then Moved=true end
+            TButton.Position=UDim2.new(TStart.X.Scale,TStart.X.Offset+d.X,TStart.Y.Scale,TStart.Y.Offset+d.Y)
+        end
+    end)
+
+    ShowPage("Home")
+end
+
+--==================================================
+-- KEY CHECK
+--==================================================
+Connect(KeyButton.MouseButton1Click,function()
+    if KeyBox.Text==KEY then
+        pcall(function() KeyGui:Destroy() end)
+        CreateMain()
+    else
+        KeyButton.Text="SAI KEY"
+        task.delay(1,function()
+            if KeyButton and KeyButton.Parent then KeyButton.Text="XÁC NHẬN" end
+        end)
+    end
+end)
+
+print("[Tnh-VN] Hub Loaded — Key: Tnh-VN")
