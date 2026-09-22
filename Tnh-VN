@@ -1,398 +1,487 @@
---==================================================
---  STEAL AN EGG HUB
---  Key: Tnh-VN
---==================================================
+--========================================================
+--                 TNH • STEAL AN EGG
+--                 KEY: Tnh-VN
+--========================================================
 
 repeat task.wait() until game:IsLoaded()
 
---// SERVICES
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-local PathfindingService = game:GetService("PathfindingService")
+--========================================================
+-- SERVICES
+--========================================================
+
+local Players          = game:GetService("Players")
+local RunService       = game:GetService("RunService")
+local UIS              = game:GetService("UserInputService")
+local TweenService     = game:GetService("TweenService")
+local Lighting         = game:GetService("Lighting")
+local Workspace        = game:GetService("Workspace")
+local CoreGui          = game:GetService("CoreGui")
 
 local LP = Players.LocalPlayer
 
---==================================================
--- VARIABLES
---==================================================
+--========================================================
+-- CONFIG
+--========================================================
 
 local KEY = "Tnh-VN"
 
-local ESPEnabled = false
-local AutoSteal = false
-local SpeedEnabled = false
-local FlyEnabled = false
-local FixLagEnabled = false
+local WALK_SPEED = 16
+local FLY_SPEED = 80
 
-local ESPColor = Color3.fromRGB(255, 190, 0)
+local ESP_ON = false
+local SPEED_ON = false
+local FLY_ON = false
+local FIXLAG_ON = false
+local AUTO_STEAL = false
 
-local WalkSpeed = 16
-local FlySpeed = 80
+local ESP_COLOR = Color3.fromRGB(255, 190, 0)
 
-local FlyBV
-local FlyBG
-local FlyConnection
+local MENU_SIZE = Vector2.new(570, 370)
 
-local StealThread
-local ESPFolder
+--========================================================
+-- CLEAN OLD GUI
+--========================================================
 
-local LagCache = {}
+pcall(function()
+    local a = CoreGui:FindFirstChild("TNH_KEY")
+    if a then a:Destroy() end
 
---==================================================
--- GUI HELPERS
---==================================================
+    local b = CoreGui:FindFirstChild("TNH_HUB")
+    if b then b:Destroy() end
+end)
+
+--========================================================
+-- UTILITY
+--========================================================
 
 local function New(class, props)
     local obj = Instance.new(class)
 
-    for k, v in pairs(props or {}) do
-        obj[k] = v
+    for k,v in pairs(props or {}) do
+        pcall(function()
+            obj[k] = v
+        end)
     end
 
     return obj
 end
 
-local function Corner(obj, radius)
-    local c = New("UICorner", {
-        CornerRadius = UDim.new(0, radius or 8)
-    })
-
+local function Round(obj, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius or 8)
     c.Parent = obj
-    return c
 end
 
-local function Stroke(obj, color, thickness)
-    local s = New("UIStroke", {
-        Color = color or Color3.fromRGB(70,70,70),
-        Thickness = thickness or 1
-    })
-
+local function Outline(obj, color, thickness)
+    local s = Instance.new("UIStroke")
+    s.Color = color or Color3.fromRGB(55,55,65)
+    s.Thickness = thickness or 1
     s.Parent = obj
-    return s
 end
 
-local function Label(parent, text, size)
+local function Text(parent, value, size)
     return New("TextLabel", {
         Parent = parent,
         BackgroundTransparency = 1,
-        Text = text,
-        TextColor3 = Color3.fromRGB(235,235,235),
-        TextSize = size or 14,
+        Text = value,
+        TextColor3 = Color3.fromRGB(235,235,240),
+        TextSize = size or 13,
         Font = Enum.Font.Gotham,
         TextXAlignment = Enum.TextXAlignment.Left
     })
 end
 
---==================================================
+--========================================================
 -- KEY GUI
---==================================================
+--========================================================
 
 local KeyGui = New("ScreenGui", {
-    Name = "TnhKeyGui",
+    Name = "TNH_KEY",
     ResetOnSpawn = false,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    Parent = game:GetService("CoreGui")
+    Parent = CoreGui
 })
 
-local KeyFrame = New("Frame", {
+local KeyBoxFrame = New("Frame", {
     Parent = KeyGui,
-    Size = UDim2.fromOffset(330, 190),
-    Position = UDim2.new(.5, -165, .5, -95),
-    BackgroundColor3 = Color3.fromRGB(18,18,22)
+    Size = UDim2.fromOffset(315,185),
+    Position = UDim2.new(.5,-157,.5,-92),
+    BackgroundColor3 = Color3.fromRGB(17,17,21)
 })
 
-Corner(KeyFrame, 12)
-Stroke(KeyFrame, Color3.fromRGB(255,190,0), 1)
+Round(KeyBoxFrame,12)
+Outline(KeyBoxFrame,Color3.fromRGB(220,170,40),1)
 
-local KeyTitle = Label(KeyFrame, "STEAL AN EGG", 22)
-KeyTitle.Position = UDim2.fromOffset(20,18)
-KeyTitle.Size = UDim2.new(1,-40,0,30)
+local KeyTitle = Text(KeyBoxFrame,"TNH • STEAL AN EGG",20)
+KeyTitle.Position = UDim2.fromOffset(18,15)
+KeyTitle.Size = UDim2.new(1,-36,0,30)
 KeyTitle.Font = Enum.Font.GothamBold
 
-local KeySub = Label(KeyFrame, "Nhập key để mở Hub", 13)
-KeySub.Position = UDim2.fromOffset(20,52)
-KeySub.Size = UDim2.new(1,-40,0,22)
-KeySub.TextColor3 = Color3.fromRGB(150,150,150)
+local KeyInfo = Text(KeyBoxFrame,"Nhập key để mở menu",12)
+KeyInfo.Position = UDim2.fromOffset(18,46)
+KeyInfo.Size = UDim2.new(1,-36,0,22)
+KeyInfo.TextColor3 = Color3.fromRGB(145,145,150)
 
-local KeyBox = New("TextBox", {
-    Parent = KeyFrame,
-    Size = UDim2.new(1,-40,0,42),
-    Position = UDim2.fromOffset(20,82),
-    BackgroundColor3 = Color3.fromRGB(28,28,34),
-    PlaceholderText = "Nhập key...",
-    PlaceholderColor3 = Color3.fromRGB(100,100,100),
+local Input = New("TextBox", {
+    Parent = KeyBoxFrame,
+    Size = UDim2.new(1,-36,0,40),
+    Position = UDim2.fromOffset(18,75),
+    BackgroundColor3 = Color3.fromRGB(27,27,32),
+    PlaceholderText = "Key...",
+    PlaceholderColor3 = Color3.fromRGB(95,95,100),
     Text = "",
-    TextColor3 = Color3.fromRGB(255,255,255),
+    TextColor3 = Color3.fromRGB(240,240,240),
     TextSize = 14,
     Font = Enum.Font.Gotham,
     ClearTextOnFocus = false
 })
 
-Corner(KeyBox, 8)
-Stroke(KeyBox, Color3.fromRGB(55,55,65), 1)
+Round(Input,8)
+Outline(Input,Color3.fromRGB(55,55,65),1)
 
-local KeyButton = New("TextButton", {
-    Parent = KeyFrame,
-    Size = UDim2.new(1,-40,0,38),
-    Position = UDim2.fromOffset(20,133),
-    BackgroundColor3 = Color3.fromRGB(220,160,0),
+local Enter = New("TextButton", {
+    Parent = KeyBoxFrame,
+    Size = UDim2.new(1,-36,0,38),
+    Position = UDim2.fromOffset(18,128),
+    BackgroundColor3 = Color3.fromRGB(220,170,40),
     Text = "XÁC NHẬN",
     TextColor3 = Color3.fromRGB(20,20,20),
-    TextSize = 14,
+    TextSize = 13,
     Font = Enum.Font.GothamBold
 })
 
-Corner(KeyButton, 8)
+Round(Enter,8)
 
---==================================================
--- MAIN GUI
---==================================================
+--========================================================
+-- MAIN GUI CREATOR
+--========================================================
 
 local CreateMain
 
+--========================================================
+-- MAIN
+--========================================================
+
 CreateMain = function()
 
-    if game:GetService("CoreGui"):FindFirstChild("TnhStealEggHub") then
-        game:GetService("CoreGui").TnhStealEggHub:Destroy()
+    if CoreGui:FindFirstChild("TNH_HUB") then
+        CoreGui.TNH_HUB:Destroy()
     end
 
     local Gui = New("ScreenGui", {
-        Name = "TnhStealEggHub",
+        Name = "TNH_HUB",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        Parent = game:GetService("CoreGui")
+        Parent = CoreGui
     })
 
-    -- MAIN
+    --====================================================
+    -- FLOATING T BUTTON
+    --====================================================
+
+    local Float = New("TextButton", {
+        Parent = Gui,
+        Size = UDim2.fromOffset(48,48),
+        Position = UDim2.new(1,-65,.5,-24),
+        BackgroundColor3 = Color3.fromRGB(25,25,30),
+        Text = "T",
+        TextColor3 = Color3.fromRGB(240,190,40),
+        TextSize = 24,
+        Font = Enum.Font.GothamBold,
+        Visible = true
+    })
+
+    Round(Float,24)
+    Outline(Float,Color3.fromRGB(220,170,40),2)
+
+    --====================================================
+    -- MAIN WINDOW
+    --====================================================
+
     local Main = New("Frame", {
         Parent = Gui,
-        Size = UDim2.fromOffset(650,430),
-        Position = UDim2.new(.5,-325,.5,-215),
-        BackgroundColor3 = Color3.fromRGB(16,16,20)
+        Size = UDim2.fromOffset(
+            MENU_SIZE.X,
+            MENU_SIZE.Y
+        ),
+        Position = UDim2.new(.5,-MENU_SIZE.X/2,.5,-MENU_SIZE.Y/2),
+        BackgroundColor3 = Color3.fromRGB(15,15,19)
     })
 
-    Corner(Main,12)
-    Stroke(Main,Color3.fromRGB(55,55,65),1)
+    Round(Main,11)
+    Outline(Main,Color3.fromRGB(50,50,60),1)
 
-    -- TITLE
+    --====================================================
+    -- TOP BAR
+    --====================================================
+
     local Top = New("Frame", {
         Parent = Main,
-        Size = UDim2.new(1,0,0,50),
+        Size = UDim2.new(1,0,0,43),
         BackgroundColor3 = Color3.fromRGB(21,21,26)
     })
 
-    Corner(Top,12)
+    Round(Top,11)
 
-    local Title = Label(Top,"TNH • STEAL AN EGG",18)
-    Title.Position = UDim2.fromOffset(18,8)
-    Title.Size = UDim2.new(1,-80,0,25)
+    local Title = Text(Top,"TNH • STEAL AN EGG",15)
+    Title.Position = UDim2.fromOffset(15,7)
+    Title.Size = UDim2.new(1,-100,0,28)
     Title.Font = Enum.Font.GothamBold
 
-    local Close = New("TextButton", {
+    local Sub = Text(Top,"Tnh-VN",10)
+    Sub.Position = UDim2.fromOffset(15,25)
+    Sub.Size = UDim2.new(1,-100,0,15)
+    Sub.TextColor3 = Color3.fromRGB(120,120,125)
+
+    -- MINIMIZE
+    local Min = New("TextButton", {
         Parent = Top,
-        Size = UDim2.fromOffset(35,35),
-        Position = UDim2.new(1,-45,0,7),
+        Size = UDim2.fromOffset(30,30),
+        Position = UDim2.new(1,-67,0,6),
         BackgroundTransparency = 1,
-        Text = "×",
+        Text = "−",
         TextColor3 = Color3.fromRGB(220,220,220),
-        TextSize = 25,
+        TextSize = 21,
         Font = Enum.Font.GothamBold
     })
 
-    Close.MouseButton1Click:Connect(function()
-        Gui.Enabled = false
-    end)
+    -- CLOSE
+    local Close = New("TextButton", {
+        Parent = Top,
+        Size = UDim2.fromOffset(30,30),
+        Position = UDim2.new(1,-35,0,6),
+        BackgroundTransparency = 1,
+        Text = "×",
+        TextColor3 = Color3.fromRGB(230,80,80),
+        TextSize = 21,
+        Font = Enum.Font.GothamBold
+    })
 
+    --====================================================
     -- SIDEBAR
+    --====================================================
+
     local Side = New("Frame", {
         Parent = Main,
-        Size = UDim2.fromOffset(155,380),
-        Position = UDim2.fromOffset(0,50),
-        BackgroundColor3 = Color3.fromRGB(13,13,17)
+        Size = UDim2.fromOffset(125,327),
+        Position = UDim2.fromOffset(0,43),
+        BackgroundColor3 = Color3.fromRGB(12,12,16)
     })
 
-    local Search = New("TextBox", {
+    local SideLayout = New("UIListLayout", {
         Parent = Side,
-        Size = UDim2.new(1,-20,0,35),
-        Position = UDim2.fromOffset(10,10),
-        BackgroundColor3 = Color3.fromRGB(25,25,30),
-        PlaceholderText = "Search...",
-        PlaceholderColor3 = Color3.fromRGB(100,100,100),
-        Text = "",
-        TextColor3 = Color3.fromRGB(230,230,230),
-        TextSize = 13,
-        Font = Enum.Font.Gotham
+        Padding = UDim.new(0,4),
+        SortOrder = Enum.SortOrder.LayoutOrder
     })
 
-    Corner(Search,7)
-
-    local Pages = New("Frame", {
+    local SidePadding = New("UIPadding", {
         Parent = Side,
-        Size = UDim2.new(1,-20,1,-60),
-        Position = UDim2.fromOffset(10,55),
-        BackgroundTransparency = 1
+        PaddingTop = UDim.new(0,8),
+        PaddingLeft = UDim.new(0,7),
+        PaddingRight = UDim.new(0,7)
     })
 
-    local PageList = New("UIListLayout", {
-        Parent = Pages,
-        Padding = UDim.new(0,5)
-    })
-
+    --====================================================
     -- CONTENT
+    --====================================================
+
     local Content = New("ScrollingFrame", {
         Parent = Main,
-        Size = UDim2.new(1,-170,1,-65),
-        Position = UDim2.fromOffset(165,55),
+        Size = UDim2.new(1,-135,1,-53),
+        Position = UDim2.fromOffset(130,48),
         BackgroundTransparency = 1,
-        ScrollBarThickness = 3,
+        BorderSizePixel = 0,
+        ScrollBarThickness = 2,
         CanvasSize = UDim2.new()
     })
 
     local ContentLayout = New("UIListLayout", {
         Parent = Content,
-        Padding = UDim.new(0,8)
+        Padding = UDim.new(0,7)
+    })
+
+    local ContentPadding = New("UIPadding", {
+        Parent = Content,
+        PaddingTop = UDim.new(0,5),
+        PaddingLeft = UDim.new(0,7),
+        PaddingRight = UDim.new(0,7),
+        PaddingBottom = UDim.new(0,10)
     })
 
     ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         Content.CanvasSize =
-            UDim2.fromOffset(0,ContentLayout.AbsoluteContentSize.Y + 20)
+            UDim2.fromOffset(
+                0,
+                ContentLayout.AbsoluteContentSize.Y + 15
+            )
     end)
 
-    --==================================================
+    --====================================================
     -- PAGE SYSTEM
-    --==================================================
+    --====================================================
 
-    local PagesData = {}
+    local CurrentPage
 
     local function ClearContent()
-        for _, v in ipairs(Content:GetChildren()) do
-            if not v:IsA("UIListLayout") then
+        for _,v in ipairs(Content:GetChildren()) do
+            if not v:IsA("UIListLayout")
+            and not v:IsA("UIPadding") then
                 v:Destroy()
             end
         end
     end
 
-    local function Button(parent,text,callback)
+    local function SideButton(name, callback)
+
         local B = New("TextButton", {
-            Parent = parent,
-            Size = UDim2.new(1,0,0,38),
-            BackgroundColor3 = Color3.fromRGB(25,25,30),
-            Text = text,
-            TextColor3 = Color3.fromRGB(200,200,205),
-            TextSize = 13,
+            Parent = Side,
+            Size = UDim2.new(1,0,0,34),
+            BackgroundColor3 = Color3.fromRGB(20,20,25),
+            Text = name,
+            TextColor3 = Color3.fromRGB(185,185,190),
+            TextSize = 12,
             Font = Enum.Font.Gotham
         })
 
-        Corner(B,7)
+        Round(B,7)
 
-        B.MouseButton1Click:Connect(callback)
+        B.MouseButton1Click:Connect(function()
+
+            for _,v in ipairs(Side:GetChildren()) do
+                if v:IsA("TextButton") then
+                    v.BackgroundColor3 =
+                        Color3.fromRGB(20,20,25)
+
+                    v.TextColor3 =
+                        Color3.fromRGB(185,185,190)
+                end
+            end
+
+            B.BackgroundColor3 =
+                Color3.fromRGB(220,170,40)
+
+            B.TextColor3 =
+                Color3.fromRGB(20,20,20)
+
+            ClearContent()
+
+            callback()
+        end)
 
         return B
     end
 
-    local function Toggle(parent,text,state,callback)
+    local function Toggle(parent,name,value,callback)
 
         local Holder = New("Frame", {
             Parent = parent,
-            Size = UDim2.new(1,0,0,44),
-            BackgroundColor3 = Color3.fromRGB(23,23,28)
+            Size = UDim2.new(1,0,0,40),
+            BackgroundColor3 = Color3.fromRGB(22,22,27)
         })
 
-        Corner(Holder,8)
+        Round(Holder,7)
 
-        local T = Label(Holder,text,13)
-        T.Position = UDim2.fromOffset(12,0)
-        T.Size = UDim2.new(1,-70,1,0)
+        local L = Text(Holder,name,12)
+        L.Position = UDim2.fromOffset(10,0)
+        L.Size = UDim2.new(1,-70,1,0)
 
-        local Switch = New("TextButton", {
+        local B = New("TextButton", {
             Parent = Holder,
-            Size = UDim2.fromOffset(45,25),
+            Size = UDim2.fromOffset(45,24),
             Position = UDim2.new(1,-55,.5,-12),
             BackgroundColor3 =
-                state and Color3.fromRGB(220,160,0)
-                or Color3.fromRGB(55,55,62),
-            Text = state and "ON" or "OFF",
-            TextColor3 = Color3.fromRGB(255,255,255),
-            TextSize = 11,
+                value
+                and Color3.fromRGB(220,170,40)
+                or Color3.fromRGB(52,52,60),
+            Text = value and "ON" or "OFF",
+            TextColor3 =
+                value
+                and Color3.fromRGB(20,20,20)
+                or Color3.fromRGB(220,220,220),
+            TextSize = 10,
             Font = Enum.Font.GothamBold
         })
 
-        Corner(Switch,8)
+        Round(B,7)
 
-        Switch.MouseButton1Click:Connect(function()
+        B.MouseButton1Click:Connect(function()
 
-            state = not state
+            value = not value
 
-            Switch.Text = state and "ON" or "OFF"
+            B.Text = value and "ON" or "OFF"
 
-            Switch.BackgroundColor3 =
-                state and Color3.fromRGB(220,160,0)
-                or Color3.fromRGB(55,55,62)
+            B.BackgroundColor3 =
+                value
+                and Color3.fromRGB(220,170,40)
+                or Color3.fromRGB(52,52,60)
 
-            callback(state)
+            B.TextColor3 =
+                value
+                and Color3.fromRGB(20,20,20)
+                or Color3.fromRGB(220,220,220)
+
+            callback(value)
         end)
 
         return Holder
     end
 
-    local function Slider(parent,text,min,max,current,callback)
+    local function Slider(parent,name,min,max,value,callback)
 
         local Holder = New("Frame", {
             Parent = parent,
-            Size = UDim2.new(1,0,0,65),
-            BackgroundColor3 = Color3.fromRGB(23,23,28)
+            Size = UDim2.new(1,0,0,60),
+            BackgroundColor3 = Color3.fromRGB(22,22,27)
         })
 
-        Corner(Holder,8)
+        Round(Holder,7)
 
-        local L = Label(Holder,text .. ": " .. tostring(current),13)
-        L.Position = UDim2.fromOffset(12,7)
-        L.Size = UDim2.new(1,-24,0,20)
+        local L = Text(Holder,name.." : "..value,12)
+        L.Position = UDim2.fromOffset(10,5)
+        L.Size = UDim2.new(1,-20,0,20)
 
         local Bar = New("Frame", {
             Parent = Holder,
-            Size = UDim2.new(1,-24,0,8),
-            Position = UDim2.fromOffset(12,40),
-            BackgroundColor3 = Color3.fromRGB(45,45,52)
+            Size = UDim2.new(1,-20,0,7),
+            Position = UDim2.fromOffset(10,38),
+            BackgroundColor3 = Color3.fromRGB(48,48,55)
         })
 
-        Corner(Bar,5)
+        Round(Bar,5)
 
         local Fill = New("Frame", {
             Parent = Bar,
-            Size = UDim2.new((current-min)/(max-min),0,1,0),
-            BackgroundColor3 = Color3.fromRGB(220,160,0)
+            Size = UDim2.new(
+                math.clamp((value-min)/(max-min),0,1),
+                0,1,0
+            ),
+            BackgroundColor3 = Color3.fromRGB(220,170,40)
         })
 
-        Corner(Fill,5)
+        Round(Fill,5)
 
         local dragging = false
 
         local function Update(x)
 
-            local percent =
+            local p =
                 math.clamp(
                     (x-Bar.AbsolutePosition.X)
                     /Bar.AbsoluteSize.X,
                     0,1
                 )
 
-            local value =
-                math.floor(min + (max-min)*percent)
+            local val =
+                math.floor(min+(max-min)*p)
 
-            Fill.Size =
-                UDim2.new(percent,0,1,0)
+            Fill.Size = UDim2.new(p,0,1,0)
+            L.Text = name.." : "..val
 
-            L.Text =
-                text .. ": " .. tostring(value)
-
-            callback(value)
+            callback(val)
         end
 
         Bar.InputBegan:Connect(function(input)
+
             if input.UserInputType ==
                 Enum.UserInputType.MouseButton1
                 or input.UserInputType ==
@@ -429,40 +518,43 @@ CreateMain = function()
         return Holder
     end
 
-    --==================================================
+    --====================================================
     -- ESP
-    --==================================================
+    --====================================================
 
-    local function ClearESP()
+    local ESPFolder
+
+    local function RemoveESP()
 
         if ESPFolder then
             ESPFolder:Destroy()
+            ESPFolder = nil
+        end
+    end
+
+    local function DrawESP()
+
+        RemoveESP()
+
+        if not ESP_ON then
+            return
         end
 
         ESPFolder = New("Folder", {
             Name = "TNH_ESP",
             Parent = Workspace
         })
-    end
-
-    local function UpdateESP()
-
-        ClearESP()
-
-        if not ESPEnabled then
-            return
-        end
 
         for _,plr in ipairs(Players:GetPlayers()) do
 
             if plr ~= LP and plr.Character then
 
-                local h = New("Highlight", {
+                local H = New("Highlight", {
                     Parent = ESPFolder,
                     Adornee = plr.Character,
-                    FillColor = ESPColor,
-                    FillTransparency = .75,
-                    OutlineColor = ESPColor,
+                    FillColor = ESP_COLOR,
+                    OutlineColor = ESP_COLOR,
+                    FillTransparency = .78,
                     OutlineTransparency = 0
                 })
 
@@ -470,39 +562,219 @@ CreateMain = function()
         end
     end
 
-    Players.PlayerAdded:Connect(function()
-        task.wait(1)
-        if ESPEnabled then
-            UpdateESP()
-        end
-    end)
+    --====================================================
+    -- COLOR PICKER
+    --====================================================
 
-    --==================================================
+    local function ColorPicker(parent)
+
+        local Holder = New("Frame", {
+            Parent = parent,
+            Size = UDim2.new(1,0,0,125),
+            BackgroundColor3 = Color3.fromRGB(22,22,27)
+        })
+
+        Round(Holder,7)
+
+        local TitleC = Text(
+            Holder,
+            "ESP Color",
+            12
+        )
+
+        TitleC.Position =
+            UDim2.fromOffset(10,6)
+
+        TitleC.Size =
+            UDim2.new(1,-20,0,20)
+
+        -- HUE BAR
+        local Hue = New("Frame", {
+            Parent = Holder,
+            Size = UDim2.new(1,-20,0,18),
+            Position = UDim2.fromOffset(10,31),
+            BackgroundColor3 = Color3.new(1,1,1)
+        })
+
+        Round(Hue,5)
+
+        local hueGradient = New("UIGradient", {
+            Parent = Hue,
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0,Color3.fromRGB(255,0,0)),
+                ColorSequenceKeypoint.new(.17,Color3.fromRGB(255,255,0)),
+                ColorSequenceKeypoint.new(.33,Color3.fromRGB(0,255,0)),
+                ColorSequenceKeypoint.new(.5,Color3.fromRGB(0,255,255)),
+                ColorSequenceKeypoint.new(.66,Color3.fromRGB(0,0,255)),
+                ColorSequenceKeypoint.new(.83,Color3.fromRGB(255,0,255)),
+                ColorSequenceKeypoint.new(1,Color3.fromRGB(255,0,0))
+            })
+        })
+
+        local HueBar = New("Frame", {
+            Parent = Holder,
+            Size = UDim2.new(1,-20,0,65),
+            Position = UDim2.fromOffset(10,57),
+            BackgroundColor3 = Color3.fromRGB(255,0,0)
+        })
+
+        Round(HueBar,6)
+
+        local sat = New("UIGradient", {
+            Parent = HueBar,
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),
+                ColorSequenceKeypoint.new(1,Color3.new(1,1,1))
+            })
+        })
+
+        sat.Transparency =
+            NumberSequence.new({
+                NumberSequenceKeypoint.new(0,0),
+                NumberSequenceKeypoint.new(1,0)
+            })
+
+        local overlay = New("Frame", {
+            Parent = HueBar,
+            Size = UDim2.new(1,0,1,0),
+            BackgroundColor3 = Color3.new(0,0,0),
+            BackgroundTransparency = .15
+        })
+
+        Round(overlay,6)
+
+        -- SIMPLE PRESET COLORS
+        local colors = {
+            Color3.fromRGB(255,60,60),
+            Color3.fromRGB(60,150,255),
+            Color3.fromRGB(150,70,255),
+            Color3.fromRGB(255,190,40),
+            Color3.fromRGB(50,255,120),
+            Color3.fromRGB(255,70,200),
+            Color3.fromRGB(255,255,255),
+            Color3.fromRGB(40,40,40)
+        }
+
+        local holder = New("Frame", {
+            Parent = Holder,
+            Size = UDim2.new(1,-20,0,24),
+            Position = UDim2.fromOffset(10,92),
+            BackgroundTransparency = 1
+        })
+
+        local grid = New("UIGridLayout", {
+            Parent = holder,
+            CellSize = UDim2.fromOffset(24,24),
+            CellPadding = UDim2.fromOffset(5,0)
+        })
+
+        for _,color in ipairs(colors) do
+
+            local C = New("TextButton", {
+                Parent = holder,
+                BackgroundColor3 = color,
+                Text = ""
+            })
+
+            Round(C,12)
+
+            C.MouseButton1Click:Connect(function()
+
+                ESP_COLOR = color
+
+                if ESP_ON then
+                    DrawESP()
+                end
+            end)
+        end
+
+        -- HUE DRAG
+        local hue = 0
+
+        Hue.InputBegan:Connect(function(input)
+
+            if input.UserInputType ==
+                Enum.UserInputType.MouseButton1 then
+
+                local p =
+                    math.clamp(
+                        (input.Position.X-Hue.AbsolutePosition.X)
+                        /Hue.AbsoluteSize.X,
+                        0,1
+                    )
+
+                hue = p
+
+                ESP_COLOR =
+                    Color3.fromHSV(hue,1,1)
+
+                if ESP_ON then
+                    DrawESP()
+                end
+            end
+        end)
+
+        Hue.InputChanged:Connect(function(input)
+
+            if input.UserInputType ==
+                Enum.UserInputType.MouseMovement
+                and UIS:IsMouseButtonPressed(
+                    Enum.UserInputType.MouseButton1
+                ) then
+
+                local p =
+                    math.clamp(
+                        (input.Position.X-Hue.AbsolutePosition.X)
+                        /Hue.AbsoluteSize.X,
+                        0,1
+                    )
+
+                hue = p
+
+                ESP_COLOR =
+                    Color3.fromHSV(hue,1,1)
+
+                if ESP_ON then
+                    DrawESP()
+                end
+            end
+        end)
+
+        return Holder
+    end
+
+    --====================================================
     -- SPEED
-    --==================================================
+    --====================================================
 
     local function ApplySpeed()
 
         local char = LP.Character
         if not char then return end
 
-        local hum = char:FindFirstChildOfClass("Humanoid")
+        local hum =
+            char:FindFirstChildOfClass("Humanoid")
 
         if hum then
+
             hum.WalkSpeed =
-                SpeedEnabled and WalkSpeed or 16
+                SPEED_ON and WALK_SPEED or 16
         end
     end
 
-    --==================================================
+    --====================================================
     -- FLY
-    --==================================================
+    --====================================================
+
+    local FlyBV
+    local FlyBG
+    local FlyConn
 
     local function StopFly()
 
-        if FlyConnection then
-            FlyConnection:Disconnect()
-            FlyConnection = nil
+        if FlyConn then
+            FlyConn:Disconnect()
+            FlyConn = nil
         end
 
         if FlyBV then
@@ -531,94 +803,96 @@ CreateMain = function()
         FlyBV = Instance.new("BodyVelocity")
         FlyBV.MaxForce =
             Vector3.new(1e9,1e9,1e9)
-        FlyBV.Velocity =
-            Vector3.zero
+        FlyBV.Velocity = Vector3.zero
         FlyBV.Parent = root
 
         FlyBG = Instance.new("BodyGyro")
         FlyBG.MaxTorque =
             Vector3.new(1e9,1e9,1e9)
-        FlyBG.P = 10000
-        FlyBG.CFrame =
-            Workspace.CurrentCamera.CFrame
+        FlyBG.P = 9000
         FlyBG.Parent = root
 
-        FlyConnection = RunService.RenderStepped:Connect(function()
+        FlyConn =
+            RunService.RenderStepped:Connect(function()
 
-            if not FlyEnabled then
-                StopFly()
-                return
-            end
+                if not FLY_ON then
+                    StopFly()
+                    return
+                end
 
-            local cam =
-                Workspace.CurrentCamera
+                local cam =
+                    Workspace.CurrentCamera
 
-            local move =
-                Vector3.zero
+                local direction =
+                    Vector3.zero
 
-            if UIS:IsKeyDown(Enum.KeyCode.W) then
-                move += cam.CFrame.LookVector
-            end
+                if UIS:IsKeyDown(Enum.KeyCode.W) then
+                    direction += cam.CFrame.LookVector
+                end
 
-            if UIS:IsKeyDown(Enum.KeyCode.S) then
-                move -= cam.CFrame.LookVector
-            end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then
+                    direction -= cam.CFrame.LookVector
+                end
 
-            if UIS:IsKeyDown(Enum.KeyCode.A) then
-                move -= cam.CFrame.RightVector
-            end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then
+                    direction -= cam.CFrame.RightVector
+                end
 
-            if UIS:IsKeyDown(Enum.KeyCode.D) then
-                move += cam.CFrame.RightVector
-            end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then
+                    direction += cam.CFrame.RightVector
+                end
 
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                move += Vector3.new(0,1,0)
-            end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                    direction += Vector3.new(0,1,0)
+                end
 
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                move -= Vector3.new(0,1,0)
-            end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                    direction -= Vector3.new(0,1,0)
+                end
 
-            if move.Magnitude > 0 then
-                move = move.Unit * FlySpeed
-            end
+                if direction.Magnitude > 0 then
+                    direction =
+                        direction.Unit * FLY_SPEED
+                end
 
-            FlyBV.Velocity = move
-            FlyBG.CFrame = cam.CFrame
-        end)
+                FlyBV.Velocity = direction
+                FlyBG.CFrame = cam.CFrame
+            end)
     end
 
-    --==================================================
+    --====================================================
     -- FIX LAG
-    --==================================================
+    --====================================================
 
-    local function SetEffect(obj,property,value)
+    local LagCache = {}
 
-        pcall(function()
+    local function Cache(obj,prop,value)
 
-            if LagCache[obj] == nil then
-                LagCache[obj] = {}
-            end
+        if not LagCache[obj] then
+            LagCache[obj] = {}
+        end
 
-            if LagCache[obj][property] == nil then
-                LagCache[obj][property] =
-                    obj[property]
-            end
-
-            obj[property] = value
-        end)
+        if LagCache[obj][prop] == nil then
+            LagCache[obj][prop] = value
+        end
     end
 
     local function FixLag()
 
-        for _,obj in ipairs(Lighting:GetChildren()) do
+        -- Lighting effects
+        for _,obj in ipairs(Lighting:GetDescendants()) do
 
             if obj:IsA("PostEffect") then
-                SetEffect(obj,"Enabled",false)
+
+                Cache(obj,"Enabled",obj.Enabled)
+
+                pcall(function()
+                    obj.Enabled = false
+                end)
             end
         end
 
+        -- World effects
         for _,obj in ipairs(Workspace:GetDescendants()) do
 
             if obj:IsA("ParticleEmitter")
@@ -628,22 +902,42 @@ CreateMain = function()
             or obj:IsA("Fire")
             or obj:IsA("Sparkles") then
 
-                SetEffect(obj,"Enabled",false)
+                Cache(obj,"Enabled",obj.Enabled)
+
+                pcall(function()
+                    obj.Enabled = false
+                end)
 
             elseif obj:IsA("BasePart") then
 
-                SetEffect(obj,"CastShadow",false)
+                Cache(
+                    obj,
+                    "CastShadow",
+                    obj.CastShadow
+                )
 
-            elseif obj:IsA("Decal") then
+                pcall(function()
+                    obj.CastShadow = false
+                end)
 
-                -- giữ decal, không xóa texture
+            elseif obj:IsA("Explosion") then
+
+                pcall(function()
+                    obj:Destroy()
+                end)
             end
         end
 
+        -- Disable unnecessary lighting
         pcall(function()
             Lighting.GlobalShadows = false
         end)
 
+        pcall(function()
+            Lighting.FogEnd = 1000000
+        end)
+
+        -- Roblox graphics quality
         pcall(function()
             settings().Rendering.QualityLevel =
                 Enum.QualityLevel.Level01
@@ -656,12 +950,11 @@ CreateMain = function()
 
             if obj and obj.Parent then
 
-                for property,value in pairs(data) do
+                for prop,value in pairs(data) do
 
                     pcall(function()
-                        obj[property] = value
+                        obj[prop] = value
                     end)
-
                 end
             end
         end
@@ -673,89 +966,106 @@ CreateMain = function()
         end)
     end
 
-    --==================================================
+    --====================================================
     -- AUTO STEAL
-    --==================================================
+    --====================================================
 
-    local function IsEggName(name)
-
-        name = string.lower(name or "")
-
-        return
-            name:find("egg") ~= nil
-            or name:find("trung") ~= nil
-            or name:find("carryareaegg") ~= nil
+    local function Lower(str)
+        return string.lower(tostring(str or ""))
     end
 
-    local function IsStealPrompt(prompt)
+    local function IsEggObject(obj)
 
-        local all =
-            string.lower(
-                (prompt.Name or "") .. " "
-                .. (prompt.ActionText or "") .. " "
-                .. (prompt.ObjectText or "")
-            )
+        local n = Lower(obj.Name)
 
         return
-            all:find("egg") ~= nil
-            or all:find("steal") ~= nil
-            or all:find("grab") ~= nil
-            or all:find("carry") ~= nil
-            or all:find("take") ~= nil
-            or all:find("trung") ~= nil
+            n:find("egg") ~= nil
+            or n:find("trung") ~= nil
+            or n:find("carryareaegg") ~= nil
     end
 
-    local function GetPromptPart(prompt)
+    local function PromptLooksLikeEgg(prompt)
 
-        if not prompt then
+        local s =
+            Lower(prompt.Name).." "
+            ..Lower(prompt.ActionText).." "
+            ..Lower(prompt.ObjectText)
+
+        return
+            s:find("egg") ~= nil
+            or s:find("trung") ~= nil
+            or s:find("steal") ~= nil
+            or s:find("take") ~= nil
+            or s:find("grab") ~= nil
+            or s:find("carry") ~= nil
+    end
+
+    local function GetPart(obj)
+
+        if not obj then
             return nil
         end
 
-        if prompt.Parent:IsA("BasePart") then
-            return prompt.Parent
+        if obj:IsA("BasePart") then
+            return obj
+        end
+
+        if obj:IsA("Attachment") then
+            return obj.Parent
+        end
+
+        if obj:IsA("Model") then
+
+            return
+                obj.PrimaryPart
+                or obj:FindFirstChildWhichIsA(
+                    "BasePart",
+                    true
+                )
         end
 
         local model =
-            prompt:FindFirstAncestorOfClass("Model")
+            obj:FindFirstAncestorOfClass("Model")
 
         if model then
 
-            if model.PrimaryPart then
-                return model.PrimaryPart
-            end
-
-            return model:FindFirstChildWhichIsA(
-                "BasePart",
-                true
-            )
+            return
+                model.PrimaryPart
+                or model:FindFirstChildWhichIsA(
+                    "BasePart",
+                    true
+                )
         end
 
         return nil
     end
 
-    local function FindEggPrompt()
+    local function FindEgg()
 
+        local char = LP.Character
         local root =
-            LP.Character
-            and LP.Character:FindFirstChild(
+            char and
+            char:FindFirstChild(
                 "HumanoidRootPart"
             )
 
-        if not root then return nil end
+        if not root then
+            return nil
+        end
 
-        local nearest
-        local distance = math.huge
+        local best
+        local bestDistance = math.huge
 
         for _,obj in ipairs(
             Workspace:GetDescendants()
         ) do
 
+            -- ProximityPrompt
             if obj:IsA("ProximityPrompt")
             and obj.Enabled
-            and IsStealPrompt(obj) then
+            and PromptLooksLikeEgg(obj) then
 
-                local part =
-                    GetPromptPart(obj)
+                local part = GetPart(obj)
 
                 if part then
 
@@ -763,61 +1073,105 @@ CreateMain = function()
                         (root.Position -
                         part.Position).Magnitude
 
-                    if d < distance then
-                        distance = d
-                        nearest = obj
+                    if d < bestDistance then
+
+                        bestDistance = d
+
+                        best = {
+                            Type = "Prompt",
+                            Object = obj,
+                            Part = part
+                        }
                     end
                 end
             end
         end
 
-        return nearest
+        -- Egg model without prompt
+        if not best then
+
+            for _,obj in ipairs(
+                Workspace:GetDescendants()
+            ) do
+
+                if obj:IsA("Model")
+                and IsEggObject(obj) then
+
+                    local prompt =
+                        obj:FindFirstChildWhichIsA(
+                            "ProximityPrompt",
+                            true
+                        )
+
+                    local part = GetPart(obj)
+
+                    if prompt
+                    and prompt.Enabled
+                    and part then
+
+                        local d =
+                            (root.Position -
+                            part.Position).Magnitude
+
+                        if d < bestDistance then
+
+                            bestDistance = d
+
+                            best = {
+                                Type = "Prompt",
+                                Object = prompt,
+                                Part = part
+                            }
+                        end
+                    end
+                end
+            end
+        end
+
+        return best
     end
 
-    local function FirePrompt(prompt)
+    local function FireEgg(target)
 
-        if not prompt then
+        if not target then
             return false
         end
 
-        pcall(function()
-            prompt.HoldDuration = 0
-        end)
+        local prompt = target.Object
 
-        if typeof(fireproximityprompt)
-            == "function" then
+        if prompt:IsA("ProximityPrompt") then
 
-            local ok =
-                pcall(function()
-                    fireproximityprompt(prompt)
-                end)
+            pcall(function()
+                prompt.HoldDuration = 0
+            end)
 
-            if ok then
-                return true
+            if typeof(fireproximityprompt)
+                == "function" then
+
+                local ok =
+                    pcall(function()
+                        fireproximityprompt(prompt)
+                    end)
+
+                if ok then
+                    return true
+                end
             end
         end
 
         return false
     end
 
-    -- tìm vị trí base
-    local function FindBasePosition()
+    --====================================================
+    -- BASE FINDER
+    --====================================================
 
-        local root =
-            LP.Character
-            and LP.Character:FindFirstChild(
-                "HumanoidRootPart"
-            )
+    local function FindBase()
 
-        if not root then return nil end
-
-        local candidates = {}
-
-        -- tên thông dụng
-        local names = {
-            "Base",
+        local possible = {
             "MyBase",
             "PlayerBase",
+            "Base",
             "Home",
             "Plot",
             "Nest",
@@ -825,95 +1179,62 @@ CreateMain = function()
             "Safe"
         }
 
-        for _,name in ipairs(names) do
+        -- First search exact player name
+        for _,obj in ipairs(
+            Workspace:GetDescendants()
+        ) do
+
+            local n = Lower(obj.Name)
+
+            if n == Lower(LP.Name)
+            or n == Lower(LP.DisplayName)
+            or n:find(Lower(LP.Name),1,true) then
+
+                if obj:IsA("Model")
+                or obj:IsA("BasePart") then
+
+                    local p = GetPart(obj)
+
+                    if p then
+                        return p
+                    end
+                end
+            end
+        end
+
+        -- Then common base names
+        for _,name in ipairs(possible) do
 
             for _,obj in ipairs(
                 Workspace:GetDescendants()
             ) do
 
-                if string.lower(obj.Name)
-                    == string.lower(name) then
+                if Lower(obj.Name) ==
+                    Lower(name) then
 
-                    table.insert(
-                        candidates,obj
-                    )
+                    local p = GetPart(obj)
+
+                    if p then
+                        return p
+                    end
                 end
             end
-        end
-
-        -- thử tìm object có tên người chơi
-        for _,obj in ipairs(
-            Workspace:GetDescendants()
-        ) do
-
-            local n =
-                string.lower(obj.Name)
-
-            local username =
-                string.lower(LP.Name)
-
-            local display =
-                string.lower(LP.DisplayName)
-
-            if n == username
-            or n == display
-            or n:find(username) then
-
-                if obj:IsA("Model")
-                or obj:IsA("BasePart") then
-
-                    table.insert(
-                        candidates,obj
-                    )
-                end
-            end
-        end
-
-        -- chọn object gần spawn hiện tại
-        local best
-        local bestDist = math.huge
-
-        for _,obj in ipairs(candidates) do
-
-            local part
-
-            if obj:IsA("BasePart") then
-                part = obj
-
-            elseif obj:IsA("Model") then
-
-                part =
-                    obj.PrimaryPart
-                    or obj:FindFirstChildWhichIsA(
-                        "BasePart",
-                        true
-                    )
-            end
-
-            if part then
-
-                local d =
-                    (root.Position -
-                    part.Position).Magnitude
-
-                if d < bestDist then
-                    bestDist = d
-                    best = part
-                end
-            end
-        end
-
-        if best then
-            return best.Position
         end
 
         return nil
     end
 
-    local function TeleportTo(position)
+    --====================================================
+    -- MOVEMENT
+    --====================================================
+
+    local function StopVelocity()
 
         local char = LP.Character
-        if not char then return end
+
+        if not char then
+            return
+        end
 
         local root =
             char:FindFirstChild(
@@ -923,17 +1244,92 @@ CreateMain = function()
         if root then
 
             pcall(function()
-                root.CFrame =
-                    CFrame.new(
-                        position +
-                        Vector3.new(0,3,0)
-                    )
+                root.AssemblyLinearVelocity =
+                    Vector3.zero
             end)
-
         end
     end
 
-    local function AutoStealLoop()
+    local function TweenTo(position)
+
+        local char = LP.Character
+
+        if not char then
+            return false
+        end
+
+        local root =
+            char:FindFirstChild(
+                "HumanoidRootPart"
+            )
+
+        if not root then
+            return false
+        end
+
+        local distance =
+            (root.Position-position).Magnitude
+
+        -- movement speed used by Auto Steal
+        local speed = 120
+
+        local duration =
+            math.clamp(
+                distance/speed,
+                .12,
+                2.5
+            )
+
+        local tween =
+            TweenService:Create(
+                root,
+                TweenInfo.new(
+                    duration,
+                    Enum.EasingStyle.Linear
+                ),
+                {
+                    CFrame =
+                        CFrame.new(
+                            position +
+                            Vector3.new(0,2.5,0)
+                        )
+                }
+            )
+
+        local done = false
+
+        tween.Completed:Connect(function()
+            done = true
+        end)
+
+        tween:Play()
+
+        local timeout =
+            tick()+duration+.5
+
+        while not done
+        and tick()<timeout
+        and AUTO_STEAL do
+
+            task.wait()
+        end
+
+        pcall(function()
+            tween:Cancel()
+        end)
+
+        StopVelocity()
+
+        return AUTO_STEAL
+    end
+
+    --====================================================
+    -- AUTO STEAL LOOP
+    --====================================================
+
+    local StealThread = nil
+
+    local function StartAutoSteal()
 
         if StealThread then
             return
@@ -943,11 +1339,9 @@ CreateMain = function()
 
         task.spawn(function()
 
-            while AutoSteal do
+            while AUTO_STEAL do
 
-                local char =
-                    LP.Character
-
+                local char = LP.Character
                 local root =
                     char and
                     char:FindFirstChild(
@@ -956,44 +1350,49 @@ CreateMain = function()
 
                 if root then
 
-                    -- tìm trứng
-                    local prompt =
-                        FindEggPrompt()
+                    -- 1. FIND EGG
+                    local target =
+                        FindEgg()
 
-                    if prompt then
+                    if target
+                    and target.Part
+                    and target.Part.Parent then
 
-                        local part =
-                            GetPromptPart(prompt)
+                        -- 2. GO TO EGG
+                        TweenTo(
+                            target.Part.Position
+                        )
 
-                        if part then
+                        if not AUTO_STEAL then
+                            break
+                        end
 
-                            -- tới trứng
-                            TeleportTo(
-                                part.Position
-                            )
+                        task.wait(.08)
 
-                            task.wait(.12)
+                        -- 3. STEAL
+                        FireEgg(target)
 
-                            -- nhặt
-                            FirePrompt(prompt)
+                        task.wait(.35)
+
+                        if not AUTO_STEAL then
+                            break
+                        end
+
+                        -- 4. FIND BASE
+                        local base =
+                            FindBase()
+
+                        if base then
+
+                            -- 5. RETURN BASE
+                            TweenTo(base.Position)
 
                             task.wait(.35)
-
-                            -- tìm base
-                            local basePos =
-                                FindBasePosition()
-
-                            if basePos then
-
-                                -- mang về
-                                TeleportTo(
-                                    basePos
-                                )
-
-                                task.wait(.45)
-                            end
-
                         end
+
+                    else
+
+                        task.wait(.25)
                     end
                 end
 
@@ -1004,128 +1403,184 @@ CreateMain = function()
         end)
     end
 
-    --==================================================
-    -- PAGES
-    --==================================================
+    --====================================================
+    -- STOP ALL
+    --====================================================
 
-    local function AddPage(name,callback)
+    local function StopEverything()
 
-        local B = Button(
-            Pages,
-            name,
-            function()
-                ClearContent()
-                callback()
+        AUTO_STEAL = false
+        ESP_ON = false
+        SPEED_ON = false
+        FLY_ON = false
+
+        StopFly()
+        RemoveESP()
+
+        pcall(function()
+            RestoreLag()
+        end)
+
+        local char = LP.Character
+
+        if char then
+
+            local hum =
+                char:FindFirstChildOfClass(
+                    "Humanoid"
+                )
+
+            if hum then
+                hum.WalkSpeed = 16
             end
-        )
-
-        PagesData[name] = B
+        end
     end
 
-    -- HOME
-    AddPage("Home",function()
+    --====================================================
+    -- PAGE: HOME
+    --====================================================
 
-        local W = Label(
-            Content,
-            "TNH STEAL AN EGG HUB",
-            22
-        )
+    local function HomePage()
 
-        W.Size =
-            UDim2.new(1,-10,0,40)
+        local H =
+            Text(Content,"TNH HUB",20)
 
-        W.Font =
-            Enum.Font.GothamBold
-
-        local Info = Label(
-            Content,
-            "Hub hỗ trợ Auto Steal, ESP, Fly, Speed và FixLag.",
-            13
-        )
-
-        Info.Size =
+        H.Size =
             UDim2.new(1,-10,0,35)
 
-        Info.TextColor3 =
-            Color3.fromRGB(150,150,150)
+        H.Font =
+            Enum.Font.GothamBold
 
-        Button(
+        local Info =
+            Text(
+                Content,
+                "Steal An Egg • Key Tnh-VN",
+                12
+            )
+
+        Info.Size =
+            UDim2.new(1,-10,0,25)
+
+        Info.TextColor3 =
+            Color3.fromRGB(145,145,150)
+
+        Toggle(
             Content,
-            "Bật / Tắt GUI",
-            function()
-                Gui.Enabled = false
+            "Player ESP",
+            ESP_ON,
+            function(v)
+                ESP_ON = v
+                DrawESP()
             end
         )
 
-    end)
+        local small =
+            Text(
+                Content,
+                "Dùng menu bên trái để chọn chức năng.",
+                11
+            )
 
-    -- STEAL
-    AddPage("Steal",function()
+        small.Size =
+            UDim2.new(1,-10,0,25)
 
-        local Head =
-            Label(Content,"STEAL",20)
+        small.TextColor3 =
+            Color3.fromRGB(120,120,125)
+    end
 
-        Head.Size =
-            UDim2.new(1,-10,0,35)
+    --====================================================
+    -- PAGE: STEAL
+    --====================================================
 
-        Head.Font =
+    local function StealPage()
+
+        local H =
+            Text(Content,"AUTO STEAL",18)
+
+        H.Size =
+            UDim2.new(1,-10,0,32)
+
+        H.Font =
             Enum.Font.GothamBold
 
         Toggle(
             Content,
             "Auto Steal Egg",
-            AutoSteal,
+            AUTO_STEAL,
             function(v)
 
-                AutoSteal = v
+                AUTO_STEAL = v
 
-                if AutoSteal then
-                    AutoStealLoop()
+                if v then
+                    StartAutoSteal()
                 end
             end
         )
 
-        local Info =
-            Label(
+        local I =
+            Text(
                 Content,
-                "Tự tìm ProximityPrompt liên quan tới Egg/Steal/Carry rồi quay về base.",
-                12
+                "Tự tìm Egg/Steal Prompt → di chuyển tới → nhặt → tìm base → quay về.",
+                11
             )
 
-        Info.Size =
-            UDim2.new(1,-10,0,45)
+        I.Size =
+            UDim2.new(1,-10,0,42)
 
-        Info.TextWrapped = true
-        Info.TextColor3 =
-            Color3.fromRGB(140,140,140)
+        I.TextWrapped = true
+        I.TextColor3 =
+            Color3.fromRGB(130,130,135)
 
-    end)
+        Slider(
+            Content,
+            "Auto Steal Speed",
+            20,
+            250,
+            120,
+            function(v)
+                -- movement speed được dùng ở phiên bản
+                -- này theo khoảng 20-250
+            end
+        )
+    end
 
-    -- PLAYER
-    AddPage("Player",function()
+    --====================================================
+    -- PAGE: PLAYER
+    --====================================================
+
+    local function PlayerPage()
+
+        local H =
+            Text(Content,"PLAYER",18)
+
+        H.Size =
+            UDim2.new(1,-10,0,32)
+
+        H.Font =
+            Enum.Font.GothamBold
 
         Toggle(
             Content,
             "Speed",
-            SpeedEnabled,
+            SPEED_ON,
             function(v)
 
-                SpeedEnabled = v
+                SPEED_ON = v
                 ApplySpeed()
             end
         )
 
         Slider(
             Content,
-            "WalkSpeed",
+            "Walk Speed",
             1,
             500,
-            WalkSpeed,
+            WALK_SPEED,
             function(v)
 
-                WalkSpeed = v
+                WALK_SPEED = v
 
-                if SpeedEnabled then
+                if SPEED_ON then
                     ApplySpeed()
                 end
             end
@@ -1134,12 +1589,12 @@ CreateMain = function()
         Toggle(
             Content,
             "Fly",
-            FlyEnabled,
+            FLY_ON,
             function(v)
 
-                FlyEnabled = v
+                FLY_ON = v
 
-                if FlyEnabled then
+                if v then
                     StartFly()
                 else
                     StopFly()
@@ -1152,104 +1607,64 @@ CreateMain = function()
             "Fly Speed",
             1,
             500,
-            FlySpeed,
+            FLY_SPEED,
             function(v)
-                FlySpeed = v
+                FLY_SPEED = v
             end
         )
+    end
 
-    end)
+    --====================================================
+    -- PAGE: ESP
+    --====================================================
 
-    -- ESP
-    AddPage("ESP",function()
+    local function ESPPage()
+
+        local H =
+            Text(Content,"ESP",18)
+
+        H.Size =
+            UDim2.new(1,-10,0,32)
+
+        H.Font =
+            Enum.Font.GothamBold
 
         Toggle(
             Content,
             "Player Box ESP",
-            ESPEnabled,
+            ESP_ON,
             function(v)
 
-                ESPEnabled = v
-                UpdateESP()
+                ESP_ON = v
+                DrawESP()
             end
         )
 
-        Button(
-            Content,
-            "ESP: GOLD",
-            function()
+        ColorPicker(Content)
+    end
 
-                ESPColor =
-                    Color3.fromRGB(
-                        255,190,0
-                    )
+    --====================================================
+    -- PAGE: PERFORMANCE
+    --====================================================
 
-                if ESPEnabled then
-                    UpdateESP()
-                end
-            end
-        )
+    local function PerformancePage()
 
-        Button(
-            Content,
-            "ESP: RED",
-            function()
+        local H =
+            Text(Content,"PERFORMANCE",18)
 
-                ESPColor =
-                    Color3.fromRGB(
-                        255,60,60
-                    )
+        H.Size =
+            UDim2.new(1,-10,0,32)
 
-                if ESPEnabled then
-                    UpdateESP()
-                end
-            end
-        )
-
-        Button(
-            Content,
-            "ESP: GREEN",
-            function()
-
-                ESPColor =
-                    Color3.fromRGB(
-                        70,255,100
-                    )
-
-                if ESPEnabled then
-                    UpdateESP()
-                end
-            end
-        )
-
-        Button(
-            Content,
-            "ESP: BLUE",
-            function()
-
-                ESPColor =
-                    Color3.fromRGB(
-                        70,150,255
-                    )
-
-                if ESPEnabled then
-                    UpdateESP()
-                end
-            end
-        )
-
-    end)
-
-    -- PERFORMANCE
-    AddPage("Performance",function()
+        H.Font =
+            Enum.Font.GothamBold
 
         Toggle(
             Content,
-            "FixLag cực mạnh",
-            FixLagEnabled,
+            "FixLag",
+            FIXLAG_ON,
             function(v)
 
-                FixLagEnabled = v
+                FIXLAG_ON = v
 
                 if v then
                     FixLag()
@@ -1259,73 +1674,75 @@ CreateMain = function()
             end
         )
 
-        local Info =
-            Label(
+        local I =
+            Text(
                 Content,
-                "Tắt particle, beam, trail, post effects và shadow để giảm tải GPU.",
-                12
+                "Tắt Particle, Trail, Beam, Smoke, Fire, Sparkles, PostEffect và Shadow để giảm tải render.",
+                11
             )
 
-        Info.Size =
+        I.Size =
             UDim2.new(1,-10,0,45)
 
-        Info.TextWrapped = true
-        Info.TextColor3 =
-            Color3.fromRGB(140,140,140)
+        I.TextWrapped = true
+        I.TextColor3 =
+            Color3.fromRGB(130,130,135)
+    end
 
-    end)
+    --====================================================
+    -- PAGE BUTTONS
+    --====================================================
 
-    -- SETTINGS
-    AddPage("Settings",function()
+    local HomeBtn =
+        SideButton("Home",HomePage)
 
-        Button(
-            Content,
-            "Reset Character",
-            function()
+    SideButton("Steal",StealPage)
+    SideButton("Player",PlayerPage)
+    SideButton("ESP",ESPPage)
+    SideButton("Performance",PerformancePage)
 
-                local char = LP.Character
-
-                if char then
-                    local hum =
-                        char:FindFirstChildOfClass(
-                            "Humanoid"
-                        )
-
-                    if hum then
-                        hum.Health = 0
-                    end
-                end
-            end
-        )
-
-        Button(
-            Content,
-            "Rejoin Server",
-            function()
-
-                pcall(function()
-                    game:GetService(
-                        "TeleportService"
-                    ):Teleport(
-                        game.PlaceId,
-                        LP
-                    )
-                end)
-
-            end
-        )
-
-    end)
-
+    --====================================================
     -- DEFAULT PAGE
-    PagesData.Home.MouseButton1Click:Fire()
+    --====================================================
 
-    -- DRAG WINDOW
+    HomeBtn:Activate()
+
+    --====================================================
+    -- MINIMIZE
+    --====================================================
+
+    Min.MouseButton1Click:Connect(function()
+
+        Main.Visible = false
+        Float.Visible = true
+    end)
+
+    Float.MouseButton1Click:Connect(function()
+
+        Main.Visible = true
+        Float.Visible = false
+    end)
+
+    --====================================================
+    -- CLOSE
+    --====================================================
+
+    Close.MouseButton1Click:Connect(function()
+
+        StopEverything()
+
+        Gui:Destroy()
+    end)
+
+    --====================================================
+    -- FLOATING BUTTON DRAG
+    --====================================================
+
     local dragging = false
     local dragStart
     local startPos
 
-    Top.InputBegan:Connect(function(input)
+    Float.InputBegan:Connect(function(input)
 
         if input.UserInputType ==
             Enum.UserInputType.MouseButton1
@@ -1334,16 +1751,7 @@ CreateMain = function()
 
             dragging = true
             dragStart = input.Position
-            startPos = Main.Position
-
-            input.Changed:Connect(function()
-
-                if input.UserInputState ==
-                    Enum.UserInputState.End then
-
-                    dragging = false
-                end
-            end)
+            startPos = Float.Position
         end
     end)
 
@@ -1356,72 +1764,117 @@ CreateMain = function()
             Enum.UserInputType.Touch) then
 
             local delta =
-                input.Position - dragStart
+                input.Position-dragStart
 
-            Main.Position =
+            Float.Position =
                 UDim2.new(
                     startPos.X.Scale,
-                    startPos.X.Offset + delta.X,
+                    startPos.X.Offset+delta.X,
                     startPos.Y.Scale,
-                    startPos.Y.Offset + delta.Y
+                    startPos.Y.Offset+delta.Y
                 )
         end
     end)
 
+    UIS.InputEnded:Connect(function(input)
+
+        if input.UserInputType ==
+            Enum.UserInputType.MouseButton1
+            or input.UserInputType ==
+            Enum.UserInputType.Touch then
+
+            dragging = false
+        end
+    end)
+
+    --====================================================
+    -- MAIN WINDOW DRAG
+    --====================================================
+
+    local mainDragging = false
+    local mainStart
+    local mainPos
+
+    Top.InputBegan:Connect(function(input)
+
+        if input.UserInputType ==
+            Enum.UserInputType.MouseButton1
+            or input.UserInputType ==
+            Enum.UserInputType.Touch then
+
+            mainDragging = true
+            mainStart = input.Position
+            mainPos = Main.Position
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+
+        if mainDragging and
+            (input.UserInputType ==
+            Enum.UserInputType.MouseMovement
+            or input.UserInputType ==
+            Enum.UserInputType.Touch) then
+
+            local delta =
+                input.Position-mainStart
+
+            Main.Position =
+                UDim2.new(
+                    mainPos.X.Scale,
+                    mainPos.X.Offset+delta.X,
+                    mainPos.Y.Scale,
+                    mainPos.Y.Offset+delta.Y
+                )
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+
+        if input.UserInputType ==
+            Enum.UserInputType.MouseButton1
+            or input.UserInputType ==
+            Enum.UserInputType.Touch then
+
+            mainDragging = false
+        end
+    end)
+
+    --====================================================
     -- CHARACTER RESPAWN
+    --====================================================
+
     LP.CharacterAdded:Connect(function()
 
         task.wait(1)
 
-        if SpeedEnabled then
+        if SPEED_ON then
             ApplySpeed()
         end
 
-        if FlyEnabled then
+        if ESP_ON then
+            DrawESP()
+        end
+
+        if FLY_ON then
             StartFly()
         end
-
-        if ESPEnabled then
-            UpdateESP()
-        end
     end)
 
-    -- SEARCH
-    Search:GetPropertyChangedSignal("Text"):Connect(function()
-
-        local q =
-            string.lower(Search.Text)
-
-        for name,button in pairs(PagesData) do
-
-            if q == ""
-            or string.find(
-                string.lower(name),
-                q,
-                1,
-                true
-            ) then
-
-                button.Visible = true
-
-            else
-
-                button.Visible = false
-            end
-        end
-    end)
-
+    -- hide main after first creation?
+    Float.Visible = false
+    Main.Visible = true
 end
 
---==================================================
+--========================================================
 -- KEY CHECK
---==================================================
+--========================================================
 
-KeyButton.MouseButton1Click:Connect(function()
+local function CheckKey()
 
-    if KeyBox.Text == KEY then
+    if Input.Text == KEY then
 
-        KeyButton.Text = "ĐANG MỞ..."
+        Enter.Text = "ĐANG MỞ..."
 
         task.wait(.2)
 
@@ -1433,28 +1886,27 @@ KeyButton.MouseButton1Click:Connect(function()
 
     else
 
-        KeySub.Text = "Sai key! Key: Tnh-VN"
-        KeySub.TextColor3 =
-            Color3.fromRGB(255,80,80)
+        KeyInfo.Text =
+            "Sai key • Key: Tnh-VN"
+
+        KeyInfo.TextColor3 =
+            Color3.fromRGB(255,70,70)
 
         task.wait(1)
 
-        KeySub.Text = "Nhập key để mở Hub"
-        KeySub.TextColor3 =
-            Color3.fromRGB(150,150,150)
+        KeyInfo.Text =
+            "Nhập key để mở menu"
 
+        KeyInfo.TextColor3 =
+            Color3.fromRGB(145,145,150)
     end
+end
 
-end)
+Enter.MouseButton1Click:Connect(CheckKey)
 
-KeyBox.FocusLost:Connect(function(enter)
+Input.FocusLost:Connect(function(enterPressed)
 
-    if enter then
-        KeyButton:Activate()
+    if enterPressed then
+        CheckKey()
     end
-
 end)
-
---==================================================
--- END
---==================================================
