@@ -1,36 +1,78 @@
---// TNH-VN KEY SYSTEM FIX
+--========================================================--
+--                 TNH-VN HUB
+--              STEAL AN EGG / DELTA
+--========================================================--
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 
 local LP = Players.LocalPlayer
 local PlayerGui = LP:WaitForChild("PlayerGui")
 
--- Xóa GUI cũ nếu còn
-pcall(function()
-    local old = PlayerGui:FindFirstChild("TNHVN_Key")
-    if old then
-        old:Destroy()
-    end
+--========================================================--
+-- CONFIG
+--========================================================--
+
+local Config = {
+    Key = "Tnh-VN",
+
+    ESP = false,
+    ESPColor = Color3.fromRGB(0,170,255),
+
+    Fly = false,
+    FlySpeed = 100,
+
+    Speed = false,
+    WalkSpeed = 100,
+
+    FixLag = false,
+    AutoSteal = false,
+
+    FlyUp = false,
+    FlyDown = false
+}
+
+local Character
+local Humanoid
+local Root
+
+local ESPObjects = {}
+local OriginalEffects = {}
+
+local MainGui
+local KeyGui
+
+--========================================================--
+-- CHARACTER
+--========================================================--
+
+local function UpdateCharacter()
+    Character = LP.Character or LP.CharacterAdded:Wait()
+
+    Humanoid = Character:WaitForChild("Humanoid",10)
+    Root = Character:WaitForChild("HumanoidRootPart",10)
+end
+
+UpdateCharacter()
+
+LP.CharacterAdded:Connect(function()
+    task.wait(1)
+    UpdateCharacter()
 end)
 
--- Tạo ScreenGui
-local KeyGui = Instance.new("ScreenGui")
-KeyGui.Name = "TNHVN_Key"
-KeyGui.ResetOnSpawn = false
-KeyGui.IgnoreGuiInset = true
-KeyGui.DisplayOrder = 999999
-KeyGui.Enabled = true
-KeyGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-KeyGui.Parent = PlayerGui
+--========================================================--
+-- HELPERS
+--========================================================--
 
--- Hàm tạo object
-local function New(className, parent, properties)
-    local obj = Instance.new(className)
+local function New(class,parent,props)
+    local obj = Instance.new(class)
 
-    for property, value in pairs(properties or {}) do
+    for k,v in pairs(props or {}) do
         pcall(function()
-            obj[property] = value
+            obj[k] = v
         end)
     end
 
@@ -38,136 +80,1210 @@ local function New(className, parent, properties)
     return obj
 end
 
-local function Corner(parent, radius)
-    New("UICorner", parent, {
-        CornerRadius = UDim.new(0, radius)
+local function Corner(obj,radius)
+    New("UICorner",obj,{
+        CornerRadius = UDim.new(0,radius)
     })
 end
 
-local function Stroke(parent, color, thickness)
-    New("UIStroke", parent, {
+local function Stroke(obj,color,thickness)
+    New("UIStroke",obj,{
         Color = color,
         Thickness = thickness
     })
 end
 
---// KEY FRAME
-local KeyFrame = New("Frame", KeyGui, {
-    Size = UDim2.new(0, 430, 0, 260),
-    Position = UDim2.new(0.5, -215, 0.5, -130),
-    BackgroundColor3 = Color3.fromRGB(8, 15, 28),
-    BorderSizePixel = 0,
-    ZIndex = 10
-})
+--========================================================--
+-- KEY SYSTEM
+--========================================================--
 
-Corner(KeyFrame, 18)
+local function CreateKey()
+    if PlayerGui:FindFirstChild("TNHVN_KEY") then
+        PlayerGui.TNHVN_KEY:Destroy()
+    end
 
-Stroke(
-    KeyFrame,
-    Color3.fromRGB(0, 130, 255),
-    2
-)
+    KeyGui = New("ScreenGui",PlayerGui,{
+        Name = "TNHVN_KEY",
+        ResetOnSpawn = false,
+        IgnoreGuiInset = true,
+        DisplayOrder = 999999,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    })
 
--- Tiêu đề
-New("TextLabel", KeyFrame, {
-    Size = UDim2.new(1, -40, 0, 45),
-    Position = UDim2.new(0, 20, 0, 18),
-    BackgroundTransparency = 1,
-    Text = "Tnh-VN Key VIP",
-    TextColor3 = Color3.fromRGB(240, 245, 255),
-    TextSize = 28,
-    Font = Enum.Font.GothamBold,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 11
-})
+    local Frame = New("Frame",KeyGui,{
+        Size = UDim2.new(0,430,0,265),
+        Position = UDim2.new(.5,-215,.5,-132),
+        BackgroundColor3 = Color3.fromRGB(8,15,28),
+        BorderSizePixel = 0
+    })
 
-New("TextLabel", KeyFrame, {
-    Size = UDim2.new(1, -40, 0, 25),
-    Position = UDim2.new(0, 20, 0, 58),
-    BackgroundTransparency = 1,
-    Text = "Nhập Key để tiếp tục",
-    TextColor3 = Color3.fromRGB(140, 175, 220),
-    TextSize = 16,
-    Font = Enum.Font.Gotham,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 11
-})
+    Corner(Frame,18)
+    Stroke(Frame,Color3.fromRGB(0,130,255),2)
 
--- Ô nhập key
-local KeyBox = New("TextBox", KeyFrame, {
-    Size = UDim2.new(1, -40, 0, 55),
-    Position = UDim2.new(0, 20, 0, 98),
-    BackgroundColor3 = Color3.fromRGB(15, 26, 45),
-    BorderSizePixel = 0,
-    Text = "",
-    PlaceholderText = "Dán Key vào đây...",
-    PlaceholderColor3 = Color3.fromRGB(100, 135, 180),
-    TextColor3 = Color3.fromRGB(230, 240, 255),
-    TextSize = 18,
-    Font = Enum.Font.Gotham,
-    ClearTextOnFocus = false,
-    ZIndex = 11
-})
+    New("TextLabel",Frame,{
+        Size = UDim2.new(1,-40,0,45),
+        Position = UDim2.fromOffset(20,18),
+        BackgroundTransparency = 1,
+        Text = "Tnh-VN Key VIP",
+        TextColor3 = Color3.fromRGB(240,245,255),
+        TextSize = 28,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
 
-Corner(KeyBox, 12)
+    New("TextLabel",Frame,{
+        Size = UDim2.new(1,-40,0,25),
+        Position = UDim2.fromOffset(20,59),
+        BackgroundTransparency = 1,
+        Text = "Nhập Key để tiếp tục",
+        TextColor3 = Color3.fromRGB(140,175,220),
+        TextSize = 16,
+        Font = Enum.Font.Gotham
+    })
 
-Stroke(
-    KeyBox,
-    Color3.fromRGB(0, 125, 255),
-    2
-)
+    local Box = New("TextBox",Frame,{
+        Size = UDim2.new(1,-40,0,55),
+        Position = UDim2.fromOffset(20,98),
+        BackgroundColor3 = Color3.fromRGB(15,26,45),
+        BorderSizePixel = 0,
+        Text = "",
+        PlaceholderText = "Dán Key vào đây...",
+        PlaceholderColor3 = Color3.fromRGB(100,135,180),
+        TextColor3 = Color3.fromRGB(230,240,255),
+        TextSize = 18,
+        Font = Enum.Font.Gotham,
+        ClearTextOnFocus = false
+    })
 
--- Nút xác nhận
-local Confirm = New("TextButton", KeyFrame, {
-    Size = UDim2.new(1, -40, 0, 50),
-    Position = UDim2.new(0, 20, 0, 168),
-    BackgroundColor3 = Color3.fromRGB(0, 115, 255),
-    BorderSizePixel = 0,
-    Text = "✓  XÁC NHẬN",
-    TextColor3 = Color3.fromRGB(255, 255, 255),
-    TextSize = 19,
-    Font = Enum.Font.GothamBold,
-    AutoButtonColor = true,
-    ZIndex = 11
-})
+    Corner(Box,12)
+    Stroke(Box,Color3.fromRGB(0,125,255),2)
 
-Corner(Confirm, 12)
+    local Confirm = New("TextButton",Frame,{
+        Size = UDim2.new(1,-40,0,50),
+        Position = UDim2.fromOffset(20,168),
+        BackgroundColor3 = Color3.fromRGB(0,115,255),
+        BorderSizePixel = 0,
+        Text = "✓  XÁC NHẬN",
+        TextColor3 = Color3.new(1,1,1),
+        TextSize = 19,
+        Font = Enum.Font.GothamBold
+    })
 
--- Thông báo
-local Status = New("TextLabel", KeyFrame, {
-    Size = UDim2.new(1, -40, 0, 25),
-    Position = UDim2.new(0, 20, 0, 225),
-    BackgroundTransparency = 1,
-    Text = "",
-    TextColor3 = Color3.fromRGB(255, 80, 80),
-    TextSize = 14,
-    Font = Enum.Font.Gotham,
-    ZIndex = 11
-})
+    Corner(Confirm,12)
 
---// CHECK KEY
-Confirm.MouseButton1Click:Connect(function()
+    local Status = New("TextLabel",Frame,{
+        Size = UDim2.new(1,-40,0,25),
+        Position = UDim2.fromOffset(20,225),
+        BackgroundTransparency = 1,
+        Text = "",
+        TextColor3 = Color3.fromRGB(255,80,80),
+        TextSize = 14,
+        Font = Enum.Font.Gotham
+    })
 
-    local entered = tostring(KeyBox.Text)
+    Confirm.MouseButton1Click:Connect(function()
 
-    if entered == "Tnh-VN" then
+        if tostring(Box.Text) == Config.Key then
 
-        Status.Text = "✓ Key đúng!"
-        Status.TextColor3 = Color3.fromRGB(60, 255, 130)
+            Status.Text = "✓ Key đúng!"
+            Status.TextColor3 = Color3.fromRGB(60,255,130)
 
-        task.wait(0.5)
+            task.wait(.35)
 
-        KeyGui:Destroy()
+            if KeyGui then
+                KeyGui:Destroy()
+                KeyGui = nil
+            end
 
-        -- GỌI MENU CHÍNH Ở ĐÂY
-        if CreateMain then
-            CreateMain()
+            -- MENU ĐƯỢC TẠO Ở PHẦN DƯỚI
+
+        else
+
+            Status.Text = "✕ Key không đúng!"
+            Status.TextColor3 = Color3.fromRGB(255,70,70)
+
         end
+    end)
+end
 
-    else
+--========================================================--
+-- MAIN HUB
+--========================================================--
 
-        Status.Text = "✕ Key không đúng!"
-        Status.TextColor3 = Color3.fromRGB(255, 70, 70)
+local function CreateMain()
+
+    if MainGui then
+        MainGui:Destroy()
+    end
+
+    MainGui = New("ScreenGui",PlayerGui,{
+        Name = "TNHVN_HUB",
+        ResetOnSpawn = false,
+        IgnoreGuiInset = true,
+        DisplayOrder = 999998,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    })
+
+    --====================================================
+    -- MAIN WINDOW
+    --====================================================
+
+    local Main = New("Frame",MainGui,{
+        Size = UDim2.new(0,720,0,450),
+        Position = UDim2.new(.5,-360,.5,-225),
+        BackgroundColor3 = Color3.fromRGB(8,14,25),
+        BorderSizePixel = 0
+    })
+
+    Corner(Main,16)
+    Stroke(Main,Color3.fromRGB(0,125,255),2)
+
+    --====================================================
+    -- TOP BAR
+    --====================================================
+
+    local Top = New("Frame",Main,{
+        Size = UDim2.new(1,0,0,58),
+        BackgroundColor3 = Color3.fromRGB(11,20,35),
+        BorderSizePixel = 0
+    })
+
+    Corner(Top,16)
+
+    New("TextLabel",Top,{
+        Size = UDim2.new(1,-70,1,0),
+        Position = UDim2.fromOffset(20,0),
+        BackgroundTransparency = 1,
+        Text = "Tnh-VN  •  Steal An Egg",
+        TextColor3 = Color3.fromRGB(235,245,255),
+        TextSize = 21,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
+
+    local Close = New("TextButton",Top,{
+        Size = UDim2.fromOffset(45,45),
+        Position = UDim2.new(1,-55,0,5),
+        BackgroundTransparency = 1,
+        Text = "×",
+        TextColor3 = Color3.fromRGB(160,190,225),
+        TextSize = 30,
+        Font = Enum.Font.GothamBold
+    })
+
+    Close.MouseButton1Click:Connect(function()
+        MainGui:Destroy()
+        MainGui = nil
+    end)
+
+    --====================================================
+    -- SIDEBAR
+    --====================================================
+
+    local Side = New("Frame",Main,{
+        Size = UDim2.new(0,175,1,-70),
+        Position = UDim2.fromOffset(10,65),
+        BackgroundColor3 = Color3.fromRGB(11,19,32),
+        BorderSizePixel = 0
+    })
+
+    Corner(Side,12)
+
+    New("UIPadding",Side,{
+        PaddingTop = UDim.new(0,8),
+        PaddingLeft = UDim.new(0,7),
+        PaddingRight = UDim.new(0,7)
+    })
+
+    New("UIListLayout",Side,{
+        Padding = UDim.new(0,6)
+    })
+
+    --====================================================
+    -- CONTENT
+    --====================================================
+
+    local Content = New("Frame",Main,{
+        Size = UDim2.new(1,-205,1,-75),
+        Position = UDim2.fromOffset(195,65),
+        BackgroundTransparency = 1
+    })
+
+    local Pages = {}
+
+    local function Page(name)
+
+        local P = New("ScrollingFrame",Content,{
+            Name = name,
+            Size = UDim2.fromScale(1,1),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ScrollBarThickness = 3,
+            CanvasSize = UDim2.new(0,0,0,0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            Visible = false
+        })
+
+        New("UIListLayout",P,{
+            Padding = UDim.new(0,8)
+        })
+
+        New("UIPadding",P,{
+            PaddingRight = UDim.new(0,8),
+            PaddingBottom = UDim.new(0,10)
+        })
+
+        Pages[name] = P
+
+        return P
+    end
+
+    local MainPage = Page("Main")
+    local FlyPage = Page("Fly")
+    local SpeedPage = Page("Speed")
+    local LagPage = Page("FixLag")
+
+    --====================================================
+    -- UI FUNCTIONS
+    --====================================================
+
+    local function Section(P,text)
+
+        return New("TextLabel",P,{
+            Size = UDim2.new(1,0,0,32),
+            BackgroundTransparency = 1,
+            Text = text,
+            TextColor3 = Color3.fromRGB(0,165,255),
+            TextSize = 17,
+            Font = Enum.Font.GothamBold,
+            TextXAlignment = Enum.TextXAlignment.Left
+        })
 
     end
+
+    local function Toggle(P,text,value,callback)
+
+        local Button = New("TextButton",P,{
+            Size = UDim2.new(1,0,0,46),
+            BackgroundColor3 = Color3.fromRGB(15,25,42),
+            BorderSizePixel = 0,
+            Text = "",
+            AutoButtonColor = false
+        })
+
+        Corner(Button,9)
+
+        New("TextLabel",Button,{
+            Size = UDim2.new(1,-80,1,0),
+            Position = UDim2.fromOffset(15,0),
+            BackgroundTransparency = 1,
+            Text = text,
+            TextColor3 = Color3.fromRGB(220,230,245),
+            TextSize = 15,
+            Font = Enum.Font.GothamSemibold,
+            TextXAlignment = Enum.TextXAlignment.Left
+        })
+
+        local Switch = New("Frame",Button,{
+            Size = UDim2.fromOffset(45,22),
+            Position = UDim2.new(1,-60,.5,-11),
+            BackgroundColor3 = Color3.fromRGB(45,55,70),
+            BorderSizePixel = 0
+        })
+
+        Corner(Switch,20)
+
+        local Dot = New("Frame",Switch,{
+            Size = UDim2.fromOffset(18,18),
+            Position = UDim2.fromOffset(2,2),
+            BackgroundColor3 = Color3.fromRGB(160,170,185),
+            BorderSizePixel = 0
+        })
+
+        Corner(Dot,20)
+
+        local State = value
+
+        local function Render()
+
+            if State then
+                Switch.BackgroundColor3 = Color3.fromRGB(0,125,255)
+                Dot.BackgroundColor3 = Color3.new(1,1,1)
+                Dot.Position = UDim2.fromOffset(25,2)
+            else
+                Switch.BackgroundColor3 = Color3.fromRGB(45,55,70)
+                Dot.BackgroundColor3 = Color3.fromRGB(160,170,185)
+                Dot.Position = UDim2.fromOffset(2,2)
+            end
+
+            callback(State)
+        end
+
+        Button.MouseButton1Click:Connect(function()
+            State = not State
+            Render()
+        end)
+
+        Render()
+
+        return Button
+    end
+
+    local function Slider(P,text,min,max,default,callback)
+
+        local Box = New("Frame",P,{
+            Size = UDim2.new(1,0,0,68),
+            BackgroundColor3 = Color3.fromRGB(15,25,42),
+            BorderSizePixel = 0
+        })
+
+        Corner(Box,9)
+
+        local Label = New("TextLabel",Box,{
+            Size = UDim2.new(1,-30,0,28),
+            Position = UDim2.fromOffset(15,4),
+            BackgroundTransparency = 1,
+            Text = text.." : "..default,
+            TextColor3 = Color3.fromRGB(220,230,245),
+            TextSize = 14,
+            Font = Enum.Font.GothamSemibold,
+            TextXAlignment = Enum.TextXAlignment.Left
+        })
+
+        local Bar = New("Frame",Box,{
+            Size = UDim2.new(1,-30,0,7),
+            Position = UDim2.fromOffset(15,45),
+            BackgroundColor3 = Color3.fromRGB(45,58,78),
+            BorderSizePixel = 0
+        })
+
+        Corner(Bar,10)
+
+        local Fill = New("Frame",Bar,{
+            Size = UDim2.new((default-min)/(max-min),0,1,0),
+            BackgroundColor3 = Color3.fromRGB(0,135,255),
+            BorderSizePixel = 0
+        })
+
+        Corner(Fill,10)
+
+        local Drag = false
+
+        local function SetValue(X)
+
+            local Percent = math.clamp(
+                (X-Bar.AbsolutePosition.X)/
+                Bar.AbsoluteSize.X,
+                0,1
+            )
+
+            local Value = math.floor(
+                min+(max-min)*Percent
+            )
+
+            Fill.Size = UDim2.new(Percent,0,1,0)
+            Label.Text = text.." : "..Value
+
+            callback(Value)
+        end
+
+        Bar.InputBegan:Connect(function(Input)
+
+            if Input.UserInputType == Enum.UserInputType.MouseButton1
+            or Input.UserInputType == Enum.UserInputType.Touch then
+
+                Drag = true
+                SetValue(Input.Position.X)
+
+            end
+
+        end)
+
+        UserInputService.InputChanged:Connect(function(Input)
+
+            if Drag and (
+                Input.UserInputType == Enum.UserInputType.MouseMovement
+                or Input.UserInputType == Enum.UserInputType.Touch
+            ) then
+
+                SetValue(Input.Position.X)
+
+            end
+
+        end)
+
+        UserInputService.InputEnded:Connect(function(Input)
+
+            if Input.UserInputType == Enum.UserInputType.MouseButton1
+            or Input.UserInputType == Enum.UserInputType.Touch then
+
+                Drag = false
+
+            end
+
+        end)
+
+    end
+
+    --====================================================
+    -- MAIN PAGE
+    --====================================================
+
+    Section(MainPage,"🥚  Auto Steal Egg")
+
+    Toggle(MainPage,"Auto Steal Egg",false,function(v)
+        Config.AutoSteal = v
+    end)
+
+    Section(MainPage,"👁  Player ESP")
+
+    Toggle(MainPage,"ESP người - Box",false,function(v)
+        Config.ESP = v
+    end)
+
+    local ColorNames = {
+        "Xanh dương",
+        "Đỏ",
+        "Xanh lá",
+        "Vàng",
+        "Tím",
+        "Trắng"
+    }
+
+    local ColorValues = {
+        Color3.fromRGB(0,170,255),
+        Color3.fromRGB(255,60,60),
+        Color3.fromRGB(60,255,100),
+        Color3.fromRGB(255,220,40),
+        Color3.fromRGB(190,80,255),
+        Color3.fromRGB(255,255,255)
+    }
+
+    local ColorIndex = 1
+
+    local ColorButton = New("TextButton",MainPage,{
+        Size = UDim2.new(1,0,0,44),
+        BackgroundColor3 = Color3.fromRGB(15,25,42),
+        BorderSizePixel = 0,
+        Text = "🎨  Màu ESP: Xanh dương",
+        TextColor3 = Color3.fromRGB(220,230,245),
+        TextSize = 14,
+        Font = Enum.Font.GothamSemibold
+    })
+
+    Corner(ColorButton,9)
+
+    ColorButton.MouseButton1Click:Connect(function()
+
+        ColorIndex += 1
+
+        if ColorIndex > #ColorNames then
+            ColorIndex = 1
+        end
+
+        Config.ESPColor = ColorValues[ColorIndex]
+
+        ColorButton.Text =
+            "🎨  Màu ESP: "..ColorNames[ColorIndex]
+
+    end)
+
+    --====================================================
+    -- FLY PAGE
+    --====================================================
+
+    Section(FlyPage,"🪽  Fly")
+
+    Toggle(FlyPage,"Fly",false,function(v)
+        Config.Fly = v
+    end)
+
+    Slider(
+        FlyPage,
+        "Tốc độ bay",
+        1,
+        500,
+        100,
+        function(v)
+            Config.FlySpeed = v
+        end
+    )
+
+    New("TextLabel",FlyPage,{
+        Size = UDim2.new(1,0,0,40),
+        BackgroundTransparency = 1,
+        Text = "Dùng joystick để bay ngang. Nút ↑ ↓ xuất hiện khi Fly bật.",
+        TextWrapped = true,
+        TextColor3 = Color3.fromRGB(140,170,205),
+        TextSize = 13,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
+
+    --====================================================
+    -- SPEED PAGE
+    --====================================================
+
+    Section(SpeedPage,"🏃  Speed")
+
+    Toggle(SpeedPage,"Speed",false,function(v)
+        Config.Speed = v
+    end)
+
+    Slider(
+        SpeedPage,
+        "Tốc độ chạy",
+        1,
+        500,
+        100,
+        function(v)
+            Config.WalkSpeed = v
+        end
+    )
+
+    --====================================================
+    -- FIXLAG PAGE
+    --====================================================
+
+    Section(LagPage,"🚀  Performance")
+
+    Toggle(LagPage,"FixLag cực mạnh",false,function(v)
+        Config.FixLag = v
+    end)
+
+    New("TextLabel",LagPage,{
+        Size = UDim2.new(1,0,0,70),
+        BackgroundTransparency = 1,
+        TextWrapped = true,
+        Text = "Giảm Particle, Trail, Beam và PostEffect ở phía client để giảm tải máy. Không thể đảm bảo biến máy yếu thành máy mạnh 75–90% vì FPS còn phụ thuộc thiết bị và server.",
+        TextColor3 = Color3.fromRGB(140,170,205),
+        TextSize = 13,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top
+    })
+
+    --====================================================
+    -- SIDEBAR
+    --====================================================
+
+    local Tabs = {
+        {"🏠","Menu chính",MainPage},
+        {"🪽","Fly",FlyPage},
+        {"🏃","Speed",SpeedPage},
+        {"🚀","FixLag",LagPage}
+    }
+
+    local function ShowPage(Page)
+
+        for _,P in pairs(Pages) do
+            P.Visible = false
+        end
+
+        Page.Visible = true
+
+    end
+
+    for _,Data in ipairs(Tabs) do
+
+        local Button = New("TextButton",Side,{
+            Size = UDim2.new(1,0,0,42),
+            BackgroundColor3 = Color3.fromRGB(15,27,46),
+            BorderSizePixel = 0,
+            Text = Data[1].."  "..Data[2],
+            TextColor3 = Color3.fromRGB(175,200,230),
+            TextSize = 14,
+            Font = Enum.Font.GothamSemibold
+        })
+
+        Corner(Button,9)
+
+        Button.MouseButton1Click:Connect(function()
+            ShowPage(Data[3])
+        end)
+
+    end
+
+    ShowPage(MainPage)
+
+    --====================================================
+    -- DRAG WINDOW
+    --====================================================
+
+    local Dragging = false
+    local DragStart
+    local StartPosition
+
+    Top.InputBegan:Connect(function(Input)
+
+        if Input.UserInputType == Enum.UserInputType.MouseButton1
+        or Input.UserInputType == Enum.UserInputType.Touch then
+
+            Dragging = true
+            DragStart = Input.Position
+            StartPosition = Main.Position
+
+        end
+
+    end)
+
+    UserInputService.InputChanged:Connect(function(Input)
+
+        if Dragging and (
+            Input.UserInputType == Enum.UserInputType.MouseMovement
+            or Input.UserInputType == Enum.UserInputType.Touch
+        ) then
+
+            local Delta = Input.Position-DragStart
+
+            Main.Position = UDim2.new(
+                StartPosition.X.Scale,
+                StartPosition.X.Offset+Delta.X,
+                StartPosition.Y.Scale,
+                StartPosition.Y.Offset+Delta.Y
+            )
+
+        end
+
+    end)
+
+    UserInputService.InputEnded:Connect(function(Input)
+
+        if Input.UserInputType == Enum.UserInputType.MouseButton1
+        or Input.UserInputType == Enum.UserInputType.Touch then
+
+            Dragging = false
+
+        end
+
+    end)
+
+    --====================================================
+    -- FLY TOUCH BUTTONS
+    --====================================================
+
+    local FlyControls = New("Frame",MainGui,{
+        Size = UDim2.fromOffset(150,120),
+        Position = UDim2.new(1,-170,1,-140),
+        BackgroundTransparency = 1,
+        Visible = false
+    })
+
+    local Up = New("TextButton",FlyControls,{
+        Size = UDim2.fromOffset(55,50),
+        Position = UDim2.fromOffset(48,0),
+        BackgroundColor3 = Color3.fromRGB(0,125,255),
+        Text = "↑",
+        TextColor3 = Color3.new(1,1,1),
+        TextSize = 25,
+        Font = Enum.Font.GothamBold
+    })
+
+    Corner(Up,12)
+
+    local Down = New("TextButton",FlyControls,{
+        Size = UDim2.fromOffset(55,50),
+        Position = UDim2.fromOffset(48,60),
+        BackgroundColor3 = Color3.fromRGB(0,125,255),
+        Text = "↓",
+        TextColor3 = Color3.new(1,1,1),
+        TextSize = 25,
+        Font = Enum.Font.GothamBold
+    })
+
+    Corner(Down,12)
+
+    local function HoldButton(Button,Name)
+
+        Button.InputBegan:Connect(function(Input)
+
+            if Input.UserInputType == Enum.UserInputType.Touch
+            or Input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+                Config[Name] = true
+
+            end
+
+        end)
+
+        Button.InputEnded:Connect(function(Input)
+
+            if Input.UserInputType == Enum.UserInputType.Touch
+            or Input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+                Config[Name] = false
+
+            end
+
+        end)
+
+    end
+
+    HoldButton(Up,"FlyUp")
+    HoldButton(Down,"FlyDown")
+
+    --====================================================
+    -- ESP
+    --====================================================
+
+    local function ClearESP(Player)
+
+        if ESPObjects[Player] then
+
+            for _,Object in pairs(ESPObjects[Player]) do
+                pcall(function()
+                    Object:Destroy()
+                end)
+            end
+
+            ESPObjects[Player] = nil
+
+        end
+
+    end
+
+    local function AddESP(Player)
+
+        if Player == LP then
+            return
+        end
+
+        ClearESP(Player)
+
+        if not Player.Character then
+            return
+        end
+
+        local Highlight = Instance.new("Highlight")
+
+        Highlight.Name = "TNH_VN_BOX"
+        Highlight.Adornee = Player.Character
+        Highlight.FillTransparency = 1
+        Highlight.OutlineTransparency = 0
+        Highlight.OutlineColor = Config.ESPColor
+        Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        Highlight.Parent = Player.Character
+
+        ESPObjects[Player] = {
+            Highlight
+        }
+
+    end
+
+    Players.PlayerAdded:Connect(function(Player)
+
+        Player.CharacterAdded:Connect(function()
+
+            task.wait(.5)
+
+            if Config.ESP then
+                AddESP(Player)
+            end
+
+        end)
+
+    end)
+
+    task.spawn(function()
+
+        while MainGui and MainGui.Parent do
+
+            if Config.ESP then
+
+                for _,Player in ipairs(Players:GetPlayers()) do
+
+                    if Player ~= LP then
+                        AddESP(Player)
+                    end
+
+                end
+
+            else
+
+                for Player in pairs(ESPObjects) do
+                    ClearESP(Player)
+                end
+
+            end
+
+            task.wait(1)
+
+        end
+
+    end)
+
+    --====================================================
+    -- SPEED
+    --====================================================
+
+    RunService.Heartbeat:Connect(function()
+
+        if Humanoid and Config.Speed then
+            Humanoid.WalkSpeed = Config.WalkSpeed
+        end
+
+    end)
+
+    --====================================================
+    -- FLY
+    --====================================================
+
+    local FlyVelocity
+    local FlyGyro
+
+    local function StopFly()
+
+        if FlyVelocity then
+            FlyVelocity:Destroy()
+            FlyVelocity = nil
+        end
+
+        if FlyGyro then
+            FlyGyro:Destroy()
+            FlyGyro = nil
+        end
+
+    end
+
+    local function StartFly()
+
+        if not Root then
+            return
+        end
+
+        StopFly()
+
+        FlyVelocity = Instance.new("BodyVelocity")
+
+        FlyVelocity.MaxForce =
+            Vector3.new(math.huge,math.huge,math.huge)
+
+        FlyVelocity.Velocity = Vector3.zero
+        FlyVelocity.Parent = Root
+
+        FlyGyro = Instance.new("BodyGyro")
+
+        FlyGyro.MaxTorque =
+            Vector3.new(math.huge,math.huge,math.huge)
+
+        FlyGyro.P = 90000
+        FlyGyro.Parent = Root
+
+    end
+
+    RunService.RenderStepped:Connect(function()
+
+        FlyControls.Visible = Config.Fly
+
+        if not Config.Fly then
+            StopFly()
+            return
+        end
+
+        if not Root then
+            return
+        end
+
+        if not FlyVelocity then
+            StartFly()
+        end
+
+        local Camera = Workspace.CurrentCamera
+
+        local Move = Vector3.zero
+
+        if Humanoid then
+            Move = Humanoid.MoveDirection
+        end
+
+        local Vertical = 0
+
+        if Config.FlyUp then
+            Vertical += 1
+        end
+
+        if Config.FlyDown then
+            Vertical -= 1
+        end
+
+        Move = Vector3.new(
+            Move.X,
+            Vertical,
+            Move.Z
+        )
+
+        if Move.Magnitude > 0 then
+            Move = Move.Unit * Config.FlySpeed
+        end
+
+        FlyVelocity.Velocity = Move
+
+        if FlyGyro then
+            FlyGyro.CFrame = Camera.CFrame
+        end
+
+    end)
+
+    --====================================================
+    -- FIX LAG
+    --====================================================
+
+    local function FixLag()
+
+        for _,Object in ipairs(Workspace:GetDescendants()) do
+
+            pcall(function()
+
+                if Object:IsA("ParticleEmitter")
+                or Object:IsA("Trail")
+                or Object:IsA("Beam") then
+
+                    if OriginalEffects[Object] == nil then
+                        OriginalEffects[Object] = Object.Enabled
+                    end
+
+                    Object.Enabled = not Config.FixLag
+
+                elseif Object:IsA("PostEffect") then
+
+                    if OriginalEffects[Object] == nil then
+                        OriginalEffects[Object] = Object.Enabled
+                    end
+
+                    Object.Enabled = not Config.FixLag
+
+                elseif Object:IsA("BasePart") and Config.FixLag then
+
+                    Object.CastShadow = false
+
+                end
+
+            end)
+
+        end
+
+        if Config.FixLag then
+
+            Lighting.GlobalShadows = false
+
+            pcall(function()
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            end)
+
+        end
+
+    end
+
+    task.spawn(function()
+
+        while MainGui and MainGui.Parent do
+
+            if Config.FixLag then
+                FixLag()
+            end
+
+            task.wait(2)
+
+        end
+
+    end)
+
+    --====================================================
+    -- AUTO STEAL
+    --====================================================
+
+    local function IsEggPrompt(Prompt)
+
+        local Text = string.lower(
+            tostring(Prompt.Name).." "
+            ..tostring(Prompt.ActionText).." "
+            ..tostring(Prompt.ObjectText)
+        )
+
+        return
+            string.find(Text,"egg") ~= nil
+            or string.find(Text,"steal") ~= nil
+            or string.find(Text,"grab") ~= nil
+            or string.find(Text,"take") ~= nil
+
+    end
+
+    local function PromptPosition(Prompt)
+
+        local Parent = Prompt.Parent
+
+        if Parent:IsA("BasePart") then
+            return Parent.Position
+        end
+
+        if Parent:IsA("Attachment") then
+            return Parent.WorldPosition
+        end
+
+        local Model = Parent:FindFirstAncestorOfClass("Model")
+
+        if Model then
+
+            if Model.PrimaryPart then
+                return Model.PrimaryPart.Position
+            end
+
+            local Part =
+                Model:FindFirstChildWhichIsA(
+                    "BasePart",
+                    true
+                )
+
+            if Part then
+                return Part.Position
+            end
+
+        end
+
+        return nil
+
+    end
+
+    local function FindEgg()
+
+        if not Root then
+            return nil
+        end
+
+        local Closest
+        local Distance = math.huge
+
+        for _,Object in ipairs(Workspace:GetDescendants()) do
+
+            if Object:IsA("ProximityPrompt")
+            and Object.Enabled
+            and IsEggPrompt(Object) then
+
+                local Position = PromptPosition(Object)
+
+                if Position then
+
+                    local D =
+                        (Root.Position-Position).Magnitude
+
+                    if D < Distance then
+
+                        Distance = D
+
+                        Closest = {
+                            Prompt = Object,
+                            Position = Position
+                        }
+
+                    end
+
+                end
+
+            end
+
+        end
+
+        return Closest
+
+    end
+
+    local function Steal(Egg)
+
+        if not Egg or not Root then
+            return
+        end
+
+        local Prompt = Egg.Prompt
+
+        if not Prompt or not Prompt.Enabled then
+            return
+        end
+
+        -- Đưa nhân vật tới gần prompt
+        pcall(function()
+
+            Root.CFrame =
+                CFrame.new(
+                    Egg.Position+
+                    Vector3.new(0,2.5,0)
+                )
+
+        end)
+
+        task.wait(.15)
+
+        -- Hỗ trợ executor có fireproximityprompt
+        if typeof(fireproximityprompt) == "function" then
+
+            pcall(function()
+                fireproximityprompt(Prompt)
+            end)
+
+            task.wait(.1)
+
+            pcall(function()
+                fireproximityprompt(
+                    Prompt,
+                    Prompt.HoldDuration+.1
+                )
+            end)
+
+        end
+
+    end
+
+    task.spawn(function()
+
+        while MainGui and MainGui.Parent do
+
+            if Config.AutoSteal then
+
+                local Egg = FindEgg()
+
+                if Egg then
+                    Steal(Egg)
+                end
+
+                task.wait(.35)
+
+            else
+
+                task.wait(.5)
+
+            end
+
+        end
+
+    end)
+
+end
+
+--========================================================--
+-- KHỞI ĐỘNG
+--========================================================--
+
+CreateMain = CreateMain
+CreateKey()
+
+--========================================================--
+-- FIX: KHI KEY ĐÚNG THÌ MỞ MENU
+--========================================================--
+
+task.spawn(function()
+
+    while KeyGui and KeyGui.Parent do
+
+        if not PlayerGui:FindFirstChild("TNHVN_KEY") then
+
+            if not MainGui then
+                CreateMain()
+            end
+
+            break
+        end
+
+        task.wait(.1)
+
+    end
+
 end)
