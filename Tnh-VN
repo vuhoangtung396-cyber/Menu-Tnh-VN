@@ -1,851 +1,649 @@
---========================================================
--- Tnh-VN DEBUG HUB
--- Dành cho game Roblox do bạn phát triển / kiểm thử
---========================================================
+--// Tnh-VN Auto Steal - SERVER
+--// Dùng cho game Roblox của bạn
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
+local PathfindingService = game:GetService("PathfindingService")
 
-local LocalPlayer = Players.LocalPlayer
+--==================================================
+-- REMOTE
+--==================================================
 
---========================================================
--- CONFIG
---========================================================
+local folder = ReplicatedStorage:FindFirstChild("TnhVN_AutoSteal")
 
-local KEY = "Tnh-VN"
-
-local NORMAL_SPEED = 16
-local FAST_SPEED = 50
-
-local NORMAL_JUMP = 50
-local HIGH_JUMP = 100
-
---========================================================
--- STATE
---========================================================
-
-local State = {
-    Speed = false,
-    HighJump = false,
-    HealthBar = false,
-    PlayerESP = false,
-    GodMode = false,
-    Noclip = false,
-    AimHead = false,
-    WallVision = false,
-    Invisible = false
-}
-
-local Connections = {}
-local ESPObjects = {}
-
---========================================================
--- UTILITY
---========================================================
-
-local function getCharacter()
-    return LocalPlayer.Character
+if not folder then
+	folder = Instance.new("Folder")
+	folder.Name = "TnhVN_AutoSteal"
+	folder.Parent = ReplicatedStorage
 end
 
-local function getHumanoid()
-    local character = getCharacter()
-    if not character then return nil end
-    return character:FindFirstChildOfClass("Humanoid")
+local Remote = folder:FindFirstChild("Remote")
+
+if not Remote then
+	Remote = Instance.new("RemoteEvent")
+	Remote.Name = "Remote"
+	Remote.Parent = folder
 end
 
-local function disconnect(name)
-    if Connections[name] then
-        Connections[name]:Disconnect()
-        Connections[name] = nil
-    end
+--==================================================
+-- DATA
+--==================================================
+
+local PlayerData = {}
+
+local DEFAULT_SPEED = 100
+local MAX_SPEED = 500
+
+local PICKUP_DISTANCE = 14
+local DROP_DISTANCE = 18
+
+--==================================================
+-- UTILS
+--==================================================
+
+local function getCharacter(player)
+	local char = player.Character
+
+	if not char then
+		return nil
+	end
+
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	local root = char:FindFirstChild("HumanoidRootPart")
+
+	if not humanoid or not root then
+		return nil
+	end
+
+	return char, humanoid, root
 end
 
-local function disconnectAll()
-    for _, connection in pairs(Connections) do
-        pcall(function()
-            connection:Disconnect()
-        end)
-    end
+local function getEggRoot(egg)
+	if not egg then
+		return nil
+	end
 
-    Connections = {}
+	if egg:IsA("BasePart") then
+		return egg
+	end
+
+	if egg:IsA("Model") then
+		if egg.PrimaryPart then
+			return egg.PrimaryPart
+		end
+
+		return egg:FindFirstChildWhichIsA("BasePart", true)
+	end
+
+	return nil
 end
 
---========================================================
--- GUI
---========================================================
-
-local Gui = Instance.new("ScreenGui")
-Gui.Name = "TnhVNHub"
-Gui.ResetOnSpawn = false
-Gui.IgnoreGuiInset = true
-Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
---========================================================
--- KEY WINDOW
---========================================================
-
-local KeyFrame = Instance.new("Frame")
-KeyFrame.Size = UDim2.fromOffset(600, 380)
-KeyFrame.Position = UDim2.fromScale(0.5, 0.5)
-KeyFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-KeyFrame.BackgroundColor3 = Color3.fromRGB(7, 12, 25)
-KeyFrame.BorderSizePixel = 0
-KeyFrame.Parent = Gui
-
-local KeyCorner = Instance.new("UICorner")
-KeyCorner.CornerRadius = UDim.new(0, 24)
-KeyCorner.Parent = KeyFrame
-
-local KeyStroke = Instance.new("UIStroke")
-KeyStroke.Thickness = 3
-KeyStroke.Color = Color3.fromRGB(20, 120, 255)
-KeyStroke.Parent = KeyFrame
-
--- Rainbow border
-local KeyGradient = Instance.new("UIGradient")
-KeyGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 140, 255)),
-    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(130, 0, 255)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 180)),
-    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 255, 200)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 140, 255))
-})
-KeyStroke.Parent = KeyFrame
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -50, 0, 55)
-Title.Position = UDim2.fromOffset(30, 25)
-Title.BackgroundTransparency = 1
-Title.Text = "Tnh-VN Key VIP"
-Title.TextColor3 = Color3.fromRGB(245, 245, 255)
-Title.TextSize = 32
-Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = KeyFrame
-
-local Subtitle = Instance.new("TextLabel")
-Subtitle.Size = UDim2.new(1, -60, 0, 35)
-Subtitle.Position = UDim2.fromOffset(32, 72)
-Subtitle.BackgroundTransparency = 1
-Subtitle.Text = "Nhập Key để tiếp tục"
-Subtitle.TextColor3 = Color3.fromRGB(140, 175, 230)
-Subtitle.TextSize = 18
-Subtitle.Font = Enum.Font.Gotham
-Subtitle.TextXAlignment = Enum.TextXAlignment.Left
-Subtitle.Parent = KeyFrame
-
-local KeyBox = Instance.new("TextBox")
-KeyBox.Size = UDim2.new(1, -80, 0, 65)
-KeyBox.Position = UDim2.fromOffset(40, 125)
-KeyBox.BackgroundColor3 = Color3.fromRGB(9, 19, 38)
-KeyBox.BorderSizePixel = 0
-KeyBox.PlaceholderText = "🔑  Dán Key vào đây..."
-KeyBox.PlaceholderColor3 = Color3.fromRGB(115, 145, 195)
-KeyBox.Text = ""
-KeyBox.TextColor3 = Color3.fromRGB(230, 240, 255)
-KeyBox.TextSize = 21
-KeyBox.Font = Enum.Font.Gotham
-KeyBox.ClearTextOnFocus = false
-KeyBox.Parent = KeyFrame
-
-local KeyBoxCorner = Instance.new("UICorner")
-KeyBoxCorner.CornerRadius = UDim.new(0, 18)
-KeyBoxCorner.Parent = KeyBox
-
-local KeyBoxStroke = Instance.new("UIStroke")
-KeyBoxStroke.Thickness = 2
-KeyBoxStroke.Color = Color3.fromRGB(20, 120, 255)
-KeyBoxStroke.Parent = KeyBox
-
-local Confirm = Instance.new("TextButton")
-Confirm.Size = UDim2.new(1, -80, 0, 70)
-Confirm.Position = UDim2.fromOffset(40, 210)
-Confirm.BackgroundColor3 = Color3.fromRGB(15, 120, 255)
-Confirm.BorderSizePixel = 0
-Confirm.Text = "✓   XÁC NHẬN"
-Confirm.TextColor3 = Color3.new(1, 1, 1)
-Confirm.TextSize = 25
-Confirm.Font = Enum.Font.GothamBold
-Confirm.Parent = KeyFrame
-
-local ConfirmCorner = Instance.new("UICorner")
-ConfirmCorner.CornerRadius = UDim.new(0, 18)
-ConfirmCorner.Parent = Confirm
-
-local Info = Instance.new("TextLabel")
-Info.Size = UDim2.new(1, -60, 0, 50)
-Info.Position = UDim2.fromOffset(30, 300)
-Info.BackgroundTransparency = 1
-Info.Text = "ⓘ  Key đúng sẽ mở menu và các chức năng kiểm thử."
-Info.TextColor3 = Color3.fromRGB(125, 155, 205)
-Info.TextSize = 15
-Info.Font = Enum.Font.Gotham
-Info.Parent = KeyFrame
-
---========================================================
--- MAIN MENU
---========================================================
-
-local Main = Instance.new("Frame")
-Main.Size = UDim2.fromOffset(760, 470)
-Main.Position = UDim2.fromScale(0.5, 0.5)
-Main.AnchorPoint = Vector2.new(0.5, 0.5)
-Main.BackgroundColor3 = Color3.fromRGB(5, 8, 18)
-Main.BorderSizePixel = 0
-Main.Visible = false
-Main.Parent = Gui
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 18)
-MainCorner.Parent = Main
-
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Thickness = 3
-MainStroke.Color = Color3.fromRGB(0, 140, 255)
-MainStroke.Parent = Main
-
---========================================================
--- HEADER
---========================================================
-
-local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 65)
-Header.BackgroundColor3 = Color3.fromRGB(8, 13, 28)
-Header.BorderSizePixel = 0
-Header.Parent = Main
-
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 18)
-HeaderCorner.Parent = Header
-
-local Logo = Instance.new("TextLabel")
-Logo.Size = UDim2.fromOffset(45, 45)
-Logo.Position = UDim2.fromOffset(12, 10)
-Logo.BackgroundColor3 = Color3.fromRGB(20, 110, 255)
-Logo.Text = "T"
-Logo.TextColor3 = Color3.new(1, 1, 1)
-Logo.TextSize = 28
-Logo.Font = Enum.Font.GothamBold
-Logo.Parent = Header
-
-local LogoCorner = Instance.new("UICorner")
-LogoCorner.CornerRadius = UDim.new(1, 0)
-LogoCorner.Parent = Logo
-
-local HubTitle = Instance.new("TextLabel")
-HubTitle.Size = UDim2.new(1, -150, 1, 0)
-HubTitle.Position = UDim2.fromOffset(70, 0)
-HubTitle.BackgroundTransparency = 1
-HubTitle.Text = "MENU CHO TẤT CẢ GAME"
-HubTitle.TextColor3 = Color3.new(1, 1, 1)
-HubTitle.TextSize = 21
-HubTitle.Font = Enum.Font.GothamBold
-HubTitle.TextXAlignment = Enum.TextXAlignment.Left
-HubTitle.Parent = Header
-
---========================================================
--- MINIMIZE / CLOSE
---========================================================
-
-local Minimize = Instance.new("TextButton")
-Minimize.Size = UDim2.fromOffset(45, 45)
-Minimize.Position = UDim2.new(1, -100, 0, 10)
-Minimize.BackgroundColor3 = Color3.fromRGB(20, 25, 40)
-Minimize.Text = "−"
-Minimize.TextColor3 = Color3.new(1, 1, 1)
-Minimize.TextSize = 28
-Minimize.Font = Enum.Font.GothamBold
-Minimize.Parent = Header
-
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(1, 0)
-MinCorner.Parent = Minimize
-
-local Close = Instance.new("TextButton")
-Close.Size = UDim2.fromOffset(45, 45)
-Close.Position = UDim2.new(1, -50, 0, 10)
-Close.BackgroundColor3 = Color3.fromRGB(35, 18, 30)
-Close.Text = "×"
-Close.TextColor3 = Color3.fromRGB(255, 100, 120)
-Close.TextSize = 28
-Close.Font = Enum.Font.GothamBold
-Close.Parent = Header
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(1, 0)
-CloseCorner.Parent = Close
-
---========================================================
--- LEFT MENU
---========================================================
-
-local Left = Instance.new("ScrollingFrame")
-Left.Size = UDim2.fromOffset(210, 390)
-Left.Position = UDim2.fromOffset(10, 72)
-Left.BackgroundColor3 = Color3.fromRGB(8, 12, 24)
-Left.BorderSizePixel = 0
-Left.ScrollBarThickness = 3
-Left.CanvasSize = UDim2.new()
-Left.Parent = Main
-
-local LeftCorner = Instance.new("UICorner")
-LeftCorner.CornerRadius = UDim.new(0, 12)
-LeftCorner.Parent = Left
-
-local Layout = Instance.new("UIListLayout")
-Layout.Padding = UDim.new(0, 7)
-Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-Layout.Parent = Left
-
-local Padding = Instance.new("UIPadding")
-Padding.PaddingTop = UDim.new(0, 10)
-Padding.PaddingBottom = UDim.new(0, 10)
-Padding.Parent = Left
-
---========================================================
--- RIGHT CONTENT
---========================================================
-
-local Content = Instance.new("ScrollingFrame")
-Content.Size = UDim2.new(1, -235, 0, 390)
-Content.Position = UDim2.fromOffset(225, 72)
-Content.BackgroundColor3 = Color3.fromRGB(8, 12, 24)
-Content.BorderSizePixel = 0
-Content.ScrollBarThickness = 4
-Content.CanvasSize = UDim2.new()
-Content.Parent = Main
-
-local ContentCorner = Instance.new("UICorner")
-ContentCorner.CornerRadius = UDim.new(0, 12)
-ContentCorner.Parent = Content
-
-local ContentLayout = Instance.new("UIListLayout")
-ContentLayout.Padding = UDim.new(0, 8)
-ContentLayout.Parent = Content
-
-local ContentPadding = Instance.new("UIPadding")
-ContentPadding.PaddingTop = UDim.new(0, 12)
-ContentPadding.PaddingLeft = UDim.new(0, 12)
-ContentPadding.PaddingRight = UDim.new(0, 12)
-ContentPadding.PaddingBottom = UDim.new(0, 12)
-ContentPadding.Parent = Content
-
---========================================================
--- ESP
---========================================================
-
-local function clearESP()
-    for _, obj in pairs(ESPObjects) do
-        pcall(function()
-            obj:Destroy()
-        end)
-    end
-
-    ESPObjects = {}
+local function getEggName(egg)
+	return egg:GetAttribute("EggName")
+		or egg:GetAttribute("Name")
+		or egg.Name
 end
 
-local function createESP(player)
-    if player == LocalPlayer then return end
+local function isEggAvailable(egg)
+	if not egg or not egg.Parent then
+		return false
+	end
 
-    local character = player.Character
-    if not character then return end
+	if egg:GetAttribute("Taken") == true then
+		return false
+	end
 
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+	if egg:GetAttribute("Stolen") == true then
+		return false
+	end
 
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "TnhVN_ESP"
-    highlight.FillTransparency = 0.75
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = character
-
-    table.insert(ESPObjects, highlight)
+	return true
 end
 
-local function updateESP()
-    clearESP()
+local function getEggs()
+	local result = {}
 
-    if not State.PlayerESP and not State.WallVision then
-        return
-    end
+	for _, egg in ipairs(CollectionService:GetTagged("StealableEgg")) do
+		if isEggAvailable(egg) then
+			table.insert(result, egg)
+		end
+	end
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        createESP(player)
-    end
+	return result
 end
 
---========================================================
--- HEALTH BAR
---========================================================
+--==================================================
+-- PLAYER BASE
+--==================================================
 
-local function healthBar(player)
-    if player == LocalPlayer then return end
+local function getPlayerBase(player)
+	for _, base in ipairs(CollectionService:GetTagged("PlayerBase")) do
 
-    local character = player.Character
-    if not character then return end
+		local ownerId = base:GetAttribute("OwnerUserId")
 
-    local head = character:FindFirstChild("Head")
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if ownerId == player.UserId then
+			return base
+		end
 
-    if not head or not humanoid then return end
+		local ownerName = base:GetAttribute("Owner")
 
-    local old = head:FindFirstChild("TnhVNHealth")
-    if old then old:Destroy() end
+		if ownerName == player.Name then
+			return base
+		end
+	end
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "TnhVNHealth"
-    billboard.Size = UDim2.fromOffset(100, 12)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-    billboard.AlwaysOnTop = true
-    billboard.Parent = head
-
-    local background = Instance.new("Frame")
-    background.Size = UDim2.fromScale(1, 1)
-    background.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    background.BorderSizePixel = 0
-    background.Parent = billboard
-
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.fromScale(
-        math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1),
-        1
-    )
-    fill.BackgroundColor3 = Color3.fromRGB(0, 220, 100)
-    fill.BorderSizePixel = 0
-    fill.Parent = background
-
-    local connection
-    connection = humanoid.HealthChanged:Connect(function(hp)
-        if not fill.Parent then
-            connection:Disconnect()
-            return
-        end
-
-        fill.Size = UDim2.fromScale(
-            math.clamp(hp / humanoid.MaxHealth, 0, 1),
-            1
-        )
-    end)
-
-    table.insert(Connections, connection)
+	return nil
 end
 
-local function updateHealthBars()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if State.HealthBar then
-            healthBar(player)
-        end
-    end
+local function getBaseRoot(base)
+	if not base then
+		return nil
+	end
+
+	if base:IsA("BasePart") then
+		return base
+	end
+
+	if base:IsA("Model") then
+		if base.PrimaryPart then
+			return base.PrimaryPart
+		end
+
+		return base:FindFirstChild("DropPoint", true)
+			or base:FindFirstChildWhichIsA("BasePart", true)
+	end
+
+	return nil
 end
 
---========================================================
--- SPEED
---========================================================
+--==================================================
+-- TARGET
+--==================================================
 
-local function updateSpeed()
-    local humanoid = getHumanoid()
-    if not humanoid then return end
+local function targetAllowed(data, egg)
+	local name = getEggName(egg)
 
-    humanoid.WalkSpeed = State.Speed and FAST_SPEED or NORMAL_SPEED
+	-- Nếu TargetList rỗng => cho phép tất cả
+	if next(data.Targets) == nil then
+		return true
+	end
+
+	return data.Targets[name] == true
 end
 
---========================================================
--- HIGH JUMP
---========================================================
+local function chooseEgg(player)
+	local data = PlayerData[player]
 
-local function updateJump()
-    local humanoid = getHumanoid()
-    if not humanoid then return end
+	if not data then
+		return nil
+	end
 
-    humanoid.UseJumpPower = true
-    humanoid.JumpPower = State.HighJump and HIGH_JUMP or NORMAL_JUMP
+	local char, humanoid, root = getCharacter(player)
+
+	if not root then
+		return nil
+	end
+
+	local candidates = {}
+
+	for _, egg in ipairs(getEggs()) do
+
+		if targetAllowed(data, egg) then
+
+			local eggRoot = getEggRoot(egg)
+
+			if eggRoot then
+				local priority = egg:GetAttribute("Priority") or 999999
+				local value = egg:GetAttribute("StealValue") or 0
+				local distance = (root.Position - eggRoot.Position).Magnitude
+
+				table.insert(candidates, {
+					Object = egg,
+					Priority = priority,
+					Value = value,
+					Distance = distance
+				})
+			end
+		end
+	end
+
+	table.sort(candidates, function(a, b)
+
+		if a.Priority ~= b.Priority then
+			return a.Priority < b.Priority
+		end
+
+		if a.Value ~= b.Value then
+			return a.Value > b.Value
+		end
+
+		return a.Distance < b.Distance
+	end)
+
+	if candidates[1] then
+		return candidates[1].Object
+	end
+
+	return nil
 end
 
---========================================================
--- NOCLIP
---========================================================
+--==================================================
+-- MOVEMENT
+--==================================================
 
-local function updateNoclip()
-    disconnect("Noclip")
+local function moveTo(player, position, speed)
+	local char, humanoid, root = getCharacter(player)
 
-    if not State.Noclip then
-        return
-    end
+	if not humanoid or not root then
+		return false
+	end
 
-    Connections.Noclip = RunService.Stepped:Connect(function()
-        local character = getCharacter()
+	speed = math.clamp(speed or DEFAULT_SPEED, 1, MAX_SPEED)
 
-        if not character then return end
+	local oldSpeed = humanoid.WalkSpeed
+	humanoid.WalkSpeed = speed
 
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end)
+	local reached = false
+
+	local connection
+	connection = humanoid.MoveToFinished:Connect(function(success)
+		reached = success
+	end)
+
+	local path
+
+	local success = pcall(function()
+
+		path = PathfindingService:CreatePath({
+			AgentRadius = 2,
+			AgentHeight = 5,
+			AgentCanJump = true,
+			AgentCanClimb = true
+		})
+
+		path:ComputeAsync(root.Position, position)
+	end)
+
+	if success and path and path.Status == Enum.PathStatus.Success then
+
+		for _, waypoint in ipairs(path:GetWaypoints()) do
+
+			if not PlayerData[player] or not PlayerData[player].Enabled then
+				connection:Disconnect()
+				humanoid.WalkSpeed = oldSpeed
+				return false
+			end
+
+			if waypoint.Action == Enum.PathWaypointAction.Jump then
+				humanoid.Jump = true
+			end
+
+			humanoid:MoveTo(waypoint.Position)
+
+			local start = os.clock()
+
+			while os.clock() - start < 8 do
+
+				if not root.Parent then
+					break
+				end
+
+				if (root.Position - waypoint.Position).Magnitude <= 5 then
+					break
+				end
+
+				if not PlayerData[player] or not PlayerData[player].Enabled then
+					connection:Disconnect()
+					humanoid.WalkSpeed = oldSpeed
+					return false
+				end
+
+				task.wait()
+			end
+		end
+
+	else
+		humanoid:MoveTo(position)
+
+		local start = os.clock()
+
+		while os.clock() - start < 10 do
+
+			if (root.Position - position).Magnitude <= 7 then
+				break
+			end
+
+			if not PlayerData[player] or not PlayerData[player].Enabled then
+				break
+			end
+
+			task.wait()
+		end
+	end
+
+	connection:Disconnect()
+	humanoid.WalkSpeed = oldSpeed
+
+	return true
 end
 
---========================================================
--- INVISIBILITY
---========================================================
+--==================================================
+-- PICK UP
+--==================================================
 
-local function updateInvisible()
-    local character = getCharacter()
-    if not character then return end
+local function pickupEgg(player, egg)
+	local data = PlayerData[player]
 
-    for _, obj in ipairs(character:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            obj.LocalTransparencyModifier =
-                State.Invisible and 1 or 0
-        elseif obj:IsA("Decal") then
-            obj.Transparency =
-                State.Invisible and 1 or 0
-        end
-    end
+	if not data then
+		return false
+	end
+
+	if not isEggAvailable(egg) then
+		return false
+	end
+
+	local char, humanoid, root = getCharacter(player)
+	local eggRoot = getEggRoot(egg)
+
+	if not root or not eggRoot then
+		return false
+	end
+
+	if (root.Position - eggRoot.Position).Magnitude > PICKUP_DISTANCE then
+		return false
+	end
+
+	egg:SetAttribute("Taken", true)
+	egg:SetAttribute("Stolen", true)
+
+	data.Carrying = egg
+
+	-- Thông báo client
+	Remote:FireClient(player, "Carrying", true, getEggName(egg))
+
+	-- Tạo Weld để egg đi theo player
+	local oldParent = egg.Parent
+
+	if egg:IsA("Model") then
+		egg.Parent = char
+	elseif egg:IsA("BasePart") then
+		egg.Parent = char
+	end
+
+	eggRoot = getEggRoot(egg)
+
+	if eggRoot then
+
+		eggRoot.CanCollide = false
+		eggRoot.Massless = true
+
+		eggRoot.CFrame =
+			root.CFrame
+			* CFrame.new(0, 2.5, -2)
+
+		local weld = Instance.new("WeldConstraint")
+		weld.Name = "TnhVN_CarryWeld"
+		weld.Part0 = root
+		weld.Part1 = eggRoot
+		weld.Parent = eggRoot
+	end
+
+	return true
 end
 
---========================================================
--- GOD MODE - LOCAL DEBUG
---========================================================
+--==================================================
+-- DROP
+--==================================================
 
-local function updateGodMode()
-    local humanoid = getHumanoid()
-    if not humanoid then return end
+local function dropEgg(player)
+	local data = PlayerData[player]
 
-    disconnect("GodMode")
+	if not data or not data.Carrying then
+		return false
+	end
 
-    if State.GodMode then
-        Connections.GodMode = humanoid.HealthChanged:Connect(function()
-            if State.GodMode and humanoid.Health < humanoid.MaxHealth then
-                humanoid.Health = humanoid.MaxHealth
-            end
-        end)
+	local egg = data.Carrying
+	local char, humanoid, root = getCharacter(player)
 
-        humanoid.Health = humanoid.MaxHealth
-    end
+	if not root then
+		return false
+	end
+
+	local base = getPlayerBase(player)
+	local baseRoot = getBaseRoot(base)
+
+	if not baseRoot then
+		return false
+	end
+
+	if (root.Position - baseRoot.Position).Magnitude > DROP_DISTANCE then
+		return false
+	end
+
+	local eggRoot = getEggRoot(egg)
+
+	if eggRoot then
+
+		local weld = eggRoot:FindFirstChild("TnhVN_CarryWeld")
+
+		if weld then
+			weld:Destroy()
+		end
+
+		eggRoot.CanCollide = true
+		eggRoot.Massless = false
+	end
+
+	-- Đưa egg về base
+	egg.Parent = base or workspace
+
+	egg:SetAttribute("Taken", false)
+	egg:SetAttribute("Stolen", false)
+	egg:SetAttribute("OwnerUserId", player.UserId)
+
+	-- Nếu game của bạn có Inventory thì xử lý tại đây
+	local inventory = player:FindFirstChild("EggInventory")
+
+	if inventory then
+		local eggValue = Instance.new("StringValue")
+		eggValue.Name = getEggName(egg)
+		eggValue.Value = getEggName(egg)
+		eggValue.Parent = inventory
+	end
+
+	data.Carrying = nil
+
+	Remote:FireClient(player, "Carrying", false)
+
+	return true
 end
 
---========================================================
--- TOGGLE
---========================================================
+--==================================================
+-- AUTO LOOP
+--==================================================
 
-local function toggleFeature(name)
-    State[name] = not State[name]
+local function autoStealLoop(player)
+
+	task.spawn(function()
+
+		while PlayerData[player] do
+
+			local data = PlayerData[player]
+
+			if not data.Enabled then
+				task.wait(0.25)
+				continue
+			end
+
+			if data.Carrying then
+
+				local base = getPlayerBase(player)
+				local baseRoot = getBaseRoot(base)
+
+				if baseRoot then
+
+					Remote:FireClient(player, "State", "Returning")
+
+					moveTo(
+						player,
+						baseRoot.Position,
+						data.Speed
+					)
+
+					if data.Enabled then
+						dropEgg(player)
+					end
+				else
+					Remote:FireClient(player, "Error", "Không tìm thấy Base của bạn.")
+					task.wait(1)
+				end
+
+				continue
+			end
+
+			local egg = chooseEgg(player)
+
+			if egg then
+
+				local eggRoot = getEggRoot(egg)
+
+				if eggRoot then
+
+					Remote:FireClient(
+						player,
+						"Target",
+						getEggName(egg)
+					)
+
+					Remote:FireClient(
+						player,
+						"State",
+						"Going"
+					)
+
+					moveTo(
+						player,
+						eggRoot.Position,
+						data.Speed
+					)
+
+					if not data.Enabled then
+						continue
+					end
+
+					local _, _, root = getCharacter(player)
+
+					if root and
+						eggRoot.Parent and
+						(root.Position - eggRoot.Position).Magnitude <= PICKUP_DISTANCE then
+
+						local success = pickupEgg(player, egg)
+
+						if success then
+							Remote:FireClient(
+								player,
+								"State",
+								"RUN!!"
+							)
+						end
+					end
+				end
+
+				task.wait(0.15)
+
+			else
+				Remote:FireClient(
+					player,
+					"State",
+					"Waiting"
+				)
+
+				task.wait(1)
+			end
+		end
+	end)
 end
 
---========================================================
--- BUTTON CREATION
---========================================================
+--==================================================
+-- REMOTE COMMANDS
+--==================================================
 
-local buttons = {}
+Remote.OnServerEvent:Connect(function(player, command, ...)
+	local data = PlayerData[player]
 
-local function createToggle(text, stateName, callback)
-    local button = Instance.new("TextButton")
+	if not data then
+		return
+	end
 
-    button.Size = UDim2.new(1, -20, 0, 48)
-    button.BackgroundColor3 = Color3.fromRGB(18, 22, 38)
-    button.BorderSizePixel = 0
-    button.Text = ""
-    button.Parent = Content
+	if command == "Toggle" then
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = button
+		local enabled = ...
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -70, 1, 0)
-    label.Position = UDim2.fromOffset(15, 0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(230, 235, 250)
-    label.TextSize = 16
-    label.Font = Enum.Font.GothamMedium
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = button
+		data.Enabled = enabled == true
 
-    local toggle = Instance.new("Frame")
-    toggle.Size = UDim2.fromOffset(42, 22)
-    toggle.Position = UDim2.new(1, -55, 0.5, -11)
-    toggle.BackgroundColor3 = Color3.fromRGB(55, 60, 75)
-    toggle.Parent = button
+		Remote:FireClient(
+			player,
+			"Enabled",
+			data.Enabled
+		)
 
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(1, 0)
-    toggleCorner.Parent = toggle
+	elseif command == "Speed" then
 
-    local dot = Instance.new("Frame")
-    dot.Size = UDim2.fromOffset(16, 16)
-    dot.Position = UDim2.fromOffset(3, 3)
-    dot.BackgroundColor3 = Color3.fromRGB(220, 225, 235)
-    dot.Parent = toggle
+		local speed = tonumber(...)
 
-    local dotCorner = Instance.new("UICorner")
-    dotCorner.CornerRadius = UDim.new(1, 0)
-    dotCorner.Parent = dot
+		if speed then
+			data.Speed = math.clamp(speed, 1, MAX_SPEED)
+		end
 
-    local function refresh()
-        if State[stateName] then
-            toggle.BackgroundColor3 = Color3.fromRGB(0, 190, 100)
-            dot.Position = UDim2.fromOffset(23, 3)
-        else
-            toggle.BackgroundColor3 = Color3.fromRGB(55, 60, 75)
-            dot.Position = UDim2.fromOffset(3, 3)
-        end
-    end
+	elseif command == "Targets" then
 
-    button.MouseButton1Click:Connect(function()
-        toggleFeature(stateName)
+		local targets = ...
 
-        if callback then
-            callback(State[stateName])
-        end
+		if typeof(targets) == "table" then
 
-        refresh()
-    end)
+			data.Targets = {}
 
-    refresh()
+			for name, enabled in pairs(targets) do
+				if enabled == true then
+					data.Targets[tostring(name)] = true
+				end
+			end
+		end
 
-    buttons[stateName] = {
-        Button = button,
-        Refresh = refresh
-    }
+	elseif command == "Drop" then
 
-    return button
-end
+		dropEgg(player)
 
---========================================================
--- LEFT CATEGORY BUTTON
---========================================================
+	elseif command == "Stop" then
 
-local function createCategory(text)
-    local button = Instance.new("TextButton")
+		data.Enabled = false
 
-    button.Size = UDim2.new(1, -20, 0, 42)
-    button.BackgroundColor3 = Color3.fromRGB(12, 17, 31)
-    button.BorderSizePixel = 0
-    button.Text = text
-    button.TextColor3 = Color3.fromRGB(210, 220, 240)
-    button.TextSize = 15
-    button.Font = Enum.Font.GothamBold
-    button.Parent = Left
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 9)
-    corner.Parent = button
-
-    return button
-end
-
-createCategory("⚡  Movement")
-createCategory("👁  Visual")
-createCategory("🎯  Combat")
-createCategory("🛡  Player")
-createCategory("⚙  Settings")
-
---========================================================
--- FEATURES
---========================================================
-
-createToggle("Tăng tốc độ chạy", "Speed", function()
-    updateSpeed()
+		Remote:FireClient(
+			player,
+			"Enabled",
+			false
+		)
+	end
 end)
 
-createToggle("Nhảy cao", "HighJump", function()
-    updateJump()
+--==================================================
+-- PLAYER
+--==================================================
+
+Players.PlayerAdded:Connect(function(player)
+
+	PlayerData[player] = {
+		Enabled = false,
+		Speed = DEFAULT_SPEED,
+		Targets = {},
+		Carrying = nil
+	}
+
+	autoStealLoop(player)
 end)
 
-createToggle("Hiển thị thanh máu", "HealthBar", function()
-    updateHealthBars()
-end)
+Players.PlayerRemoving:Connect(function(player)
 
-createToggle("Định vị người chơi", "PlayerESP", function()
-    updateESP()
-end)
-
-createToggle("Bất tử", "GodMode", function()
-    updateGodMode()
-end)
-
-createToggle("Đi xuyên tường", "Noclip", function()
-    updateNoclip()
-end)
-
-createToggle("Nhìn xuyên tường", "WallVision", function()
-    updateESP()
-end)
-
-createToggle("Tàng hình", "Invisible", function()
-    updateInvisible()
-end)
-
-createToggle("Tự động ngắm đầu", "AimHead", function(enabled)
-    -- Điểm nối cho hệ thống Aim Assist của game.
-    -- Không tự động điều khiển camera nếu chưa cấu hình target.
-end)
-
---========================================================
--- CHARACTER RESPAWN
---========================================================
-
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(1)
-
-    updateSpeed()
-    updateJump()
-    updateNoclip()
-    updateInvisible()
-    updateGodMode()
-
-    if State.PlayerESP or State.WallVision then
-        task.wait(0.5)
-        updateESP()
-    end
-
-    if State.HealthBar then
-        updateHealthBars()
-    end
-end)
-
---========================================================
--- MINIMIZED LOGO
---========================================================
-
-local SmallLogo = Instance.new("TextButton")
-SmallLogo.Size = UDim2.fromOffset(58, 58)
-SmallLogo.Position = UDim2.fromOffset(20, 250)
-SmallLogo.BackgroundColor3 = Color3.fromRGB(5, 5, 8)
-SmallLogo.Text = "T"
-SmallLogo.TextColor3 = Color3.new(1, 1, 1)
-SmallLogo.TextSize = 30
-SmallLogo.Font = Enum.Font.GothamBold
-SmallLogo.Visible = false
-SmallLogo.Parent = Gui
-
-local SmallCorner = Instance.new("UICorner")
-SmallCorner.CornerRadius = UDim.new(1, 0)
-SmallCorner.Parent = SmallLogo
-
-local SmallStroke = Instance.new("UIStroke")
-SmallStroke.Thickness = 3
-SmallStroke.Color = Color3.fromRGB(30, 120, 255)
-SmallStroke.Parent = SmallLogo
-
-SmallLogo.MouseButton1Click:Connect(function()
-    SmallLogo.Visible = false
-    Main.Visible = true
-end)
-
---========================================================
--- DRAG SYSTEM
---========================================================
-
-local function makeDraggable(frame, handle)
-    local dragging = false
-    local dragStart
-    local startPos
-
-    handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-            or input.UserInputType == Enum.UserInputType.Touch then
-
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if not dragging then return end
-
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-            or input.UserInputType == Enum.UserInputType.Touch then
-
-            local delta = input.Position - dragStart
-
-            frame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-end
-
-makeDraggable(Main, Header)
-makeDraggable(SmallLogo, SmallLogo)
-
---========================================================
--- MINIMIZE
---========================================================
-
-Minimize.MouseButton1Click:Connect(function()
-    Main.Visible = false
-    SmallLogo.Visible = true
-end)
-
---========================================================
--- CLOSE
---========================================================
-
-Close.MouseButton1Click:Connect(function()
-
-    -- Tắt toàn bộ chức năng
-    for name in pairs(State) do
-        State[name] = false
-    end
-
-    disconnectAll()
-    clearESP()
-
-    local character = getCharacter()
-
-    if character then
-        for _, obj in ipairs(character:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                obj.LocalTransparencyModifier = 0
-                obj.CanCollide = true
-            end
-        end
-    end
-
-    local humanoid = getHumanoid()
-
-    if humanoid then
-        humanoid.WalkSpeed = NORMAL_SPEED
-        humanoid.JumpPower = NORMAL_JUMP
-    end
-
-    Gui:Destroy()
-end)
-
---========================================================
--- KEY CHECK
---========================================================
-
-Confirm.MouseButton1Click:Connect(function()
-
-    if KeyBox.Text == KEY then
-        KeyFrame.Visible = false
-        Main.Visible = true
-    else
-        KeyBox.Text = ""
-        KeyBox.PlaceholderText = "❌ Key không đúng!"
-        KeyBoxStroke.Color = Color3.fromRGB(255, 60, 80)
-
-        task.delay(1.5, function()
-            if KeyBox.Parent then
-                KeyBox.PlaceholderText = "🔑  Dán Key vào đây..."
-                KeyBoxStroke.Color = Color3.fromRGB(20, 120, 255)
-            end
-        end)
-    end
+	PlayerData[player] = nil
 end)
