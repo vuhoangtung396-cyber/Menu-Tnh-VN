@@ -1,1 +1,1846 @@
----
+--[[
+    Tnh-VN MENU
+    Safe / Studio-compatible edition
+
+    Key:
+        Tnh-VN
+
+    Giữ:
+        - Key system
+        - Draggable menu
+        - Minimize / restore / close
+        - Sidebar
+        - VN / EN / TH / KR / CN
+        - ESP-style player debug overlay
+        - Egg scanner/debug information
+        - Color selector
+        - FOV slider
+        - FixLag local visual optimization
+        - Toggle architecture
+
+    Các chức năng exploit như:
+        Aimbot
+        Auto Steal / teleport
+        AntiBan
+        Fly exploit
+        Speed exploit
+        AntiTrap exploit
+        Remote loadstring execution
+
+    không được thực thi trong bản này.
+]]
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RS = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local WS = game:GetService("Workspace")
+
+local LP = Players.LocalPlayer
+
+------------------------------------------------------------
+-- STATE
+------------------------------------------------------------
+
+local S = {
+    ESP = false,
+    ESPColor = Color3.fromRGB(0,255,100),
+    POV = 70,
+    FixLag = false,
+    Language = "VN",
+
+    -- Safe placeholders / UI state only
+    AimbotHead = false,
+    AimbotBody = false,
+    AntiHit = false,
+    Antiban = false,
+    Fly = false,
+    Speed = false,
+    AutoSteal = false,
+    PrioritySecret = false,
+    AntiTrap = false,
+}
+
+------------------------------------------------------------
+-- LANGUAGE
+------------------------------------------------------------
+
+local Txt = {
+    VN = {
+        main="Menu Chính",
+        mainD="Chức năng chính",
+        esp="ESP Player",
+        espD="Hiển thị Box + tên + khoảng cách",
+        color="Màu ESP",
+        aimH="Aimbot - Head Lock",
+        aimHD="Chức năng bị vô hiệu hóa trong bản an toàn",
+        aimB="Aimbot - Body Lock",
+        aimBD="Chức năng bị vô hiệu hóa trong bản an toàn",
+        pov="POV (Field of View)",
+        antiHit="Anti Hit",
+        antiHitD="Chức năng game-side cần server hỗ trợ",
+        antiban="Antiban",
+        antibanD="Không có tác dụng chống hệ thống ban",
+        fly="Fly",
+        flyD="UI hook — không chỉnh physics exploit",
+        flySpd="Fly Speed",
+        speed="Speed",
+        speedD="UI hook",
+        speedT="Speed",
+        speedTD="UI hook",
+        fix="FixLag",
+        fixD="Tối ưu hiệu ứng cục bộ",
+        steal="Steal An Egg",
+        lang="Ngôn ngữ",
+        langD="Đổi ngôn ngữ",
+        eggLoc="Định Vị Egg",
+        eggScan="Quét Egg",
+        autoSteal="Auto Steal Egg",
+        autoStealD="Đã vô hiệu hóa trong bản an toàn",
+        prio="Ưu tiên Secret",
+        prioD="Lọc Egg Secret",
+        antiTrap="Anti Bẫy",
+        antiTrapD="UI hook",
+        stat="Trạng thái",
+        off="Chưa bật",
+        on="Đang bật",
+        noEgg="Không tìm thấy Egg",
+        green="Xanh lá",
+        blue="Xanh dương",
+        red="Đỏ",
+        pink="Hồng",
+        yellow="Vàng",
+        purple="Tím",
+        white="Trắng",
+    },
+
+    EN = {
+        main="Main Menu",
+        mainD="Main utilities",
+        esp="ESP Player",
+        espD="Box + name + distance",
+        color="ESP Color",
+        aimH="Aimbot - Head Lock",
+        aimHD="Disabled in safe edition",
+        aimB="Aimbot - Body Lock",
+        aimBD="Disabled in safe edition",
+        pov="POV (Field of View)",
+        antiHit="Anti Hit",
+        antiHitD="Requires game-side support",
+        antiban="Antiban",
+        antibanD="Does not bypass moderation",
+        fly="Fly",
+        flyD="UI hook only",
+        flySpd="Fly Speed",
+        speed="Speed",
+        speedD="UI hook",
+        speedT="Speed",
+        speedTD="UI hook",
+        fix="FixLag",
+        fixD="Local visual optimization",
+        steal="Steal An Egg",
+        lang="Language",
+        langD="Change language",
+        eggLoc="Egg Locator",
+        eggScan="Scan Eggs",
+        autoSteal="Auto Steal Egg",
+        autoStealD="Disabled in safe edition",
+        prio="Priority Secret",
+        prioD="Filter Secret eggs",
+        antiTrap="Anti Trap",
+        antiTrapD="UI hook",
+        stat="Status",
+        off="Inactive",
+        on="Active",
+        noEgg="No Egg found",
+        green="Green",
+        blue="Blue",
+        red="Red",
+        pink="Pink",
+        yellow="Yellow",
+        purple="Purple",
+        white="White",
+    },
+
+    TH = {
+        main="เมนูหลัก",
+        mainD="ฟังก์ชันหลัก",
+        esp="ESP Player",
+        espD="กรอบ + ชื่อ + ระยะ",
+        color="สี ESP",
+        aimH="Aimbot หัว",
+        aimHD="ปิดใช้งานในรุ่นปลอดภัย",
+        aimB="Aimbot ตัว",
+        aimBD="ปิดใช้งานในรุ่นปลอดภัย",
+        pov="POV",
+        antiHit="Anti Hit",
+        antiHitD="ต้องใช้ระบบฝั่งเกม",
+        antiban="Antiban",
+        antibanD="ไม่หลบระบบแบน",
+        fly="บิน",
+        flyD="UI เท่านั้น",
+        flySpd="ความเร็วบิน",
+        speed="ความเร็ว",
+        speedD="UI เท่านั้น",
+        speedT="ความเร็ว",
+        speedTD="UI เท่านั้น",
+        fix="FixLag",
+        fixD="ปรับเอฟเฟกต์ในเครื่อง",
+        steal="Steal An Egg",
+        lang="ภาษา",
+        langD="เปลี่ยนภาษา",
+        eggLoc="ตำแหน่งไข่",
+        eggScan="สแกนไข่",
+        autoSteal="Auto Steal Egg",
+        autoStealD="ปิดใช้งานในรุ่นปลอดภัย",
+        prio="Secret ก่อน",
+        prioD="กรองไข่ Secret",
+        antiTrap="Anti Trap",
+        antiTrapD="UI เท่านั้น",
+        stat="สถานะ",
+        off="ไม่ทำงาน",
+        on="ทำงาน",
+        noEgg="ไม่พบไข่",
+        green="เขียว",
+        blue="ฟ้า",
+        red="แดง",
+        pink="ชมพู",
+        yellow="เหลือง",
+        purple="ม่วง",
+        white="ขาว",
+    },
+
+    KR = {
+        main="메인 메뉴",
+        mainD="주요 기능",
+        esp="ESP Player",
+        espD="박스 + 이름 + 거리",
+        color="ESP 색상",
+        aimH="Aimbot 머리",
+        aimHD="안전 버전에서는 비활성화",
+        aimB="Aimbot 몸",
+        aimBD="안전 버전에서는 비활성화",
+        pov="POV",
+        antiHit="Anti Hit",
+        antiHitD="게임 측 지원 필요",
+        antiban="Antiban",
+        antibanD="차단 시스템 우회 안 함",
+        fly="비행",
+        flyD="UI 전용",
+        flySpd="비행 속도",
+        speed="속도",
+        speedD="UI 전용",
+        speedT="속도",
+        speedTD="UI 전용",
+        fix="FixLag",
+        fixD="로컬 효과 최적화",
+        steal="Steal An Egg",
+        lang="언어",
+        langD="언어 변경",
+        eggLoc="알 위치",
+        eggScan="알 스캔",
+        autoSteal="Auto Steal Egg",
+        autoStealD="안전 버전에서는 비활성화",
+        prio="Secret 우선",
+        prioD="Secret 알 필터",
+        antiTrap="Anti Trap",
+        antiTrapD="UI 전용",
+        stat="상태",
+        off="비활성",
+        on="활성",
+        noEgg="알 없음",
+        green="초록",
+        blue="파랑",
+        red="빨강",
+        pink="분홍",
+        yellow="노랑",
+        purple="보라",
+        white="흰색",
+    },
+
+    CN = {
+        main="主菜单",
+        mainD="主要功能",
+        esp="ESP Player",
+        espD="方框 + 名称 + 距离",
+        color="ESP颜色",
+        aimH="自瞄-头部",
+        aimHD="安全版本中禁用",
+        aimB="自瞄-身体",
+        aimBD="安全版本中禁用",
+        pov="POV",
+        antiHit="Anti Hit",
+        antiHitD="需要游戏端支持",
+        antiban="Antiban",
+        antibanD="不绕过封禁系统",
+        fly="飞行",
+        flyD="仅UI",
+        flySpd="飞行速度",
+        speed="速度",
+        speedD="仅UI",
+        speedT="速度",
+        speedTD="仅UI",
+        fix="FixLag",
+        fixD="本地效果优化",
+        steal="Steal An Egg",
+        lang="语言",
+        langD="更改语言",
+        eggLoc="蛋位置",
+        eggScan="扫描蛋",
+        autoSteal="Auto Steal Egg",
+        autoStealD="安全版本中禁用",
+        prio="优先 Secret",
+        prioD="筛选 Secret",
+        antiTrap="Anti Trap",
+        antiTrapD="仅UI",
+        stat="状态",
+        off="未激活",
+        on="激活",
+        noEgg="未找到蛋",
+        green="绿色",
+        blue="蓝色",
+        red="红色",
+        pink="粉色",
+        yellow="黄色",
+        purple="紫色",
+        white="白色",
+    }
+}
+
+local function T(k)
+    return Txt[S.Language][k] or k
+end
+
+------------------------------------------------------------
+-- GUI
+------------------------------------------------------------
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "TnhVN"
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Gui.DisplayOrder = 999
+Gui.Parent = LP:WaitForChild("PlayerGui")
+
+local ESPGui = Instance.new("ScreenGui")
+ESPGui.Name = "TnhVN_ESP"
+ESPGui.ResetOnSpawn = false
+ESPGui.IgnoreGuiInset = true
+ESPGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ESPGui.DisplayOrder = 1
+ESPGui.Parent = LP:WaitForChild("PlayerGui")
+
+local function Corner(o,r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0,r)
+    c.Parent = o
+end
+
+local function Stroke(o,c,t)
+    local s = Instance.new("UIStroke")
+    s.Color = c
+    s.Thickness = t or 1
+    s.Transparency = .35
+    s.Parent = o
+end
+
+local function Lbl(parent,text,size,pos)
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextColor3 = Color3.fromRGB(240,240,240)
+    l.TextSize = size
+    l.Font = Enum.Font.Gotham
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.Position = pos
+    l.ZIndex = 10
+    l.Parent = parent
+    return l
+end
+
+------------------------------------------------------------
+-- NOTICE
+------------------------------------------------------------
+
+local Notice = Lbl(
+    Gui,
+    "Tnh-VN MENU",
+    13,
+    UDim2.new(.5,-120,0,5)
+)
+
+Notice.Size = UDim2.new(0,240,0,25)
+Notice.TextXAlignment = Enum.TextXAlignment.Center
+Notice.TextColor3 = Color3.fromRGB(190,200,205)
+
+------------------------------------------------------------
+-- MAIN
+------------------------------------------------------------
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.new(0,700,0,470)
+Main.Position = UDim2.new(.5,-350,.5,-235)
+Main.BackgroundColor3 = Color3.fromRGB(17,22,25)
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Visible = false
+Main.Parent = Gui
+
+Corner(Main,16)
+Stroke(Main,Color3.fromRGB(75,85,90),1)
+
+------------------------------------------------------------
+-- TOP BAR
+------------------------------------------------------------
+
+local Top = Instance.new("Frame")
+Top.Size = UDim2.new(1,0,0,65)
+Top.BackgroundColor3 = Color3.fromRGB(20,26,29)
+Top.BorderSizePixel = 0
+Top.Active = true
+Top.Parent = Main
+
+Corner(Top,16)
+
+local Title = Lbl(
+    Top,
+    T("main"),
+    21,
+    UDim2.new(0,22,0,9)
+)
+
+Title.Size = UDim2.new(1,-150,0,28)
+Title.Font = Enum.Font.GothamMedium
+
+local Sub = Lbl(
+    Top,
+    "KeyVIP • Safe Edition",
+    12,
+    UDim2.new(0,23,0,38)
+)
+
+Sub.TextColor3 = Color3.fromRGB(135,145,150)
+
+local Min = Instance.new("TextButton")
+Min.Size = UDim2.new(0,42,0,42)
+Min.Position = UDim2.new(1,-92,0,11)
+Min.BackgroundTransparency = 1
+Min.Text = "−"
+Min.TextSize = 30
+Min.TextColor3 = Color3.fromRGB(235,235,235)
+Min.Parent = Top
+
+local Cls = Instance.new("TextButton")
+Cls.Size = UDim2.new(0,42,0,42)
+Cls.Position = UDim2.new(1,-48,0,11)
+Cls.BackgroundTransparency = 1
+Cls.Text = "×"
+Cls.TextSize = 30
+Cls.TextColor3 = Color3.fromRGB(235,235,235)
+Cls.Parent = Top
+
+------------------------------------------------------------
+-- DRAG
+------------------------------------------------------------
+
+local dragging = false
+local dragStart
+local startPos
+
+Top.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Main.Position
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if not dragging then return end
+
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch then
+
+        local delta = input.Position - dragStart
+
+        Main.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+------------------------------------------------------------
+-- SIDEBAR
+------------------------------------------------------------
+
+local Side = Instance.new("Frame")
+Side.Size = UDim2.new(0,170,1,-82)
+Side.Position = UDim2.new(0,10,0,72)
+Side.BackgroundColor3 = Color3.fromRGB(21,27,30)
+Side.BorderSizePixel = 0
+Side.Parent = Main
+
+Corner(Side,12)
+
+local SideLayout = Instance.new("UIListLayout")
+SideLayout.Padding = UDim.new(0,6)
+SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+SideLayout.Parent = Side
+
+------------------------------------------------------------
+-- PAGES
+------------------------------------------------------------
+
+local Pages = {}
+local Buttons = {}
+
+local function CreatePage(name)
+    local p = Instance.new("ScrollingFrame")
+
+    p.Size = UDim2.new(1,-195,1,-85)
+    p.Position = UDim2.new(0,185,0,75)
+    p.BackgroundTransparency = 1
+    p.BorderSizePixel = 0
+    p.ScrollBarThickness = 4
+    p.ScrollBarImageColor3 = Color3.fromRGB(0,170,235)
+    p.Visible = false
+    p.Parent = Main
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0,12)
+    layout.Parent = p
+
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        p.CanvasSize = UDim2.new(
+            0,0,
+            0,
+            layout.AbsoluteContentSize.Y + 20
+        )
+    end)
+
+    Pages[name] = p
+
+    return p
+end
+
+local MainP = CreatePage("Main")
+local FlyP = CreatePage("Fly")
+local FixP = CreatePage("FixLag")
+local StealP = CreatePage("Steal")
+local LangP = CreatePage("Language")
+
+local function SidebarButton(name,text,icon)
+    local b = Instance.new("TextButton")
+
+    b.Size = UDim2.new(1,-10,0,44)
+    b.BackgroundColor3 = Color3.fromRGB(29,36,40)
+    b.BorderSizePixel = 0
+    b.Text = "  "..icon.."   "..text
+    b.TextColor3 = Color3.fromRGB(225,230,232)
+    b.TextSize = 13
+    b.Font = Enum.Font.GothamMedium
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.Parent = Side
+
+    Corner(b,10)
+
+    Buttons[name] = b
+
+    return b
+end
+
+local MB = SidebarButton("Main",T("main"),"⌂")
+local FB = SidebarButton("Fly","Fly","✈")
+local XB = SidebarButton("FixLag","FixLag","⚡")
+local EB = SidebarButton("Steal",T("steal"),"🥚")
+local LB = SidebarButton("Language",T("lang"),"⚙")
+
+local function OpenPage(name)
+    for n,page in pairs(Pages) do
+        page.Visible = n == name
+    end
+
+    for n,b in pairs(Buttons) do
+        b.BackgroundColor3 =
+            n == name
+            and Color3.fromRGB(0,150,215)
+            or Color3.fromRGB(29,36,40)
+    end
+end
+
+MB.MouseButton1Click:Connect(function()
+    OpenPage("Main")
+end)
+
+FB.MouseButton1Click:Connect(function()
+    OpenPage("Fly")
+end)
+
+XB.MouseButton1Click:Connect(function()
+    OpenPage("FixLag")
+end)
+
+EB.MouseButton1Click:Connect(function()
+    OpenPage("Steal")
+end)
+
+LB.MouseButton1Click:Connect(function()
+    OpenPage("Language")
+end)
+
+------------------------------------------------------------
+-- KEY WINDOW
+------------------------------------------------------------
+
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.new(0,380,0,250)
+KeyFrame.Position = UDim2.new(.5,-190,.5,-125)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(17,22,25)
+KeyFrame.BorderSizePixel = 0
+KeyFrame.Parent = Gui
+
+Corner(KeyFrame,16)
+Stroke(KeyFrame,Color3.fromRGB(75,85,90),1)
+
+local KeyTitle = Instance.new("TextLabel")
+KeyTitle.BackgroundTransparency = 1
+KeyTitle.Size = UDim2.new(1,-30,0,35)
+KeyTitle.Position = UDim2.new(0,15,0,22)
+KeyTitle.Text = "Tnh-VN MENU"
+KeyTitle.TextColor3 = Color3.fromRGB(240,240,240)
+KeyTitle.TextSize = 24
+KeyTitle.Font = Enum.Font.GothamMedium
+KeyTitle.TextXAlignment = Enum.TextXAlignment.Center
+KeyTitle.Parent = KeyFrame
+
+local KeySub = Instance.new("TextLabel")
+KeySub.BackgroundTransparency = 1
+KeySub.Size = UDim2.new(1,-30,0,25)
+KeySub.Position = UDim2.new(0,15,0,60)
+KeySub.Text = "Nhập Key để tiếp tục"
+KeySub.TextColor3 = Color3.fromRGB(145,155,160)
+KeySub.TextSize = 13
+KeySub.TextXAlignment = Enum.TextXAlignment.Center
+KeySub.Parent = KeyFrame
+
+local KeyBox = Instance.new("TextBox")
+KeyBox.Size = UDim2.new(1,-50,0,45)
+KeyBox.Position = UDim2.new(0,25,0,100)
+KeyBox.BackgroundColor3 = Color3.fromRGB(27,34,38)
+KeyBox.BorderSizePixel = 0
+KeyBox.PlaceholderText = "Dán Key vào đây..."
+KeyBox.Text = ""
+KeyBox.PlaceholderColor3 = Color3.fromRGB(110,120,125)
+KeyBox.TextColor3 = Color3.fromRGB(240,240,240)
+KeyBox.TextSize = 15
+KeyBox.Font = Enum.Font.Gotham
+KeyBox.ClearTextOnFocus = false
+KeyBox.TextXAlignment = Enum.TextXAlignment.Center
+KeyBox.Parent = KeyFrame
+
+Corner(KeyBox,10)
+Stroke(KeyBox,Color3.fromRGB(55,65,70),1)
+
+local KeyConfirm = Instance.new("TextButton")
+KeyConfirm.Size = UDim2.new(1,-50,0,42)
+KeyConfirm.Position = UDim2.new(0,25,0,158)
+KeyConfirm.BackgroundColor3 = Color3.fromRGB(0,170,90)
+KeyConfirm.BorderSizePixel = 0
+KeyConfirm.Text = "Xác Nhận"
+KeyConfirm.TextColor3 = Color3.new(1,1,1)
+KeyConfirm.TextSize = 14
+KeyConfirm.Font = Enum.Font.GothamBold
+KeyConfirm.Parent = KeyFrame
+
+Corner(KeyConfirm,10)
+
+local KeyStatus = Instance.new("TextLabel")
+KeyStatus.BackgroundTransparency = 1
+KeyStatus.Size = UDim2.new(1,-30,0,25)
+KeyStatus.Position = UDim2.new(0,15,0,208)
+KeyStatus.Text = ""
+KeyStatus.TextColor3 = Color3.fromRGB(255,80,80)
+KeyStatus.TextSize = 12
+KeyStatus.TextXAlignment = Enum.TextXAlignment.Center
+KeyStatus.Parent = KeyFrame
+
+local function ValidateKey()
+    if KeyBox.Text == "Tnh-VN" then
+        KeyStatus.Text = "Key chính xác!"
+        KeyStatus.TextColor3 = Color3.fromRGB(0,220,120)
+
+        task.wait(.25)
+
+        KeyFrame.Visible = false
+        Main.Visible = true
+        Notice.Visible = true
+
+        OpenPage("Main")
+    else
+        KeyStatus.Text = "Key không đúng!"
+        KeyBox.Text = ""
+        KeyBox:CaptureFocus()
+    end
+end
+
+KeyConfirm.MouseButton1Click:Connect(ValidateKey)
+
+KeyBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        ValidateKey()
+    end
+end)
+
+------------------------------------------------------------
+-- HELPERS
+------------------------------------------------------------
+
+local function PageHeader(parent,title,description)
+    local h = Lbl(
+        parent,
+        title,
+        29,
+        UDim2.new(0,5,0,0)
+    )
+
+    h.Size = UDim2.new(1,-10,0,42)
+    h.Font = Enum.Font.GothamMedium
+
+    local d = Lbl(
+        parent,
+        description,
+        13,
+        UDim2.new(0,7,0,43)
+    )
+
+    d.Size = UDim2.new(1,-15,0,30)
+    d.TextColor3 = Color3.fromRGB(145,155,160)
+
+    local spacer = Instance.new("Frame")
+    spacer.Size = UDim2.new(1,0,0,76)
+    spacer.BackgroundTransparency = 1
+    spacer.Parent = parent
+
+    return h,d
+end
+
+local function Row(parent,height)
+    local r = Instance.new("Frame")
+
+    r.Size = UDim2.new(1,-8,0,height)
+    r.BackgroundColor3 = Color3.fromRGB(25,31,34)
+    r.BorderSizePixel = 0
+    r.Parent = parent
+
+    Corner(r,11)
+    Stroke(r,Color3.fromRGB(55,65,70),1)
+
+    return r
+end
+
+local function Toggle(parent,title,description,callback)
+    local r = Row(parent,78)
+
+    local titleLabel = Lbl(
+        r,
+        title,
+        16,
+        UDim2.new(0,18,0,8)
+    )
+
+    local descLabel = Lbl(
+        r,
+        description,
+        12,
+        UDim2.new(0,18,0,40)
+    )
+
+    titleLabel.Size = UDim2.new(1,-125,0,25)
+    descLabel.Size = UDim2.new(1,-125,0,27)
+    descLabel.TextColor3 = Color3.fromRGB(150,160,165)
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0,70,0,34)
+    button.Position = UDim2.new(1,-88,.5,-17)
+    button.Text = ""
+    button.BackgroundColor3 = Color3.fromRGB(65,72,78)
+    button.Parent = r
+
+    Corner(button,17)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,26,0,26)
+    knob.Position = UDim2.new(0,4,.5,-13)
+    knob.BackgroundColor3 = Color3.fromRGB(220,225,228)
+    knob.Parent = button
+
+    Corner(knob,13)
+
+    local enabled = false
+
+    local function Render()
+        if enabled then
+            button.BackgroundColor3 = Color3.fromRGB(0,170,235)
+            knob.BackgroundColor3 = Color3.fromRGB(18,25,29)
+            knob.Position = UDim2.new(1,-30,.5,-13)
+        else
+            button.BackgroundColor3 = Color3.fromRGB(65,72,78)
+            knob.BackgroundColor3 = Color3.fromRGB(220,225,228)
+            knob.Position = UDim2.new(0,4,.5,-13)
+        end
+    end
+
+    button.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        Render()
+        callback(enabled)
+    end)
+
+    Render()
+
+    return {
+        Row = r,
+        Title = titleLabel,
+        Description = descLabel,
+        GetState = function()
+            return enabled
+        end
+    }
+end
+
+------------------------------------------------------------
+-- MAIN PAGE
+------------------------------------------------------------
+
+local MainHeader = PageHeader(
+    MainP,
+    T("main"),
+    T("mainD")
+)
+
+local ESPObjects = {}
+
+local function AddESP(player)
+    if player == LP or ESPObjects[player] then
+        return
+    end
+
+    local box = Instance.new("Frame")
+    box.BackgroundTransparency = 1
+    box.BorderSizePixel = 0
+    box.Visible = false
+    box.Parent = ESPGui
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = S.ESPColor
+    stroke.Thickness = 1.5
+    stroke.Parent = box
+
+    local name = Instance.new("TextLabel")
+    name.BackgroundTransparency = 1
+    name.Font = Enum.Font.GothamBold
+    name.TextSize = 13
+    name.TextColor3 = S.ESPColor
+    name.TextStrokeTransparency = 0
+    name.TextStrokeColor3 = Color3.new(0,0,0)
+    name.Visible = false
+    name.Parent = ESPGui
+
+    ESPObjects[player] = {
+        Box = box,
+        Stroke = stroke,
+        Name = name
+    }
+end
+
+local function RemoveESP(player)
+    local obj = ESPObjects[player]
+
+    if not obj then
+        return
+    end
+
+    if obj.Box then
+        obj.Box:Destroy()
+    end
+
+    if obj.Name then
+        obj.Name:Destroy()
+    end
+
+    ESPObjects[player] = nil
+end
+
+for _,player in ipairs(Players:GetPlayers()) do
+    AddESP(player)
+end
+
+Players.PlayerAdded:Connect(AddESP)
+Players.PlayerRemoving:Connect(RemoveESP)
+
+RS.RenderStepped:Connect(function()
+    local camera = WS.CurrentCamera
+
+    if not S.ESP or not camera then
+        for _,obj in pairs(ESPObjects) do
+            obj.Box.Visible = false
+            obj.Name.Visible = false
+        end
+        return
+    end
+
+    local myCharacter = LP.Character
+    local myRoot = myCharacter and
+        myCharacter:FindFirstChild("HumanoidRootPart")
+
+    for player,obj in pairs(ESPObjects) do
+        local character = player.Character
+
+        if not character then
+            obj.Box.Visible = false
+            obj.Name.Visible = false
+            continue
+        end
+
+        local head = character:FindFirstChild("Head")
+        local root = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+        if not head or not root or not humanoid
+        or humanoid.Health <= 0 then
+            obj.Box.Visible = false
+            obj.Name.Visible = false
+            continue
+        end
+
+        local topPos = head.Position + Vector3.new(0,.6,0)
+        local bottomPos = root.Position - Vector3.new(0,2.8,0)
+
+        local top,onTop = camera:WorldToViewportPoint(topPos)
+        local bottom,onBottom = camera:WorldToViewportPoint(bottomPos)
+
+        if not onTop or not onBottom
+        or top.Z <= 0
+        or bottom.Z <= 0 then
+            obj.Box.Visible = false
+            obj.Name.Visible = false
+            continue
+        end
+
+        local height = math.abs(bottom.Y-top.Y)
+        local width = math.min(height*.62,300)
+
+        if height <= 4 or width <= 4 then
+            obj.Box.Visible = false
+            obj.Name.Visible = false
+            continue
+        end
+
+        local centerX = (top.X+bottom.X)/2
+        local left = centerX-width/2
+        local topY = math.min(top.Y,bottom.Y)
+
+        obj.Box.Position = UDim2.new(0,left,0,topY)
+        obj.Box.Size = UDim2.new(0,width,0,height)
+        obj.Box.Visible = true
+
+        obj.Stroke.Color = S.ESPColor
+        obj.Name.TextColor3 = S.ESPColor
+
+        local distance = 0
+
+        if myRoot then
+            distance = math.floor(
+                (root.Position-myRoot.Position).Magnitude
+            )
+        end
+
+        obj.Name.Text =
+            player.Name.." ["..distance.."m]"
+
+        obj.Name.Position =
+            UDim2.new(0,left-60,0,topY-20)
+
+        obj.Name.Size =
+            UDim2.new(0,width+120,0,18)
+
+        obj.Name.Visible = true
+    end
+end)
+
+local ESPToggle = Toggle(
+    MainP,
+    T("esp"),
+    T("espD"),
+    function(value)
+        S.ESP = value
+    end
+)
+
+------------------------------------------------------------
+-- COLOR
+------------------------------------------------------------
+
+local ColorRow = Row(MainP,58)
+
+local ColorLabel = Lbl(
+    ColorRow,
+    T("color"),
+    15,
+    UDim2.new(0,18,0,16)
+)
+
+local ColorButton = Instance.new("TextButton")
+ColorButton.Size = UDim2.new(0,145,0,34)
+ColorButton.Position = UDim2.new(1,-165,.5,-17)
+ColorButton.Text = T("green")
+ColorButton.TextColor3 = Color3.new(1,1,1)
+ColorButton.TextSize = 12
+ColorButton.Font = Enum.Font.GothamMedium
+ColorButton.BackgroundColor3 = S.ESPColor
+ColorButton.Parent = ColorRow
+
+Corner(ColorButton,9)
+
+local ColorPanel = Instance.new("Frame")
+ColorPanel.Size = UDim2.new(1,-8,0,132)
+ColorPanel.BackgroundColor3 = Color3.fromRGB(25,31,34)
+ColorPanel.Visible = false
+ColorPanel.Parent = MainP
+
+Corner(ColorPanel,11)
+Stroke(ColorPanel,Color3.fromRGB(55,65,70),1)
+
+local ColorGrid = Instance.new("UIGridLayout")
+ColorGrid.CellSize = UDim2.new(0,125,0,42)
+ColorGrid.CellPadding = UDim2.new(0,8,0,8)
+ColorGrid.HorizontalAlignment = Enum.HorizontalAlignment.Center
+ColorGrid.VerticalAlignment = Enum.VerticalAlignment.Center
+ColorGrid.Parent = ColorPanel
+
+local Colors = {
+    {"green",Color3.fromRGB(0,255,100)},
+    {"blue",Color3.fromRGB(0,170,255)},
+    {"red",Color3.fromRGB(255,55,55)},
+    {"pink",Color3.fromRGB(255,80,180)},
+    {"yellow",Color3.fromRGB(255,220,40)},
+    {"purple",Color3.fromRGB(180,80,255)},
+    {"white",Color3.fromRGB(245,245,245)},
+}
+
+local ColorButtons = {}
+
+for index,data in ipairs(Colors) do
+    local button = Instance.new("TextButton")
+
+    button.Text = T(data[1])
+    button.TextColor3 = Color3.new(1,1,1)
+    button.TextSize = 12
+    button.Font = Enum.Font.GothamMedium
+    button.BackgroundColor3 = data[2]
+    button.BorderSizePixel = 0
+    button.Parent = ColorPanel
+
+    Corner(button,8)
+
+    ColorButtons[index] = button
+
+    button.MouseButton1Click:Connect(function()
+        S.ESPColor = data[2]
+        ColorButton.Text = T(data[1])
+        ColorButton.BackgroundColor3 = data[2]
+        ColorPanel.Visible = false
+    end)
+end
+
+ColorButton.MouseButton1Click:Connect(function()
+    ColorPanel.Visible = not ColorPanel.Visible
+end)
+
+------------------------------------------------------------
+-- FOV
+------------------------------------------------------------
+
+local POVRow = Row(MainP,95)
+
+local POVTitle = Lbl(
+    POVRow,
+    T("pov"),
+    15,
+    UDim2.new(0,18,0,11)
+)
+
+local POVValue = Lbl(
+    POVRow,
+    tostring(S.POV),
+    13,
+    UDim2.new(1,-80,0,11)
+)
+
+POVValue.Size = UDim2.new(0,60,0,22)
+POVValue.TextXAlignment = Enum.TextXAlignment.Right
+POVValue.TextColor3 = Color3.fromRGB(0,190,255)
+
+local POVBar = Instance.new("Frame")
+POVBar.Size = UDim2.new(1,-36,0,8)
+POVBar.Position = UDim2.new(0,18,1,-25)
+POVBar.BackgroundColor3 = Color3.fromRGB(55,65,72)
+POVBar.Parent = POVRow
+
+Corner(POVBar,4)
+
+local POVFill = Instance.new("Frame")
+POVFill.Size = UDim2.new(S.POV/300,0,1,0)
+POVFill.BackgroundColor3 = Color3.fromRGB(0,170,235)
+POVFill.Parent = POVBar
+
+Corner(POVFill,4)
+
+local POVDragging = false
+
+local function SetPOV(x)
+    local width = math.max(POVBar.AbsoluteSize.X,1)
+
+    local alpha = math.clamp(
+        (x-POVBar.AbsolutePosition.X)/width,
+        0,
+        1
+    )
+
+    S.POV = math.clamp(
+        math.floor(alpha*299)+1,
+        1,
+        300
+    )
+
+    POVValue.Text = tostring(S.POV)
+    POVFill.Size = UDim2.new(S.POV/300,0,1,0)
+
+    local camera = WS.CurrentCamera
+
+    if camera then
+        camera.FieldOfView = S.POV
+    end
+end
+
+POVBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        POVDragging = true
+        SetPOV(input.Position.X)
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if not POVDragging then return end
+
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch then
+        SetPOV(input.Position.X)
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        POVDragging = false
+    end
+end)
+
+------------------------------------------------------------
+-- SAFE FEATURE TOGGLES
+------------------------------------------------------------
+
+local AimbotHead = Toggle(
+    MainP,
+    T("aimH"),
+    T("aimHD"),
+    function(value)
+        S.AimbotHead = value
+    end
+)
+
+local AimbotBody = Toggle(
+    MainP,
+    T("aimB"),
+    T("aimBD"),
+    function(value)
+        S.AimbotBody = value
+    end
+)
+
+local AntiHit = Toggle(
+    MainP,
+    T("antiHit"),
+    T("antiHitD"),
+    function(value)
+        S.AntiHit = value
+    end
+)
+
+local Antiban = Toggle(
+    MainP,
+    T("antiban"),
+    T("antibanD"),
+    function(value)
+        S.Antiban = value
+    end
+)
+
+------------------------------------------------------------
+-- FLY PAGE
+------------------------------------------------------------
+
+local FlyHeader = PageHeader(
+    FlyP,
+    "Fly",
+    "Movement"
+)
+
+local FlyToggle = Toggle(
+    FlyP,
+    T("fly"),
+    T("flyD"),
+    function(value)
+        S.Fly = value
+    end
+)
+
+local FlySpeedRow = Row(FlyP,95)
+
+local FlySpeedTitle = Lbl(
+    FlySpeedRow,
+    T("flySpd"),
+    15,
+    UDim2.new(0,18,0,11)
+)
+
+local FlySpeedValue = Lbl(
+    FlySpeedRow,
+    "100",
+    13,
+    UDim2.new(1,-80,0,11)
+)
+
+FlySpeedValue.Size = UDim2.new(0,60,0,22)
+FlySpeedValue.TextXAlignment = Enum.TextXAlignment.Right
+FlySpeedValue.TextColor3 = Color3.fromRGB(0,190,255)
+
+------------------------------------------------------------
+-- SPEED UI
+------------------------------------------------------------
+
+local SpeedToggle = Toggle(
+    FlyP,
+    T("speedT"),
+    T("speedTD"),
+    function(value)
+        S.Speed = value
+    end
+)
+
+local SpeedRow = Row(FlyP,95)
+
+local SpeedTitle = Lbl(
+    SpeedRow,
+    T("speed"),
+    15,
+    UDim2.new(0,18,0,11)
+)
+
+local SpeedValue = Lbl(
+    SpeedRow,
+    "100",
+    13,
+    UDim2.new(1,-80,0,11)
+)
+
+SpeedValue.Size = UDim2.new(0,60,0,22)
+SpeedValue.TextXAlignment = Enum.TextXAlignment.Right
+SpeedValue.TextColor3 = Color3.fromRGB(0,190,255)
+
+------------------------------------------------------------
+-- FIX LAG
+------------------------------------------------------------
+
+local FixHeader = PageHeader(
+    FixP,
+    "FixLag",
+    "Performance"
+)
+
+local SavedParts = {}
+local SavedLighting = {}
+local FixConnection
+
+local function OptimizeObject(object)
+    if object:IsA("ParticleEmitter")
+    or object:IsA("Trail")
+    or object:IsA("Beam")
+    or object:IsA("Smoke")
+    or object:IsA("Fire")
+    or object:IsA("Sparkles")
+    or object:IsA("PointLight")
+    or object:IsA("SpotLight")
+    or object:IsA("SurfaceLight") then
+
+        if SavedParts[object] == nil then
+            SavedParts[object] = {
+                Enabled = object.Enabled
+            }
+        end
+
+        pcall(function()
+            object.Enabled = false
+        end)
+    end
+
+    if object:IsA("BasePart") then
+        if SavedParts[object] == nil then
+            SavedParts[object] = {
+                CastShadow = object.CastShadow,
+                Material = object.Material
+            }
+        end
+
+        pcall(function()
+            object.CastShadow = false
+
+            if object.Material ~= Enum.Material.Water then
+                object.Material = Enum.Material.Plastic
+            end
+        end)
+    end
+end
+
+local function EnableFixLag()
+    if S.FixLag then return end
+
+    S.FixLag = true
+
+    for _,object in ipairs(WS:GetDescendants()) do
+        OptimizeObject(object)
+    end
+
+    SavedLighting = {
+        GlobalShadows = Lighting.GlobalShadows,
+        EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale,
+        EnvironmentSpecularScale = Lighting.EnvironmentSpecularScale,
+        Brightness = Lighting.Brightness,
+    }
+
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.EnvironmentDiffuseScale = 0
+        Lighting.EnvironmentSpecularScale = 0
+        Lighting.Brightness = 1
+    end)
+
+    FixConnection = WS.DescendantAdded:Connect(function(object)
+        if S.FixLag then
+            OptimizeObject(object)
+        end
+    end)
+end
+
+local function DisableFixLag()
+    S.FixLag = false
+
+    if FixConnection then
+        FixConnection:Disconnect()
+        FixConnection = nil
+    end
+
+    for object,state in pairs(SavedParts) do
+        if object.Parent then
+            pcall(function()
+                if state.Enabled ~= nil then
+                    object.Enabled = state.Enabled
+                end
+
+                if state.CastShadow ~= nil then
+                    object.CastShadow = state.CastShadow
+                end
+
+                if state.Material ~= nil then
+                    object.Material = state.Material
+                end
+            end)
+        end
+    end
+
+    for property,value in pairs(SavedLighting) do
+        pcall(function()
+            Lighting[property] = value
+        end)
+    end
+
+    SavedParts = {}
+    SavedLighting = {}
+end
+
+local FixToggle = Toggle(
+    FixP,
+    T("fix"),
+    T("fixD"),
+    function(value)
+        if value then
+            EnableFixLag()
+        else
+            DisableFixLag()
+        end
+    end
+)
+
+------------------------------------------------------------
+-- STEAL / EGG DEBUG PAGE
+------------------------------------------------------------
+
+local StealHeader = PageHeader(
+    StealP,
+    T("steal"),
+    "Egg Debug / Locator"
+)
+
+local StatusRow = Row(StealP,48)
+
+local StatusLabel = Lbl(
+    StatusRow,
+    T("stat")..": "..T("off"),
+    14,
+    UDim2.new(0,18,0,12)
+)
+
+StatusLabel.TextColor3 = Color3.fromRGB(150,160,165)
+
+local EggRow = Row(StealP,220)
+
+local EggTitle = Lbl(
+    EggRow,
+    T("eggLoc"),
+    15,
+    UDim2.new(0,18,0,10)
+)
+
+local EggText = Lbl(
+    EggRow,
+    T("noEgg"),
+    11,
+    UDim2.new(0,18,0,35)
+)
+
+EggText.TextColor3 = Color3.fromRGB(140,150,155)
+EggText.Size = UDim2.new(1,-36,1,-50)
+EggText.TextWrapped = true
+EggText.TextYAlignment = Enum.TextYAlignment.Top
+EggText.Font = Enum.Font.Code
+
+local function ScanEggs()
+    local results = {}
+
+    for _,object in ipairs(WS:GetDescendants()) do
+        if object:IsA("BasePart") then
+            local name = object.Name:lower()
+
+            if name:find("egg",1,true)
+            or name:find("trứng",1,true) then
+
+                table.insert(results,{
+                    Name = object.Name,
+                    Position = object.Position
+                })
+            end
+        end
+    end
+
+    return results
+end
+
+local function UpdateEggList()
+    local eggs = ScanEggs()
+
+    if #eggs == 0 then
+        EggText.Text = T("noEgg")
+        return
+    end
+
+    local character = LP.Character
+    local root = character and
+        character:FindFirstChild("HumanoidRootPart")
+
+    local output = {}
+
+    for index,egg in ipairs(eggs) do
+        if index > 20 then
+            table.insert(
+                output,
+                "... +"..(#eggs-20).." egg"
+            )
+            break
+        end
+
+        local distance = 0
+
+        if root then
+            distance = math.floor(
+                (egg.Position-root.Position).Magnitude
+            )
+        end
+
+        table.insert(
+            output,
+            "• "..egg.Name.." ["..distance.."m]"
+        )
+    end
+
+    EggText.Text = table.concat(output,"\n")
+end
+
+local ScanButtonRow = Row(StealP,55)
+
+local ScanButton = Instance.new("TextButton")
+ScanButton.Size = UDim2.new(1,-36,0,36)
+ScanButton.Position = UDim2.new(0,18,.5,-18)
+ScanButton.BackgroundColor3 = Color3.fromRGB(0,150,215)
+ScanButton.BorderSizePixel = 0
+ScanButton.Text = T("eggScan")
+ScanButton.TextColor3 = Color3.new(1,1,1)
+ScanButton.TextSize = 14
+ScanButton.Font = Enum.Font.GothamBold
+ScanButton.Parent = ScanButtonRow
+
+Corner(ScanButton,9)
+
+ScanButton.MouseButton1Click:Connect(function()
+    ScanButton.Text = "Scanning..."
+
+    task.defer(function()
+        UpdateEggList()
+
+        task.wait(.2)
+
+        ScanButton.Text = T("eggScan")
+    end)
+end)
+
+local PriorityToggle = Toggle(
+    StealP,
+    T("prio"),
+    T("prioD"),
+    function(value)
+        S.PrioritySecret = value
+    end
+)
+
+local AutoStealToggle = Toggle(
+    StealP,
+    T("autoSteal"),
+    T("autoStealD"),
+    function(value)
+        S.AutoSteal = value
+
+        if value then
+            StatusLabel.Text =
+                T("stat")..": "..T("on")
+            StatusLabel.TextColor3 =
+                Color3.fromRGB(0,220,100)
+        else
+            StatusLabel.Text =
+                T("stat")..": "..T("off")
+            StatusLabel.TextColor3 =
+                Color3.fromRGB(150,160,165)
+        end
+    end
+)
+
+local AntiTrapToggle = Toggle(
+    StealP,
+    T("antiTrap"),
+    T("antiTrapD"),
+    function(value)
+        S.AntiTrap = value
+    end
+)
+
+------------------------------------------------------------
+-- LANGUAGE
+------------------------------------------------------------
+
+local LanguageHeader = PageHeader(
+    LangP,
+    T("lang"),
+    T("langD")
+)
+
+local LanguageRow = Row(LangP,170)
+
+local LanguageTitle = Lbl(
+    LanguageRow,
+    T("lang"),
+    17,
+    UDim2.new(0,18,0,14)
+)
+
+local LanguageDescription = Lbl(
+    LanguageRow,
+    T("langD"),
+    12,
+    UDim2.new(0,18,0,44)
+)
+
+LanguageDescription.TextColor3 =
+    Color3.fromRGB(145,155,160)
+
+local LanguageGrid = Instance.new("Frame")
+LanguageGrid.Size = UDim2.new(1,-36,0,80)
+LanguageGrid.Position = UDim2.new(0,18,0,78)
+LanguageGrid.BackgroundTransparency = 1
+LanguageGrid.Parent = LanguageRow
+
+local Grid = Instance.new("UIGridLayout")
+Grid.CellSize = UDim2.new(.19,0,0,38)
+Grid.CellPadding = UDim2.new(.012,0,0,7)
+Grid.Parent = LanguageGrid
+
+local Languages = {
+    {"VN","🇻🇳"},
+    {"EN","🇺🇸"},
+    {"TH","🇹🇭"},
+    {"KR","🇰🇷"},
+    {"CN","🇨🇳"},
+}
+
+local LanguageButtons = {}
+
+local function RefreshLanguage()
+    Title.Text = T("main")
+
+    MB.Text = "  ⌂   "..T("main")
+    EB.Text = "  🥚   "..T("steal")
+    LB.Text = "  ⚙   "..T("lang")
+
+    MainHeader.Text = T("main")
+
+    ESPToggle.Title.Text = T("esp")
+    ESPToggle.Description.Text = T("espD")
+
+    ColorLabel.Text = T("color")
+
+    for index,data in ipairs(Colors) do
+        if ColorButtons[index] then
+            ColorButtons[index].Text = T(data[1])
+        end
+    end
+
+    AimbotHead.Title.Text = T("aimH")
+    AimbotHead.Description.Text = T("aimHD")
+
+    AimbotBody.Title.Text = T("aimB")
+    AimbotBody.Description.Text = T("aimBD")
+
+    POVTitle.Text = T("pov")
+
+    AntiHit.Title.Text = T("antiHit")
+    AntiHit.Description.Text = T("antiHitD")
+
+    Antiban.Title.Text = T("antiban")
+    Antiban.Description.Text = T("antibanD")
+
+    FlyToggle.Title.Text = T("fly")
+    FlyToggle.Description.Text = T("flyD")
+
+    FlySpeedTitle.Text = T("flySpd")
+
+    SpeedToggle.Title.Text = T("speedT")
+    SpeedToggle.Description.Text = T("speedTD")
+
+    SpeedTitle.Text = T("speed")
+
+    FixHeader.Text = T("fix")
+    FixToggle.Title.Text = T("fix")
+    FixToggle.Description.Text = T("fixD")
+
+    StealHeader.Text = T("steal")
+    EggTitle.Text = T("eggLoc")
+    ScanButton.Text = T("eggScan")
+
+    PriorityToggle.Title.Text = T("prio")
+    PriorityToggle.Description.Text = T("prioD")
+
+    AutoStealToggle.Title.Text = T("autoSteal")
+    AutoStealToggle.Description.Text = T("autoStealD")
+
+    AntiTrapToggle.Title.Text = T("antiTrap")
+    AntiTrapToggle.Description.Text = T("antiTrapD")
+
+    LanguageHeader.Text = T("lang")
+    LanguageTitle.Text = T("lang")
+    LanguageDescription.Text = T("langD")
+
+    StatusLabel.Text =
+        T("stat")..": "..(
+            S.AutoSteal and T("on") or T("off")
+        )
+end
+
+for _,data in ipairs(Languages) do
+    local code = data[1]
+
+    local button = Instance.new("TextButton")
+    button.Text = data[2].." "..code
+    button.TextSize = 12
+    button.TextColor3 = Color3.new(1,1,1)
+    button.BackgroundColor3 = Color3.fromRGB(35,42,48)
+    button.BorderSizePixel = 0
+    button.Font = Enum.Font.GothamMedium
+    button.Parent = LanguageGrid
+
+    Corner(button,8)
+
+    LanguageButtons[code] = button
+
+    button.MouseButton1Click:Connect(function()
+        S.Language = code
+
+        for language,b in pairs(LanguageButtons) do
+            b.BackgroundColor3 =
+                language == code
+                and Color3.fromRGB(0,140,200)
+                or Color3.fromRGB(35,42,48)
+        end
+
+        RefreshLanguage()
+    end)
+end
+
+LanguageButtons.VN.BackgroundColor3 =
+    Color3.fromRGB(0,140,200)
+
+------------------------------------------------------------
+-- FLOAT BUTTON
+------------------------------------------------------------
+
+local FloatButton = Instance.new("TextButton")
+FloatButton.Size = UDim2.new(0,58,0,58)
+FloatButton.Position = UDim2.new(1,-78,.5,-29)
+FloatButton.BackgroundColor3 = Color3.fromRGB(18,23,27)
+FloatButton.Text = "T"
+FloatButton.TextSize = 26
+FloatButton.TextColor3 = Color3.new(1,1,1)
+FloatButton.Font = Enum.Font.GothamBold
+FloatButton.Visible = false
+FloatButton.Parent = Gui
+
+Corner(FloatButton,29)
+Stroke(FloatButton,Color3.fromRGB(0,170,255),2)
+
+local floatDragging = false
+local floatStart
+local floatPosition
+
+FloatButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+
+        floatDragging = true
+        floatStart = input.Position
+        floatPosition = FloatButton.Position
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if not floatDragging then return end
+
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch then
+
+        local delta = input.Position-floatStart
+
+        FloatButton.Position = UDim2.new(
+            floatPosition.X.Scale,
+            floatPosition.X.Offset+delta.X,
+            floatPosition.Y.Scale,
+            floatPosition.Y.Offset+delta.Y
+        )
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+
+        floatDragging = false
+    end
+end)
+
+------------------------------------------------------------
+-- MINIMIZE / RESTORE
+------------------------------------------------------------
+
+Min.MouseButton1Click:Connect(function()
+    Main.Visible = false
+    Notice.Visible = false
+    FloatButton.Visible = true
+end)
+
+FloatButton.MouseButton1Click:Connect(function()
+    Main.Visible = true
+    Notice.Visible = true
+    FloatButton.Visible = false
+end)
+
+------------------------------------------------------------
+-- CLOSE
+------------------------------------------------------------
+
+local function Cleanup()
+    if FixConnection then
+        FixConnection:Disconnect()
+        FixConnection = nil
+    end
+
+    if S.FixLag then
+        DisableFixLag()
+    end
+
+    local camera = WS.CurrentCamera
+
+    if camera then
+        camera.FieldOfView = 70
+    end
+
+    for player in pairs(ESPObjects) do
+        RemoveESP(player)
+    end
+
+    Gui:Destroy()
+    ESPGui:Destroy()
+end
+
+Cls.MouseButton1Click:Connect(Cleanup)
+
+------------------------------------------------------------
+-- INITIAL STATE
+------------------------------------------------------------
+
+local camera = WS.CurrentCamera
+
+if camera then
+    camera.FieldOfView = S.POV
+end
+
+print("[Tnh-VN] Safe Menu Loaded")
+print("[Tnh-VN] Key: Tnh-VN")
