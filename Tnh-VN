@@ -1,1200 +1,1800 @@
---!nonstrict
 --[[
-    UtilityMenu.client.lua
-    Vị trí: StarterPlayer > StarterPlayerScripts
-    Chạy 100% client-side. Không tạo RemoteEvent / ServerScript.
+    Blox-Fruit Style Client Utility
+    =================================
+
+    PLACE:
+    StarterPlayer > StarterPlayerScripts > LocalScript
+
+    CLIENT ONLY:
+    - Không tạo ServerScript
+    - Không tạo ModuleScript
+    - Không tạo RemoteEvent
+    - Không dùng executor / exploit API
+
+    AUTO FARM:
+    Tìm NPC theo CollectionService tag "FarmableEnemy".
+    Nếu không có tag, dùng CONFIG.FallbackEnemyFolder.
+
+    COMBAT:
+    attackTarget(target) là điểm kết nối combat system thật của game.
+    Script KHÔNG tự đoán RemoteEvent và KHÔNG spoof damage.
+
+    LOOT:
+    Dùng CollectionService tags.
+    collectLoot(item) hỗ trợ ProximityPrompt / ClickDetector nếu có.
 ]]
 
--- ============================================================
--- CẤU HÌNH
--- ============================================================
+--==================================================
+-- CONFIG
+--==================================================
+
 local CONFIG = {
-    MenuToggleKey        = Enum.KeyCode.RightShift,
-    WalkSpeed            = { Min = 16,  Max = 500, Default = 16 },
-    Jump                 = { Min = 50,  Max = 500, Default = 50 },
-    EnemyHeightOffset    = 10,
-    LootStopDistance     = 5,
-    TweenSpeed           = 70,        -- studs/giây
-    TargetSearchInterval = 0.5,
-    FallbackEnemyFolder  = "Enemies",
-    LootTags             = { "LootChest", "DevilFruit" },
-    ESPColors = {
-        Outline    = Color3.fromRGB(0, 170, 255),
-        Fill       = Color3.fromRGB(0, 80, 160),
-        HealthBg   = Color3.fromRGB(20, 20, 20),
-        HealthFill = Color3.fromRGB(50, 220, 100),
-        Text       = Color3.fromRGB(255, 255, 255),
-    },
-    ESPShowName        = true,
-    ESPShowHealth      = true,
-    ESPShowDistance    = true,
-    ESPHideSameTeam    = true,
-    ESPUpdateInterval  = 0.5,
-    NotifyDuration     = 3,
+
+	MenuKey = Enum.KeyCode.RightShift,
+
+	WalkSpeed = {
+		Min = 8,
+		Max = 120,
+		Default = 16,
+	},
+
+	Jump = {
+		Min = 20,
+		Max = 150,
+		Default = 50,
+	},
+
+	Farm = {
+		EnemyTag = "FarmableEnemy",
+		Height = 5,
+		SearchInterval = 0.25,
+		TweenSpeed = 70,
+	},
+
+	Loot = {
+		StopDistance = 5,
+		SearchInterval = 0.25,
+		TweenSpeed = 70,
+
+		Tags = {
+			"LootChest",
+			"DevilFruit",
+		},
+	},
+
+	FallbackEnemyFolder = "Enemies",
+
+	FullBright = {
+		Brightness = 2,
+		Ambient = Color3.fromRGB(180, 180, 180),
+		OutdoorAmbient = Color3.fromRGB(180, 180, 180),
+		ExposureCompensation = 0.5,
+		GlobalShadows = true,
+	},
+
+	ESP = {
+		UpdateInterval = 0.25,
+
+		FillColor = Color3.fromRGB(255, 80, 80),
+		OutlineColor = Color3.fromRGB(255, 255, 255),
+		HealthColor = Color3.fromRGB(80, 255, 100),
+
+		ShowNames = true,
+		ShowHealth = true,
+		ShowDistance = true,
+
+		HideSameTeam = true,
+	},
 }
 
--- ============================================================
+--==================================================
 -- SERVICES
--- ============================================================
-local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
-local TweenService     = game:GetService("TweenService")
-local CollectionService= game:GetService("CollectionService")
+--==================================================
+
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local CollectionService = game:GetService("CollectionService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local Lighting         = game:GetService("Lighting")
-local Workspace        = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Chống tạo menu trùng lặp
-if PlayerGui:FindFirstChild("UtilityMenuGui") then return end
+--==================================================
+-- DUPLICATE PROTECTION
+--==================================================
 
--- ============================================================
--- STATE CHUNG
--- ============================================================
+local oldGui = PlayerGui:FindFirstChild("BloxFruitStyleUtility")
+
+if oldGui then
+	oldGui:Destroy()
+end
+
+--==================================================
+-- STATE
+--==================================================
+
 local State = {
-    connections     = {},
-    noclipRequests  = {},
+	MenuVisible = true,
+	Minimized = false,
+
+	FixLag = false,
+	FullBright = false,
+	Speed = false,
+	Jump = false,
+	Noclip = false,
+	ESP = false,
+
+	AutoFarm = false,
+	AutoLoot = false,
+
+	SpeedValue = CONFIG.WalkSpeed.Default,
+	JumpValue = CONFIG.Jump.Default,
+
+	SelectedEnemy = nil,
+	SelectedLoot = {},
+
+	CurrentFarmTarget = nil,
+	CurrentLootTarget = nil,
+
+	ActiveTween = nil,
+
+	NoclipRequests = {},
+
+	Connections = {},
+	Tasks = {},
+
+	OriginalLighting = {},
+	OriginalVisuals = {},
+	OriginalCollision = {},
+
+	ESPObjects = {},
 }
 
-local function track(conn)
-    table.insert(State.connections, conn)
-    return conn
+--==================================================
+-- GENERAL HELPERS
+--==================================================
+
+local function disconnect(connection)
+	if connection then
+		connection:Disconnect()
+	end
 end
 
--- ============================================================
--- NOCLIP MANAGER (đếm tham chiếu)
--- ============================================================
-local NoclipManager = { active = false, original = {} }
-
-function NoclipManager:_apply()
-    local char = LocalPlayer.Character
-    if not char then return end
-    for _, d in ipairs(char:GetDescendants()) do
-        if d:IsA("BasePart") then
-            if self.original[d] == nil then self.original[d] = d.CanCollide end
-            d.CanCollide = false
-        end
-    end
+local function getCharacter()
+	return LocalPlayer.Character
 end
-
-function NoclipManager:_update()
-    local want = next(State.noclipRequests) ~= nil
-    if want and not self.active then
-        self.active = true
-        self.original = {}
-        self:_apply()
-    elseif not want and self.active then
-        self.active = false
-        for part, st in pairs(self.original) do
-            if part and part.Parent then part.CanCollide = st end
-        end
-        self.original = {}
-    end
-end
-
-function NoclipManager.request(source) State.noclipRequests[source] = true;  NoclipManager:_update() end
-function NoclipManager.release(source) State.noclipRequests[source] = nil;   NoclipManager:_update() end
-
--- Reapply noclip khi respawn
-track(LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.3)
-    if NoclipManager.active then NoclipManager.original = {}; NoclipManager:_apply() end
-end))
-
--- ============================================================
--- UI
--- ============================================================
-local C = {
-    Bg     = Color3.fromRGB(25, 25, 30),
-    Panel  = Color3.fromRGB(35, 35, 42),
-    Accent = Color3.fromRGB(80, 130, 220),
-    On     = Color3.fromRGB(70, 200, 120),
-    Off    = Color3.fromRGB(60, 60, 70),
-    Text   = Color3.fromRGB(230, 230, 235),
-    Sub    = Color3.fromRGB(150, 150, 160),
-    Border = Color3.fromRGB(55, 55, 65),
-    Danger = Color3.fromRGB(200, 70, 70),
-}
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "UtilityMenuGui"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = PlayerGui
-
--- Nút mở menu (floating)
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.fromOffset(48, 48)
-toggleBtn.Position = UDim2.new(0, 20, 0.5, -24)
-toggleBtn.BackgroundColor3 = C.Accent
-toggleBtn.Text = "☰"; toggleBtn.TextColor3 = C.Text
-toggleBtn.Font = Enum.Font.GothamBold; toggleBtn.TextSize = 22
-toggleBtn.BorderSizePixel = 0; toggleBtn.Visible = false
-toggleBtn.Parent = gui
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
-
--- Khung chính
-local main = Instance.new("Frame")
-main.Size = UDim2.fromOffset(320, 420)
-main.Position = UDim2.new(0, 20, 0.5, -210)
-main.BackgroundColor3 = C.Bg; main.BorderSizePixel = 0
-main.Parent = gui
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
-local strk = Instance.new("UIStroke", main); strk.Color = C.Border
-
--- Header
-local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 36)
-header.BackgroundColor3 = C.Panel; header.BorderSizePixel = 0
-header.Parent = main
-Instance.new("UICorner", header).CornerRadius = UDim.new(0, 10)
-local headerFix = Instance.new("Frame")
-headerFix.Size = UDim2.new(1, 0, 0, 12)
-headerFix.Position = UDim2.new(0, 0, 1, -12)
-headerFix.BackgroundColor3 = C.Panel; headerFix.BorderSizePixel = 0
-headerFix.Parent = header
-
-local titleLbl = Instance.new("TextLabel")
-titleLbl.Size = UDim2.new(1, -80, 1, 0)
-titleLbl.Position = UDim2.fromOffset(12, 0)
-titleLbl.BackgroundTransparency = 1
-titleLbl.Text = "Utility Menu"; titleLbl.TextColor3 = C.Text
-titleLbl.Font = Enum.Font.GothamBold; titleLbl.TextSize = 14
-titleLbl.TextXAlignment = Enum.TextXAlignment.Left
-titleLbl.Parent = header
-
-local function makeHeaderBtn(text, xOff, bg)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(24, 24)
-    b.Position = UDim2.new(1, xOff, 0.5, -12)
-    b.BackgroundColor3 = bg; b.Text = text
-    b.TextColor3 = C.Text; b.Font = Enum.Font.GothamBold; b.TextSize = 14
-    b.BorderSizePixel = 0; b.Parent = header
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-    return b
-end
-local minimizeBtn = makeHeaderBtn("–", -58, C.Panel)
-local closeBtn    = makeHeaderBtn("×", -30, C.Danger)
-
--- Body
-local body = Instance.new("ScrollingFrame")
-body.Size = UDim2.new(1, -16, 1, -48)
-body.Position = UDim2.fromOffset(8, 42)
-body.BackgroundTransparency = 1; body.BorderSizePixel = 0
-body.ScrollBarThickness = 4; body.ScrollBarImageColor3 = C.Accent
-body.CanvasSize = UDim2.new(0, 0, 0, 0)
-body.AutomaticCanvasSize = Enum.AutomaticSize.Y
-body.Parent = main
-
-local list = Instance.new("UIListLayout")
-list.Padding = UDim.new(0, 6); list.SortOrder = Enum.SortOrder.LayoutOrder
-list.Parent = body
-
--- ============================================================
--- WIDGET HELPERS
--- ============================================================
-local function createSection(text)
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, 0, 0, 24); f.BackgroundTransparency = 1
-    f.LayoutOrder = 0; f.Parent = body
-    local t = Instance.new("TextLabel")
-    t.Size = UDim2.new(1, 0, 1, 0); t.BackgroundTransparency = 1
-    t.Text = text; t.TextColor3 = C.Sub; t.Font = Enum.Font.GothamBold
-    t.TextSize = 12; t.TextXAlignment = Enum.TextXAlignment.Left
-    t.Parent = f
-end
-
-local function createToggle(label, initial, callback)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 32)
-    row.BackgroundColor3 = C.Panel; row.BorderSizePixel = 0
-    row.Parent = body
-    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
-
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -60, 1, 0); lbl.Position = UDim2.fromOffset(10, 0)
-    lbl.BackgroundTransparency = 1; lbl.Text = label
-    lbl.TextColor3 = C.Text; lbl.Font = Enum.Font.Gotham; lbl.TextSize = 13
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Parent = row
-
-    local sw = Instance.new("TextButton")
-    sw.Size = UDim2.fromOffset(40, 20)
-    sw.Position = UDim2.new(1, -50, 0.5, -10)
-    sw.BackgroundColor3 = initial and C.On or C.Off
-    sw.Text = ""; sw.BorderSizePixel = 0; sw.Parent = row
-    Instance.new("UICorner", sw).CornerRadius = UDim.new(1, 0)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.fromOffset(16, 16)
-    knob.Position = initial and UDim2.new(1, -18, 0.5, -8) or UDim2.fromOffset(2, 2)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255); knob.BorderSizePixel = 0
-    knob.Parent = sw
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-
-    local value = initial
-    local api = {}
-    function api.Set(v)
-        value = v
-        sw.BackgroundColor3 = v and C.On or C.Off
-        local goal = v and UDim2.new(1, -18, 0.5, -8) or UDim2.fromOffset(2, 2)
-        TweenService:Create(knob, TweenInfo.new(0.15), {Position = goal}):Play()
-    end
-    function api.Get() return value end
-
-    sw.MouseButton1Click:Connect(function()
-        api.Set(not value)
-        local ok, err = pcall(callback, value)
-        if not ok then
-            warn("[UtilityMenu] Lỗi toggle:", err)
-            api.Set(not value)
-        end
-    end)
-    return api
-end
-
-local function createSlider(label, minV, maxV, defaultV, callback)
-    local c = Instance.new("Frame")
-    c.Size = UDim2.new(1, 0, 0, 56)
-    c.BackgroundColor3 = C.Panel; c.BorderSizePixel = 0
-    c.Parent = body
-    Instance.new("UICorner", c).CornerRadius = UDim.new(0, 6)
-
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -100, 0, 20); lbl.Position = UDim2.fromOffset(10, 4)
-    lbl.BackgroundTransparency = 1; lbl.Text = label
-    lbl.TextColor3 = C.Text; lbl.Font = Enum.Font.Gotham; lbl.TextSize = 13
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Parent = c
-
-    local input = Instance.new("TextBox")
-    input.Size = UDim2.fromOffset(70, 20)
-    input.Position = UDim2.new(1, -80, 0, 4)
-    input.BackgroundColor3 = C.Bg; input.Text = tostring(defaultV)
-    input.TextColor3 = C.Text; input.Font = Enum.Font.Gotham; input.TextSize = 12
-    input.BorderSizePixel = 0; input.Parent = c
-    Instance.new("UICorner", input).CornerRadius = UDim.new(0, 4)
-
-    local track = Instance.new("Frame")
-    track.Size = UDim2.new(1, -20, 0, 6)
-    track.Position = UDim2.new(0, 10, 1, -16)
-    track.BackgroundColor3 = C.Bg; track.BorderSizePixel = 0
-    track.Parent = c
-    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
-
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new(0, 0, 1, 0); fill.BackgroundColor3 = C.Accent
-    fill.BorderSizePixel = 0; fill.Parent = track
-    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-
-    local value = defaultV
-    local function render()
-        local a = (value - minV) / (maxV - minV)
-        fill.Size = UDim2.new(math.clamp(a, 0, 1), 0, 1, 0)
-        input.Text = tostring(math.floor(value * 100) / 100)
-    end
-    local function set(v, fire)
-        v = math.clamp(tonumber(v) or value, minV, maxV)
-        value = v; render()
-        if fire then
-            local ok, err = pcall(callback, v)
-            if not ok then warn("[UtilityMenu] Lỗi slider:", err) end
-        end
-    end
-
-    local dragging = false
-    local function updateFromX(x)
-        local rel = (x - track.AbsolutePosition.X) / track.AbsoluteSize.X
-        set(minV + rel * (maxV - minV), true)
-    end
-    track.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; updateFromX(i.Position.X)
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(i)
-        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-            updateFromX(i.Position.X)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-    input.FocusLost:Connect(function() set(input.Text, true) end)
-
-    render()
-    return { Set = function(v) set(v, false) end, Get = function() return value end }
-end
-
-local function createDropdown(label, multi, onSelect)
-    local c = Instance.new("Frame")
-    c.Size = UDim2.new(1, 0, 0, 32)
-    c.BackgroundColor3 = C.Panel; c.BorderSizePixel = 0
-    c.Parent = body
-    Instance.new("UICorner", c).CornerRadius = UDim.new(0, 6)
-
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 1, 0); btn.BackgroundTransparency = 1
-    btn.Text = label .. ": (chưa chọn)"; btn.TextColor3 = C.Text
-    btn.Font = Enum.Font.Gotham; btn.TextSize = 12
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    btn.Parent = c
-    local pad = Instance.new("UIPadding", btn); pad.PaddingLeft = UDim.new(0, 10)
-
-    local popup = Instance.new("Frame")
-    popup.Size = UDim2.new(1, 0, 0, 180)
-    popup.Position = UDim2.new(0, 0, 1, 4)
-    popup.BackgroundColor3 = C.Bg; popup.BorderSizePixel = 0
-    popup.Visible = false; popup.ZIndex = 5; popup.Parent = c
-    Instance.new("UICorner", popup).CornerRadius = UDim.new(0, 6)
-
-    local search = Instance.new("TextBox")
-    search.Size = UDim2.new(1, -8, 0, 24); search.Position = UDim2.fromOffset(4, 4)
-    search.BackgroundColor3 = C.Panel; search.PlaceholderText = "Tìm..."
-    search.Text = ""; search.TextColor3 = C.Text
-    search.Font = Enum.Font.Gotham; search.TextSize = 12
-    search.BorderSizePixel = 0; search.ZIndex = 6; search.Parent = popup
-    Instance.new("UICorner", search).CornerRadius = UDim.new(0, 4)
-
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -8, 1, -34); scroll.Position = UDim2.fromOffset(4, 30)
-    scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
-    scroll.ScrollBarThickness = 4
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scroll.ZIndex = 6; scroll.Parent = popup
-    local pl = Instance.new("UIListLayout", scroll); pl.Padding = UDim.new(0, 2)
-
-    local items = {}; local selected = {}
-
-    local function updateLabel()
-        local out = {}
-        for k in pairs(selected) do table.insert(out, k) end
-        btn.Text = (#out == 0) and (label .. ": (chưa chọn)") or (label .. ": " .. table.concat(out, ", "))
-    end
-
-    local function render()
-        for _, ch in ipairs(scroll:GetChildren()) do
-            if ch:IsA("TextButton") then ch:Destroy() end
-        end
-        local f = string.lower(search.Text)
-        for _, name in ipairs(items) do
-            if f == "" or string.find(string.lower(name), f, 1, true) then
-                local o = Instance.new("TextButton")
-                o.Size = UDim2.new(1, 0, 0, 24)
-                o.BackgroundColor3 = selected[name] and C.Accent or C.Panel
-                o.Text = name .. (selected[name] and "  ✓" or "")
-                o.TextColor3 = C.Text; o.Font = Enum.Font.Gotham; o.TextSize = 12
-                o.BorderSizePixel = 0; o.ZIndex = 7; o.Parent = scroll
-                Instance.new("UICorner", o).CornerRadius = UDim.new(0, 4)
-                o.MouseButton1Click:Connect(function()
-                    if multi then
-                        selected[name] = not selected[name] or nil
-                    else
-                        selected = { [name] = true }; popup.Visible = false
-                    end
-                    render(); updateLabel()
-                    if onSelect then onSelect(selected) end
-                end)
-            end
-        end
-    end
-
-    search:GetPropertyChangedSignal("Text"):Connect(render)
-    btn.MouseButton1Click:Connect(function()
-        popup.Visible = not popup.Visible
-        if popup.Visible then render() end
-    end)
-
-    return {
-        SetItems = function(l) items = l; render() end,
-        GetSelected = function() return selected end,
-        GetSelectedList = function()
-            local t = {}
-            for k in pairs(selected) do table.insert(t, k) end
-            return t
-        end,
-    }
-end
-
--- ============================================================
--- NOTIFICATION
--- ============================================================
-local notifHolder = Instance.new("Frame")
-notifHolder.Size = UDim2.new(0, 300, 0, 200)
-notifHolder.Position = UDim2.new(1, -320, 1, -220)
-notifHolder.BackgroundTransparency = 1
-notifHolder.Parent = gui
-local notifList = Instance.new("UIListLayout", notifHolder)
-notifList.Padding = UDim.new(0, 4)
-notifList.VerticalAlignment = Enum.VerticalAlignment.Bottom
-notifList.HorizontalAlignment = Enum.HorizontalAlignment.Right
-
-local function notify(text, isError)
-    local n = Instance.new("Frame")
-    n.Size = UDim2.new(1, 0, 0, 30)
-    n.BackgroundColor3 = isError and Color3.fromRGB(140, 40, 40) or Color3.fromRGB(40, 110, 60)
-    n.BorderSizePixel = 0; n.Parent = notifHolder
-    Instance.new("UICorner", n).CornerRadius = UDim.new(0, 6)
-    local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(1, -12, 1, 0); l.Position = UDim2.fromOffset(6, 0)
-    l.BackgroundTransparency = 1; l.Text = text
-    l.TextColor3 = C.Text; l.Font = Enum.Font.Gotham; l.TextSize = 12
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.TextTruncate = Enum.TextTruncate.AtEnd
-    l.Parent = n
-    task.delay(CONFIG.NotifyDuration, function()
-        if n and n.Parent then n:Destroy() end
-    end)
-end
-
--- ============================================================
--- KÉO THẢ MENU
--- ============================================================
-do
-    local dragging, dragStart, startPos = false, nil, nil
-    header.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; dragStart = i.Position; startPos = main.Position
-            i.Changed:Connect(function()
-                if i.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
-        end
-    end)
-    track(UserInputService.InputChanged:Connect(function(i)
-        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-            local d = i.Position - dragStart
-            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-        end
-    end))
-end
-
--- ============================================================
--- FIX LAG
--- ============================================================
-local FixLag = { active = false, saved = {}, conns = {} }
-local VISUAL_CLASSES = {
-    "ParticleEmitter","Trail","Beam","Smoke","Fire","Sparkles",
-    "PointLight","SpotLight","SurfaceLight",
-}
-local LIGHTING_EFFECT_CLASSES = {
-    "BloomEffect","BlurEffect","SunRaysEffect","ColorCorrectionEffect","DepthOfFieldEffect",
-}
-
-local function isVisualClass(inst)
-    for _, c in ipairs(VISUAL_CLASSES) do
-        if inst:IsA(c) then return true end
-    end
-    return false
-end
-
-local function processVisual(inst)
-    if FixLag.saved[inst] == nil then
-        FixLag.saved[inst] = { Enabled = inst.Enabled, CastShadow = inst.CastShadow }
-    end
-    if inst.Enabled ~= nil then inst.Enabled = false end
-    if inst.CastShadow ~= nil then inst.CastShadow = false end
-end
-
-local function processBasePart(part)
-    if FixLag.saved[part] == nil then
-        FixLag.saved[part] = { CastShadow = part.CastShadow }
-    end
-    part.CastShadow = false
-    -- Giảm texture (an toàn): không xóa, chỉ hạ độ phân giải Material nếu có
-    if part.Material == Enum.Material.Grass or part.Material == Enum.Material.LeafyGrass then
-        FixLag.saved[part].Material = part.Material
-        part.Material = Enum.Material.SmoothPlastic
-    end
-end
-
-local function processDescendant(d)
-    if isVisualClass(d) then processVisual(d)
-    elseif d:IsA("BasePart") then processBasePart(d) end
-end
-
-function FixLag:enable()
-    if self.active then return end
-    self.active = true; self.saved = {}
-
-    -- Lighting effects
-    for _, e in ipairs(Lighting:GetChildren()) do
-        if table.find(LIGHTING_EFFECT_CLASSES, e.ClassName) then
-            self.saved[e] = { Enabled = e.Enabled }
-            e.Enabled = false
-        end
-    end
-    self.saved.Lighting = {
-        FogEnd = Lighting.FogEnd, FogStart = Lighting.FogStart,
-        GlobalShadows = Lighting.GlobalShadows,
-    }
-    Lighting.FogEnd = 1e6; Lighting.FogStart = 1e6
-    Lighting.GlobalShadows = false
-
-    -- Quét Workspace
-    for _, d in ipairs(Workspace:GetDescendants()) do
-        processDescendant(d)
-    end
-
-    -- Xử lý hiệu ứng mới
-    table.insert(self.conns, Workspace.DescendantAdded:Connect(function(d)
-        if self.active then task.defer(function() if d.Parent then processDescendant(d) end end) end
-    end))
-    table.insert(self.conns, Lighting.ChildAdded:Connect(function(c)
-        if self.active and table.find(LIGHTING_EFFECT_CLASSES, c.ClassName) then
-            self.saved[c] = { Enabled = c.Enabled }; c.Enabled = false
-        end
-    end))
-end
-
-function FixLag:disable()
-    if not self.active then return end
-    self.active = false
-    for _, c in ipairs(self.conns) do c:Disconnect() end
-    self.conns = {}
-
-    for inst, data in pairs(self.saved) do
-        if typeof(inst) == "Instance" and inst.Parent then
-            if data.Enabled ~= nil and inst.Enabled ~= nil then inst.Enabled = data.Enabled end
-            if data.CastShadow ~= nil and inst.CastShadow ~= nil then inst.CastShadow = data.CastShadow end
-            if data.Material ~= nil and inst.Material ~= nil then inst.Material = data.Material end
-        end
-    end
-    if self.saved.Lighting then
-        local L = self.saved.Lighting
-        Lighting.FogEnd = L.FogEnd; Lighting.FogStart = L.FogStart
-        Lighting.GlobalShadows = L.GlobalShadows
-    end
-    self.saved = {}
-end
-
--- ============================================================
--- FULL BRIGHT
--- ============================================================
-local FullBright = { active = false, saved = nil }
-
-function FullBright:enable()
-    if self.active then return end
-    self.active = true
-    self.saved = {
-        Brightness = Lighting.Brightness,
-        Ambient = Lighting.Ambient,
-        OutdoorAmbient = Lighting.OutdoorAmbient,
-        ExposureCompensation = Lighting.ExposureCompensation,
-        GlobalShadows = Lighting.GlobalShadows,
-        ClockTime = Lighting.ClockTime,
-    }
-    Lighting.Brightness = 2
-    Lighting.Ambient = Color3.fromRGB(140, 140, 140)
-    Lighting.OutdoorAmbient = Color3.fromRGB(140, 140, 140)
-    Lighting.ExposureCompensation = 0.2
-    Lighting.GlobalShadows = false
-    Lighting.ClockTime = 14
-end
-
-function FullBright:disable()
-    if not self.active then return end
-    self.active = false
-    if not self.saved then return end
-    for k, v in pairs(self.saved) do Lighting[k] = v end
-    self.saved = nil
-end
-
--- ============================================================
--- SPEED & JUMP
--- ============================================================
-local SpeedWalk = { active = false, value = CONFIG.WalkSpeed.Default }
-local HighJump  = { active = false, value = CONFIG.Jump.Default }
 
 local function getHumanoid()
-    local c = LocalPlayer.Character
-    return c and c:FindFirstChildOfClass("Humanoid")
+	local character = getCharacter()
+
+	if not character then
+		return nil
+	end
+
+	return character:FindFirstChildOfClass("Humanoid")
 end
 
+local function getRoot()
+	local character = getCharacter()
+
+	if not character then
+		return nil
+	end
+
+	return character:FindFirstChild("HumanoidRootPart")
+end
+
+local function isAlive(character)
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+	return humanoid and humanoid.Health > 0
+end
+
+local function notify(message)
+	print("[Blox Utility] " .. tostring(message))
+end
+
+local function cancelTween()
+	if State.ActiveTween then
+		State.ActiveTween:Cancel()
+		State.ActiveTween = nil
+	end
+end
+
+--==================================================
+-- GUI ROOT
+--==================================================
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "BloxFruitStyleUtility"
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.Parent = PlayerGui
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.fromOffset(350, 500)
+Main.Position = UDim2.new(0, 25, 0.5, -250)
+Main.BackgroundColor3 = Color3.fromRGB(23, 24, 29)
+Main.BorderSizePixel = 0
+Main.Parent = Gui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = Main
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(65, 67, 78)
+MainStroke.Thickness = 1
+MainStroke.Parent = Main
+
+--==================================================
+-- HEADER
+--==================================================
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 44)
+Header.BackgroundColor3 = Color3.fromRGB(32, 34, 42)
+Header.BorderSizePixel = 0
+Header.Parent = Main
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 10)
+HeaderCorner.Parent = Header
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -105, 1, 0)
+Title.Position = UDim2.fromOffset(12, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Blox Utility"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Header
+
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Size = UDim2.fromOffset(34, 30)
+MinimizeButton.Position = UDim2.new(1, -75, 0, 7)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(55, 57, 67)
+MinimizeButton.Text = "—"
+MinimizeButton.TextColor3 = Color3.new(1, 1, 1)
+MinimizeButton.TextSize = 18
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.Parent = Header
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.fromOffset(34, 30)
+CloseButton.Position = UDim2.new(1, -38, 0, 7)
+CloseButton.BackgroundColor3 = Color3.fromRGB(135, 48, 48)
+CloseButton.Text = "×"
+CloseButton.TextColor3 = Color3.new(1, 1, 1)
+CloseButton.TextSize = 18
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Parent = Header
+
+--==================================================
+-- DRAGGING
+--==================================================
+
+local dragging = false
+local dragStart
+local startPosition
+
+Header.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = true
+		dragStart = input.Position
+		startPosition = Main.Position
+	end
+end)
+
+Header.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not dragging then
+		return
+	end
+
+	if input.UserInputType ~= Enum.UserInputType.MouseMovement
+		and input.UserInputType ~= Enum.UserInputType.Touch then
+
+		return
+	end
+
+	local delta = input.Position - dragStart
+
+	Main.Position = UDim2.new(
+		startPosition.X.Scale,
+		startPosition.X.Offset + delta.X,
+		startPosition.Y.Scale,
+		startPosition.Y.Offset + delta.Y
+	)
+end)
+
+--==================================================
+-- CONTENT
+--==================================================
+
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Name = "Content"
+Scroll.Position = UDim2.fromOffset(8, 50)
+Scroll.Size = UDim2.new(1, -16, 1, -58)
+Scroll.BackgroundTransparency = 1
+Scroll.BorderSizePixel = 0
+Scroll.ScrollBarThickness = 4
+Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Scroll.CanvasSize = UDim2.new()
+Scroll.Parent = Main
+
+local List = Instance.new("UIListLayout")
+List.Padding = UDim.new(0, 6)
+List.SortOrder = Enum.SortOrder.LayoutOrder
+List.Parent = Scroll
+
+local ContentPadding = Instance.new("UIPadding")
+ContentPadding.PaddingBottom = UDim.new(0, 10)
+ContentPadding.Parent = Scroll
+
+--==================================================
+-- UI HELPERS
+--==================================================
+
+local function createSection(name)
+	local label = Instance.new("TextLabel")
+
+	label.Size = UDim2.new(1, -4, 0, 24)
+	label.BackgroundTransparency = 1
+	label.Text = name
+	label.TextColor3 = Color3.fromRGB(150, 153, 165)
+	label.TextSize = 11
+	label.Font = Enum.Font.GothamBold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = Scroll
+
+	return label
+end
+
+local function createToggle(name, callback)
+	local button = Instance.new("TextButton")
+
+	button.Size = UDim2.new(1, -4, 0, 36)
+	button.BackgroundColor3 = Color3.fromRGB(42, 44, 53)
+	button.BorderSizePixel = 0
+	button.Text = "  " .. name .. "   [ OFF ]"
+	button.TextColor3 = Color3.fromRGB(230, 230, 235)
+	button.TextSize = 12
+	button.Font = Enum.Font.GothamMedium
+	button.TextXAlignment = Enum.TextXAlignment.Left
+	button.Parent = Scroll
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = button
+
+	local enabled = false
+
+	button.Activated:Connect(function()
+		enabled = not enabled
+
+		button.Text = "  " .. name ..
+			(enabled and "   [ ON ]" or "   [ OFF ]")
+
+		callback(enabled)
+	end)
+
+	return button
+end
+
+local function createInput(name, value, callback)
+	local box = Instance.new("TextBox")
+
+	box.Size = UDim2.new(1, -4, 0, 36)
+	box.BackgroundColor3 = Color3.fromRGB(42, 44, 53)
+	box.BorderSizePixel = 0
+	box.TextColor3 = Color3.new(1, 1, 1)
+	box.PlaceholderColor3 = Color3.fromRGB(130, 130, 140)
+	box.TextSize = 12
+	box.Font = Enum.Font.GothamMedium
+	box.Text = tostring(value)
+	box.PlaceholderText = name
+	box.ClearTextOnFocus = false
+	box.Parent = Scroll
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = box
+
+	box.FocusLost:Connect(function()
+		local number = tonumber(box.Text)
+
+		if not number then
+			box.Text = tostring(value)
+			notify(name .. " phải là số.")
+			return
+		end
+
+		callback(number, box)
+	end)
+
+	return box
+end
+
+local function createDropdown(title, items, callback)
+	local container = Instance.new("Frame")
+
+	container.Size = UDim2.new(1, -4, 0, 70)
+	container.BackgroundTransparency = 1
+	container.Parent = Scroll
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 22)
+	label.BackgroundTransparency = 1
+	label.Text = title
+	label.TextColor3 = Color3.fromRGB(210, 210, 220)
+	label.TextSize = 12
+	label.Font = Enum.Font.GothamMedium
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = container
+
+	local search = Instance.new("TextBox")
+	search.Position = UDim2.fromOffset(0, 25)
+	search.Size = UDim2.new(1, 0, 0, 34)
+	search.BackgroundColor3 = Color3.fromRGB(42, 44, 53)
+	search.BorderSizePixel = 0
+	search.Text = ""
+	search.PlaceholderText = "Search / chọn..."
+	search.TextColor3 = Color3.new(1, 1, 1)
+	search.TextSize = 12
+	search.Font = Enum.Font.Gotham
+	search.Parent = container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = search
+
+	local current = nil
+
+	local function refresh()
+		local query = string.lower(search.Text)
+
+		for _, child in ipairs(container:GetChildren()) do
+			if child:IsA("TextButton") then
+				child:Destroy()
+			end
+		end
+
+		local y = 64
+
+		for _, item in ipairs(items()) do
+			if query == "" or string.find(
+				string.lower(item),
+				query,
+				1,
+				true
+			) then
+
+				local button = Instance.new("TextButton")
+				button.Position = UDim2.fromOffset(0, y)
+				button.Size = UDim2.new(1, 0, 0, 28)
+				button.BackgroundColor3 = Color3.fromRGB(48, 50, 60)
+				button.Text = item
+				button.TextColor3 = Color3.new(1, 1, 1)
+				button.TextSize = 11
+				button.Font = Enum.Font.Gotham
+				button.Parent = container
+
+				button.Activated:Connect(function()
+					current = item
+					search.Text = item
+					callback(item)
+				end)
+
+				y += 30
+			end
+		end
+
+		container.Size = UDim2.new(1, -4, 0, math.max(70, y))
+	end
+
+	search:GetPropertyChangedSignal("Text"):Connect(refresh)
+
+	refresh()
+
+	return container
+end
+
+--==================================================
+-- CHARACTER SETTINGS
+--==================================================
+
 local function applySpeed()
-    local h = getHumanoid()
-    if not h or not SpeedWalk.active then return end
-    h.WalkSpeed = SpeedWalk.value
-    task.delay(0.5, function()
-        local hh = getHumanoid()
-        if SpeedWalk.active and hh and math.abs(hh.WalkSpeed - SpeedWalk.value) > 0.5 then
-            notify("Server đang ghi đè WalkSpeed!", true)
-        end
-    end)
+	local humanoid = getHumanoid()
+
+	if humanoid and State.Speed then
+		humanoid.WalkSpeed = State.SpeedValue
+	end
 end
 
 local function applyJump()
-    local h = getHumanoid()
-    if not h or not HighJump.active then return end
-    if h.UseJumpPower then
-        h.UseJumpPower = true
-        h.JumpPower = HighJump.value
-    else
-        h.UseJumpPower = false
-        h.JumpHeight = HighJump.value
-    end
+	local humanoid = getHumanoid()
+
+	if not humanoid or not State.Jump then
+		return
+	end
+
+	if humanoid.UseJumpPower then
+		humanoid.JumpPower = State.JumpValue
+	else
+		humanoid.JumpHeight = State.JumpValue
+	end
 end
 
-track(LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.4)
-    applySpeed(); applyJump()
-end))
+local function setSpeed(enabled)
+	State.Speed = enabled
 
--- ============================================================
--- MOVEMENT MANAGER (chống xung đột Farm/Loot)
--- ============================================================
-local MovementManager = { owner = nil, tween = nil }
+	if enabled then
+		applySpeed()
+		return
+	end
 
-function MovementManager:acquire(owner)
-    if self.owner and self.owner ~= owner then return false end
-    self.owner = owner
-    return true
+	local humanoid = getHumanoid()
+
+	if humanoid then
+		humanoid.WalkSpeed = CONFIG.WalkSpeed.Default
+	end
 end
 
-function MovementManager:release(owner)
-    if self.owner ~= owner then return end
-    if self.tween then self.tween:Cancel(); self.tween = nil end
-    self.owner = nil
+local function setJump(enabled)
+	State.Jump = enabled
+
+	if enabled then
+		applyJump()
+		return
+	end
+
+	local humanoid = getHumanoid()
+
+	if not humanoid then
+		return
+	end
+
+	if humanoid.UseJumpPower then
+		humanoid.JumpPower = 50
+	else
+		humanoid.JumpHeight = 7.2
+	end
 end
 
-function MovementManager:moveTo(owner, targetCFrame, duration)
-    if self.owner ~= owner then return end
-    local c = LocalPlayer.Character
-    local root = c and c:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    if self.tween then self.tween:Cancel() end
-    local info = TweenInfo.new(math.max(duration, 0.1), Enum.EasingStyle.Linear)
-    self.tween = TweenService:Create(root, info, { CFrame = targetCFrame })
-    self.tween:Play()
-    self.tween.Completed:Wait()
-    if self.tween then self.tween = nil end
+--==================================================
+-- FULL BRIGHT
+--==================================================
+
+local function saveLighting()
+	if next(State.OriginalLighting) then
+		return
+	end
+
+	State.OriginalLighting.Brightness = Lighting.Brightness
+	State.OriginalLighting.Ambient = Lighting.Ambient
+	State.OriginalLighting.OutdoorAmbient = Lighting.OutdoorAmbient
+	State.OriginalLighting.ExposureCompensation =
+		Lighting.ExposureCompensation
+	State.OriginalLighting.GlobalShadows =
+		Lighting.GlobalShadows
 end
 
--- ============================================================
--- AUTO FARM
--- ============================================================
-local AutoFarm = { active = false, thread = nil, selectedType = nil }
+local function setFullBright(enabled)
+	State.FullBright = enabled
 
-local function getEnemySet()
-    local set, types = {}, {}
-    for _, m in ipairs(CollectionService:GetTagged("FarmableEnemy")) do
-        if m:IsA("Model") and m:IsDescendantOf(Workspace) then
-            set[m] = true; types[m.Name] = true
-        end
-    end
-    if next(set) then return set, types end
-    local folder = Workspace:FindFirstChild(CONFIG.FallbackEnemyFolder)
-    if folder then
-        for _, m in ipairs(folder:GetChildren()) do
-            if m:IsA("Model") then set[m] = true; types[m.Name] = true end
-        end
-    end
-    return set, types
+	if enabled then
+		saveLighting()
+
+		Lighting.Brightness =
+			CONFIG.FullBright.Brightness
+
+		Lighting.Ambient =
+			CONFIG.FullBright.Ambient
+
+		Lighting.OutdoorAmbient =
+			CONFIG.FullBright.OutdoorAmbient
+
+		Lighting.ExposureCompensation =
+			CONFIG.FullBright.ExposureCompensation
+
+		Lighting.GlobalShadows =
+			CONFIG.FullBright.GlobalShadows
+
+		return
+	end
+
+	for property, value in pairs(State.OriginalLighting) do
+		Lighting[property] = value
+	end
+
+	State.OriginalLighting = {}
 end
 
-local function isAlive(model)
-    if not model or not model.Parent then return false end
-    local h = model:FindFirstChildOfClass("Humanoid")
-    return h and h.Health > 0
+--==================================================
+-- FIX LAG
+--==================================================
+
+local function saveVisual(instance, property, value)
+	State.OriginalVisuals[instance] =
+		State.OriginalVisuals[instance] or {}
+
+	if State.OriginalVisuals[instance][property] == nil then
+		State.OriginalVisuals[instance][property] = value
+	end
 end
+
+local function processVisual(instance)
+	if not State.FixLag then
+		return
+	end
+
+	if instance:IsA("ParticleEmitter")
+		or instance:IsA("Trail")
+		or instance:IsA("Beam")
+		or instance:IsA("Smoke")
+		or instance:IsA("Fire")
+		or instance:IsA("Sparkles")
+		or instance:IsA("PointLight")
+		or instance:IsA("SpotLight")
+		or instance:IsA("SurfaceLight")
+		or instance:IsA("PostEffect") then
+
+		saveVisual(instance, "Enabled", instance.Enabled)
+		instance.Enabled = false
+	end
+end
+
+local function restoreVisuals()
+	for instance, properties in pairs(State.OriginalVisuals) do
+		if instance and instance.Parent then
+			for property, value in pairs(properties) do
+				instance[property] = value
+			end
+		end
+	end
+
+	State.OriginalVisuals = {}
+end
+
+local function setFixLag(enabled)
+	State.FixLag = enabled
+
+	if enabled then
+		for _, instance in ipairs(game:GetDescendants()) do
+			processVisual(instance)
+		end
+
+		disconnect(State.Connections.FixLagAdded)
+
+		State.Connections.FixLagAdded =
+			game.DescendantAdded:Connect(function(instance)
+				task.defer(processVisual, instance)
+			end)
+
+		return
+	end
+
+	disconnect(State.Connections.FixLagAdded)
+	State.Connections.FixLagAdded = nil
+
+	restoreVisuals()
+end
+
+--==================================================
+-- NOCLIP
+--==================================================
+
+local function noclipRequired()
+	return State.Noclip
+		or next(State.NoclipRequests) ~= nil
+end
+
+local function applyNoclip()
+	if not noclipRequired() then
+		return
+	end
+
+	local character = getCharacter()
+
+	if not character then
+		return
+	end
+
+	for _, instance in ipairs(character:GetDescendants()) do
+		if instance:IsA("BasePart") then
+			if State.OriginalCollision[instance] == nil then
+				State.OriginalCollision[instance] =
+					instance.CanCollide
+			end
+
+			instance.CanCollide = false
+		end
+	end
+end
+
+local function restoreNoclip()
+	for part, original in pairs(State.OriginalCollision) do
+		if part and part.Parent then
+			part.CanCollide = original
+		end
+	end
+
+	State.OriginalCollision = {}
+end
+
+local function updateNoclip()
+	if noclipRequired() then
+		applyNoclip()
+	else
+		restoreNoclip()
+	end
+end
+
+local function requestNoclip(source)
+	State.NoclipRequests[source] = true
+	updateNoclip()
+end
+
+local function releaseNoclip(source)
+	State.NoclipRequests[source] = nil
+	updateNoclip()
+end
+
+--==================================================
+-- ENEMY DISCOVERY
+--==================================================
+
+local function getTaggedEnemies()
+	local result = {}
+
+	for _, instance in ipairs(
+		CollectionService:GetTagged(CONFIG.Farm.EnemyTag)
+	) do
+		if instance:IsDescendantOf(workspace) then
+			table.insert(result, instance)
+		end
+	end
+
+	return result
+end
+
+local function getFallbackEnemies()
+	local folder =
+		workspace:FindFirstChild(
+			CONFIG.FallbackEnemyFolder
+		)
+
+	if not folder then
+		return {}
+	end
+
+	local result = {}
+
+	for _, child in ipairs(folder:GetChildren()) do
+		if child:IsA("Model") then
+			table.insert(result, child)
+		end
+	end
+
+	return result
+end
+
+local function getEnemyPool()
+	local tagged = getTaggedEnemies()
+
+	if #tagged > 0 then
+		return tagged
+	end
+
+	return getFallbackEnemies()
+end
+
+local function getEnemyName(enemy)
+	if enemy:IsA("Model") then
+		return enemy.Name
+	end
+
+	return enemy.Name
+end
+
+local function getEnemyTypes()
+	local names = {}
+	local seen = {}
+
+	for _, enemy in ipairs(getEnemyPool()) do
+		local name = getEnemyName(enemy)
+
+		if not seen[name] then
+			seen[name] = true
+			table.insert(names, name)
+		end
+	end
+
+	table.sort(names)
+
+	return names
+end
+
+local function getEnemyRoot(enemy)
+	if not enemy then
+		return nil
+	end
+
+	if enemy:IsA("Model") then
+		return enemy:FindFirstChild("HumanoidRootPart")
+			or enemy.PrimaryPart
+			or enemy:FindFirstChildWhichIsA("BasePart")
+	end
+
+	return enemy:FindFirstChildWhichIsA("BasePart")
+end
+
+local function getEnemyHumanoid(enemy)
+	if not enemy then
+		return nil
+	end
+
+	return enemy:FindFirstChildOfClass("Humanoid")
+end
+
+local function validEnemy(enemy)
+	local humanoid = getEnemyHumanoid(enemy)
+	local root = getEnemyRoot(enemy)
+
+	return enemy
+		and enemy.Parent
+		and enemy:IsDescendantOf(workspace)
+		and humanoid
+		and humanoid.Health > 0
+		and root
+end
+
+--==================================================
+-- FIND NEAREST ENEMY
+--==================================================
 
 local function findNearestEnemy(enemyType)
-    local set = getEnemySet()
-    local c = LocalPlayer.Character
-    local root = c and c:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-    local best, bestDist = nil, math.huge
-    for m in pairs(set) do
-        if isAlive(m) and m.Name == enemyType then
-            local hrp = m:FindFirstChild("HumanoidRootPart") or m.PrimaryPart
-            if hrp then
-                local d = (hrp.Position - root.Position).Magnitude
-                if d < bestDist then best, bestDist = m, d end
-            end
-        end
-    end
-    return best
+	local playerRoot = getRoot()
+
+	if not playerRoot or not enemyType then
+		return nil
+	end
+
+	local nearest = nil
+	local nearestDistance = math.huge
+
+	for _, enemy in ipairs(getEnemyPool()) do
+		if validEnemy(enemy)
+			and getEnemyName(enemy) == enemyType then
+
+			local enemyRoot = getEnemyRoot(enemy)
+
+			local distance =
+				(playerRoot.Position - enemyRoot.Position).Magnitude
+
+			if distance < nearestDistance then
+				nearest = enemy
+				nearestDistance = distance
+			end
+		end
+	end
+
+	return nearest
 end
 
--- >>> KẾT NỐI VỚI HỆ THỐNG COMBAT CỦA BẠN <<<
--- Ví dụ: tool:Activate() hoặc RemoteEvent có sẵn của game.
--- KHÔNG tự tạo RemoteEvent.
+--==================================================
+-- FARM MOVEMENT
+--==================================================
+
+local function tweenTo(position, speed)
+	local root = getRoot()
+
+	if not root then
+		return false
+	end
+
+	cancelTween()
+
+	local distance = (root.Position - position).Magnitude
+
+	if distance < 1 then
+		return true
+	end
+
+	local duration = math.max(
+		distance / math.max(speed, 1),
+		0.05
+	)
+
+	local tweenInfo = TweenInfo.new(
+		duration,
+		Enum.EasingStyle.Linear,
+		Enum.EasingDirection.Out
+	)
+
+	State.ActiveTween =
+		TweenService:Create(
+			root,
+			tweenInfo,
+			{ CFrame = CFrame.new(position) }
+		)
+
+	State.ActiveTween:Play()
+
+	local completed = false
+
+	local connection
+
+	connection = State.ActiveTween.Completed:Connect(function()
+		completed = true
+	end)
+
+	while State.ActiveTween
+		and not completed
+		and State.AutoFarm do
+
+		task.wait()
+	end
+
+	disconnect(connection)
+
+	return completed
+end
+
+local function moveAboveEnemy(enemy)
+	local root = getEnemyRoot(enemy)
+
+	if not root then
+		return false
+	end
+
+	local targetPosition =
+		root.Position
+		+ Vector3.new(0, CONFIG.Farm.Height, 0)
+
+	local targetCFrame =
+		CFrame.lookAt(
+			targetPosition,
+			root.Position
+		)
+
+	local characterRoot = getRoot()
+
+	if not characterRoot then
+		return false
+	end
+
+	cancelTween()
+
+	local distance =
+		(characterRoot.Position - targetPosition).Magnitude
+
+	local duration =
+		math.max(
+			distance / CONFIG.Farm.TweenSpeed,
+			0.05
+		)
+
+	State.ActiveTween =
+		TweenService:Create(
+			characterRoot,
+			TweenInfo.new(
+				duration,
+				Enum.EasingStyle.Linear
+			),
+			{ CFrame = targetCFrame }
+		)
+
+	State.ActiveTween:Play()
+
+	return true
+end
+
+--==================================================
+-- COMBAT HOOK
+--==================================================
+
 local function attackTarget(target)
-    if not target or not target.Parent then return end
-    local hum = target:FindFirstChildOfClass("Humanoid")
-    if not hum or hum.Health <= 0 then return end
-    -- TODO: gọi hệ thống combat tại đây (ví dụ kích hoạt tool đang cầm)
+	-- =================================================
+	-- KẾT NỐI COMBAT CỦA GAME TẠI ĐÂY
+	-- =================================================
+	--
+	-- target = Model NPC hiện tại.
+	--
+	-- Ví dụ nếu game của bạn có hệ thống Tool:
+	-- Tool:Activate()
+	--
+	-- Nếu game dùng RemoteEvent:
+	-- Chỉ thêm RemoteEvent CÓ SẴN trong game của bạn.
+	--
+	-- Không tự tạo RemoteEvent.
+	-- Không đoán tên RemoteEvent.
+	-- Không spoof damage.
+	--
+	-- =================================================
+
 end
 
-function AutoFarm:start()
-    if self.thread then return end
-    self.thread = task.spawn(function()
-        while self.active do
-            local ok, err = pcall(function()
-                if not self.selectedType then
-                    task.wait(CONFIG.TargetSearchInterval); return
-                end
-                local target = findNearestEnemy(self.selectedType)
-                if not target then
-                    farmStatus.Text = "Auto Farm: Đang chờ kẻ địch xuất hiện"
-                    task.wait(CONFIG.TargetSearchInterval); return
-                end
-                local hrp = target:FindFirstChild("HumanoidRootPart") or target.PrimaryPart
-                if not hrp then task.wait(0.2); return end
-                farmStatus.Text = "Auto Farm: Đang tấn công " .. target.Name
-                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if not myRoot then task.wait(0.2); return end
-                local goalPos = hrp.Position + Vector3.new(0, CONFIG.EnemyHeightOffset, 0)
-                local dist = (myRoot.Position - goalPos).Magnitude
-                if dist > 3 then
-                    local dur = dist / CONFIG.TweenSpeed
-                    MovementManager:moveTo("AutoFarm", CFrame.new(goalPos, hrp.Position), dur)
-                else
-                    myRoot.CFrame = CFrame.new(goalPos, hrp.Position)
-                    task.wait(CONFIG.TargetSearchInterval)
-                end
-                attackTarget(target)
-            end)
-            if not ok then warn("[AutoFarm]", err) end
-            task.wait(0.1)
-        end
-        self.thread = nil
-    end)
+--==================================================
+-- AUTO FARM LOOP
+--==================================================
+
+local function stopAutoFarm()
+	State.AutoFarm = false
+	State.CurrentFarmTarget = nil
+
+	cancelTween()
+	releaseNoclip("AutoFarm")
 end
 
-function AutoFarm:enable()
-    if self.active then return end
-    if not self.selectedType then
-        notify("Hãy chọn loại kẻ địch trước!", true)
-        return false
-    end
-    if AutoLoot.active then
-        AutoLoot:disable(); AutoLootToggle.Set(false)
-        notify("Đã tắt Auto Loot (xung đột di chuyển)", false)
-    end
-    if not MovementManager:acquire("AutoFarm") then
-        notify("Movement đang bị chiếm bởi Auto Loot", true)
-        return false
-    end
-    self.active = true
-    NoclipManager.request("AutoFarm")
-    self:start()
-    return true
+local function autoFarmLoop()
+	requestNoclip("AutoFarm")
+
+	while State.AutoFarm do
+		if not getRoot() or not isAlive(getCharacter()) then
+			task.wait(0.5)
+			continue
+		end
+
+		local target = State.CurrentFarmTarget
+
+		if not validEnemy(target)
+			or getEnemyName(target) ~= State.SelectedEnemy then
+
+			target =
+				findNearestEnemy(State.SelectedEnemy)
+
+			State.CurrentFarmTarget = target
+		end
+
+		if not target then
+			notify("Waiting for enemy to spawn")
+			task.wait(CONFIG.Farm.SearchInterval)
+			continue
+		end
+
+		moveAboveEnemy(target)
+		attackTarget(target)
+
+		task.wait(CONFIG.Farm.SearchInterval)
+	end
+
+	cancelTween()
+	releaseNoclip("AutoFarm")
 end
 
-function AutoFarm:disable()
-    if not self.active then return end
-    self.active = false
-    NoclipManager.release("AutoFarm")
-    MovementManager:release("AutoFarm")
-    farmStatus.Text = "Auto Farm: Tắt"
+local function setAutoFarm(enabled)
+	if enabled then
+		if State.SelectedEnemy == nil then
+			notify("Hãy chọn enemy trước khi bật Auto Farm.")
+			return false
+		end
+
+		stopAutoLoot()
+
+		State.AutoFarm = true
+		State.CurrentFarmTarget = nil
+
+		task.spawn(autoFarmLoop)
+
+		return true
+	end
+
+	stopAutoFarm()
+
+	return true
 end
 
--- ============================================================
--- AUTO LOOT
--- ============================================================
-local AutoLoot = { active = false, thread = nil, selectedTags = {} }
+--==================================================
+-- LOOT DISCOVERY
+--==================================================
+
+local function getLootParts(item)
+	local parts = {}
+
+	if item:IsA("BasePart") then
+		table.insert(parts, item)
+	elseif item:IsA("Model") then
+		if item.PrimaryPart then
+			table.insert(parts, item.PrimaryPart)
+		else
+			local part =
+				item:FindFirstChildWhichIsA("BasePart")
+
+			if part then
+				table.insert(parts, part)
+			end
+		end
+	end
+
+	return parts
+end
 
 local function getLootPosition(item)
-    if item:IsA("BasePart") then return item.Position end
-    if item:IsA("Model") then
-        local pp = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
-        return pp and pp.Position
-    end
-    return nil
+	local parts = getLootParts(item)
+
+	if #parts == 0 then
+		return nil
+	end
+
+	return parts[1].Position
 end
 
-local function findNearestLoot(tagSet)
-    local c = LocalPlayer.Character
-    local root = c and c:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-    local best, bestDist = nil, math.huge
-    for _, tag in ipairs(CONFIG.LootTags) do
-        if tagSet[tag] then
-            for _, item in ipairs(CollectionService:GetTagged(tag)) do
-                if item:IsDescendantOf(Workspace) then
-                    local pos = getLootPosition(item)
-                    if pos then
-                        local d = (pos - root.Position).Magnitude
-                        if d < bestDist then best, bestDist = item, d end
-                    end
-                end
-            end
-        end
-    end
-    return best
+local function lootSelected(item)
+	local name = item.Name
+
+	if State.SelectedLoot[name] then
+		return true
+	end
+
+	for _, tag in ipairs(CONFIG.Loot.Tags) do
+		if CollectionService:HasTag(item, tag)
+			and State.SelectedLoot[tag] then
+
+			return true
+		end
+	end
+
+	return false
 end
 
--- >>> KẾT NỐI VỚI HỆ THỐNG LOOT CỦA BẠN <<<
--- Thử dùng ProximityPrompt có sẵn. Không tạo RemoteEvent.
+local function getLootItems()
+	local result = {}
+	local seen = {}
+
+	for _, tag in ipairs(CONFIG.Loot.Tags) do
+		for _, item in ipairs(
+			CollectionService:GetTagged(tag)
+		) do
+
+			if item:IsDescendantOf(workspace)
+				and not seen[item] then
+
+				seen[item] = true
+				table.insert(result, item)
+			end
+		end
+	end
+
+	return result
+end
+
+local function findNearestLoot()
+	local root = getRoot()
+
+	if not root then
+		return nil
+	end
+
+	local nearest = nil
+	local nearestDistance = math.huge
+
+	for _, item in ipairs(getLootItems()) do
+		local position = getLootPosition(item)
+
+		if position and lootSelected(item) then
+			local distance =
+				(root.Position - position).Magnitude
+
+			if distance < nearestDistance then
+				nearest = item
+				nearestDistance = distance
+			end
+		end
+	end
+
+	return nearest
+end
+
+--==================================================
+-- LOOT INTERACTION
+--==================================================
+
 local function collectLoot(item)
-    if not item or not item.Parent then return end
-    local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
-    if prompt then
-        local oldHold = prompt.HoldDuration
-        prompt.HoldDuration = 0
-        prompt:InputHoldBegin()
-        task.wait()
-        prompt:InputHoldEnd()
-        prompt.HoldDuration = oldHold
-        return
-    end
-    -- ClickDetector không thể kích hoạt từ client; cần hệ thống riêng của game.
+	if not item or not item.Parent then
+		return
+	end
+
+	local prompt =
+		item:FindFirstChildWhichIsA(
+			"ProximityPrompt",
+			true
+		)
+
+	if prompt and prompt.Enabled then
+		-- Chỉ sử dụng cơ chế interaction có sẵn.
+		-- Không tạo RemoteEvent.
+		notify("Loot có ProximityPrompt: " .. item.Name)
+		return
+	end
+
+	local clickDetector =
+		item:FindFirstChildWhichIsA(
+			"ClickDetector",
+			true
+		)
+
+	if clickDetector then
+		notify("Loot có ClickDetector: " .. item.Name)
+		return
+	end
+
+	-- Không có interaction hợp lệ thì không tự giả lập collection.
 end
 
-function AutoLoot:start()
-    if self.thread then return end
-    self.thread = task.spawn(function()
-        while self.active do
-            local ok, err = pcall(function()
-                local tagSet = self.selectedTags
-                if not next(tagSet) then
-                    lootStatus.Text = "Auto Loot: Chưa chọn loại loot"
-                    task.wait(CONFIG.TargetSearchInterval); return
-                end
-                local item = findNearestLoot(tagSet)
-                if not item then
-                    lootStatus.Text = "Auto Loot: Đang chờ loot xuất hiện"
-                    task.wait(CONFIG.TargetSearchInterval); return
-                end
-                local pos = getLootPosition(item)
-                if not pos then task.wait(0.2); return end
-                lootStatus.Text = "Auto Loot: Tiếp cận " .. item.Name
-                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if not myRoot then task.wait(0.2); return end
-                local goal = pos + Vector3.new(0, 2, 0)
-                local dist = (myRoot.Position - goal).Magnitude
-                if dist > CONFIG.LootStopDistance then
-                    local dur = dist / CONFIG.TweenSpeed
-                    MovementManager:moveTo("AutoLoot", CFrame.new(goal), dur)
-                end
-                collectLoot(item)
-                task.wait(0.2)
-            end)
-            if not ok then warn("[AutoLoot]", err) end
-            task.wait(0.1)
-        end
-        self.thread = nil
-    end)
+--==================================================
+-- AUTO LOOT LOOP
+--==================================================
+
+local function stopAutoLoot()
+	State.AutoLoot = false
+	State.CurrentLootTarget = nil
+
+	cancelTween()
+	releaseNoclip("AutoLoot")
 end
 
-function AutoLoot:enable()
-    if self.active then return end
-    if not next(self.selectedTags) then
-        notify("Hãy chọn ít nhất một loại loot!", true)
-        return false
-    end
-    if AutoFarm.active then
-        AutoFarm:disable(); AutoFarmToggle.Set(false)
-        notify("Đã tắt Auto Farm (xung đột di chuyển)", false)
-    end
-    if not MovementManager:acquire("AutoLoot") then
-        notify("Movement đang bị chiếm bởi Auto Farm", true)
-        return false
-    end
-    self.active = true
-    NoclipManager.request("AutoLoot")
-    self:start()
-    return true
+local function autoLootLoop()
+	requestNoclip("AutoLoot")
+
+	while State.AutoLoot do
+		if not getRoot() or not isAlive(getCharacter()) then
+			task.wait(0.5)
+			continue
+		end
+
+		local item = State.CurrentLootTarget
+
+		if not item
+			or not item.Parent
+			or not item:IsDescendantOf(workspace) then
+
+			item = findNearestLoot()
+			State.CurrentLootTarget = item
+		end
+
+		if not item then
+			notify("Waiting for loot to spawn")
+			task.wait(CONFIG.Loot.SearchInterval)
+			continue
+		end
+
+		local position = getLootPosition(item)
+
+		if not position then
+			State.CurrentLootTarget = nil
+			task.wait()
+			continue
+		end
+
+		local root = getRoot()
+
+		if not root then
+			task.wait()
+			continue
+		end
+
+		local distance =
+			(root.Position - position).Magnitude
+
+		if distance > CONFIG.Loot.StopDistance then
+			tweenTo(
+				position,
+				CONFIG.Loot.TweenSpeed
+			)
+		end
+
+		collectLoot(item)
+
+		if not item.Parent
+			or not item:IsDescendantOf(workspace) then
+
+			State.CurrentLootTarget = nil
+		end
+
+		task.wait(CONFIG.Loot.SearchInterval)
+	end
+
+	cancelTween()
+	releaseNoclip("AutoLoot")
 end
 
-function AutoLoot:disable()
-    if not self.active then return end
-    self.active = false
-    NoclipManager.release("AutoLoot")
-    MovementManager:release("AutoLoot")
-    lootStatus.Text = "Auto Loot: Tắt"
+local function setAutoLoot(enabled)
+	if enabled then
+		if next(State.SelectedLoot) == nil then
+			notify("Hãy chọn ít nhất một loại loot.")
+			return false
+		end
+
+		stopAutoFarm()
+
+		State.AutoLoot = true
+		State.CurrentLootTarget = nil
+
+		task.spawn(autoLootLoop)
+
+		return true
+	end
+
+	stopAutoLoot()
+
+	return true
 end
 
--- ============================================================
+--==================================================
 -- ESP
--- ============================================================
-local ESP = { active = false, data = {}, thread = nil }
+--==================================================
 
-local function clearESPFor(player)
-    local d = ESP.data[player]
-    if not d then return end
-    if d.highlight then d.highlight:Destroy() end
-    if d.billboard then d.billboard:Destroy() end
-    if d.conns then for _, c in ipairs(d.conns) do c:Disconnect() end end
-    ESP.data[player] = nil
+local function clearESP(player)
+	local data = State.ESPObjects[player]
+
+	if not data then
+		return
+	end
+
+	for _, connection in ipairs(data.Connections) do
+		connection:Disconnect()
+	end
+
+	for _, object in ipairs(data.Objects) do
+		object:Destroy()
+	end
+
+	State.ESPObjects[player] = nil
 end
 
-local function clearAllESP()
-    for p in pairs(ESP.data) do clearESPFor(p) end
-    ESP.data = {}
+local function shouldESPPlayer(player)
+	if player == LocalPlayer then
+		return false
+	end
+
+	if CONFIG.ESP.HideSameTeam
+		and LocalPlayer.Team ~= nil
+		and player.Team == LocalPlayer.Team then
+
+		return false
+	end
+
+	return true
 end
 
-local function makeESP(player)
-    if player == LocalPlayer then return end
-    clearESPFor(player)
-    local char = player.Character
-    if not char then return end
-    local head = char:FindFirstChild("Head")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not head or not hum then return end
+local function createESP(player)
+	if not State.ESP or not shouldESPPlayer(player) then
+		return
+	end
 
-    local hl = Instance.new("Highlight")
-    hl.FillColor = CONFIG.ESPColors.Fill
-    hl.OutlineColor = CONFIG.ESPColors.Outline
-    hl.FillTransparency = 0.6
-    hl.OutlineTransparency = 0
-    hl.Adornee = char
-    hl.Parent = gui
+	clearESP(player)
 
-    local bb = Instance.new("BillboardGui")
-    bb.Size = UDim2.fromOffset(180, 46)
-    bb.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
-    bb.AlwaysOnTop = true
-    bb.Adornee = head
-    bb.Parent = gui
+	local character = player.Character
+	local humanoid =
+		character and character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
-    local nameLbl = Instance.new("TextLabel")
-    nameLbl.Size = UDim2.new(1, 0, 0, 14)
-    nameLbl.BackgroundTransparency = 1
-    nameLbl.Text = player.Name
-    nameLbl.TextColor3 = CONFIG.ESPColors.Text
-    nameLbl.Font = Enum.Font.GothamBold; nameLbl.TextSize = 12
-    nameLbl.TextStrokeTransparency = 0.4
-    nameLbl.Visible = CONFIG.ESPShowName
-    nameLbl.Parent = bb
+	local root =
+		character and character:FindFirstChild(
+			"HumanoidRootPart"
+		)
 
-    local distLbl = Instance.new("TextLabel")
-    distLbl.Size = UDim2.new(1, 0, 0, 12)
-    distLbl.Position = UDim2.fromOffset(0, 14)
-    distLbl.BackgroundTransparency = 1
-    distLbl.TextColor3 = CONFIG.ESPColors.Text
-    distLbl.Font = Enum.Font.Gotham; distLbl.TextSize = 11
-    distLbl.TextStrokeTransparency = 0.4
-    distLbl.Visible = CONFIG.ESPShowDistance
-    distLbl.Parent = bb
+	if not character or not humanoid or not root then
+		return
+	end
 
-    local hpBg = Instance.new("Frame")
-    hpBg.Size = UDim2.new(1, -20, 0, 4)
-    hpBg.Position = UDim2.new(0, 10, 1, -6)
-    hpBg.BackgroundColor3 = CONFIG.ESPColors.HealthBg
-    hpBg.BorderSizePixel = 0
-    hpBg.Visible = CONFIG.ESPShowHealth
-    hpBg.Parent = bb
-    Instance.new("UICorner", hpBg).CornerRadius = UDim.new(1, 0)
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "ClientPlayerESP"
+	highlight.Adornee = character
+	highlight.FillColor = CONFIG.ESP.FillColor
+	highlight.OutlineColor = CONFIG.ESP.OutlineColor
+	highlight.FillTransparency = 0.75
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent = character
 
-    local hpFill = Instance.new("Frame")
-    hpFill.Size = UDim2.new(1, 0, 1, 0)
-    hpFill.BackgroundColor3 = CONFIG.ESPColors.HealthFill
-    hpFill.BorderSizePixel = 0
-    hpFill.Parent = hpBg
-    Instance.new("UICorner", hpFill).CornerRadius = UDim.new(1, 0)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ClientPlayerESPInfo"
+	billboard.Adornee = root
+	billboard.Size = UDim2.fromOffset(190, 60)
+	billboard.StudsOffset = Vector3.new(0, 3.5, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = root
 
-    local conns = {}
-    table.insert(conns, hum.HealthChanged:Connect(function() end))
-    table.insert(conns, player.CharacterAdded:Connect(function()
-        task.wait(0.3)
-        if ESP.active then makeESP(player) end
-    end))
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.5
+	label.TextSize = 12
+	label.Font = Enum.Font.GothamBold
+	label.Parent = billboard
 
-    ESP.data[player] = { highlight = hl, billboard = bb, hum = hum, distLbl = distLbl, hpFill = hpFill, conns = conns }
+	State.ESPObjects[player] = {
+		Objects = {
+			highlight,
+			billboard,
+		},
+
+		Connections = {},
+
+		Label = label,
+		Humanoid = humanoid,
+		Root = root,
+	}
 end
 
 local function updateESP()
-    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    for player, d in pairs(ESP.data) do
-        local char = player.Character
-        if not char or not d.hum or not d.hum.Parent then
-            clearESPFor(player)
-        else
-            if d.highlight then d.highlight.Enabled = true end
-            local hp = math.clamp(d.hum.Health / d.hum.MaxHealth, 0, 1)
-            d.hpFill.Size = UDim2.new(hp, 0, 1, 0)
-            if myRoot then
-                local head = char:FindFirstChild("Head")
-                if head then
-                    local dist = (myRoot.Position - head.Position).Magnitude
-                    d.distLbl.Text = string.format("[%d]", math.floor(dist))
-                end
-            end
-            -- Ẩn cùng team
-            if CONFIG.ESPHideSameTeam and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
-                d.highlight.Enabled = false
-                d.billboard.Enabled = false
-            else
-                d.billboard.Enabled = true
-            end
-        end
-    end
+	local localRoot = getRoot()
+
+	if not localRoot then
+		return
+	end
+
+	for player, data in pairs(State.ESPObjects) do
+		local root = data.Root
+		local humanoid = data.Humanoid
+
+		if not root
+			or not root.Parent
+			or not humanoid
+			or not humanoid.Parent then
+
+			clearESP(player)
+			continue
+		end
+
+		local distance =
+			(root.Position - localRoot.Position).Magnitude
+
+		local health =
+			math.max(0, humanoid.Health)
+
+		local maxHealth =
+			math.max(1, humanoid.MaxHealth)
+
+		local text = {}
+
+		if CONFIG.ESP.ShowNames then
+			table.insert(
+				text,
+				player.DisplayName
+			)
+		end
+
+		if CONFIG.ESP.ShowDistance then
+			table.insert(
+				text,
+				string.format(
+					"%.0f studs",
+					distance
+				)
+			)
+		end
+
+		if CONFIG.ESP.ShowHealth then
+			table.insert(
+				text,
+				string.format(
+					"HP %.0f/%.0f",
+					health,
+					maxHealth
+				)
+			)
+		end
+
+		data.Label.Text =
+			table.concat(text, " | ")
+	end
 end
 
-function ESP:enable()
-    if self.active then return end
-    self.active = true
-    for _, p in ipairs(Players:GetPlayers()) do makeESP(p) end
-    self.thread = task.spawn(function()
-        while self.active do
-            local ok, err = pcall(updateESP)
-            if not ok then warn("[ESP]", err) end
-            task.wait(CONFIG.ESPUpdateInterval)
-        end
-        self.thread = nil
-    end)
+local function setESP(enabled)
+	State.ESP = enabled
+
+	if not enabled then
+		disconnect(State.Connections.ESPPlayerAdded)
+		disconnect(State.Connections.ESPPlayerRemoving)
+		disconnect(State.Connections.ESPCharacter)
+
+		for player in pairs(State.ESPObjects) do
+			clearESP(player)
+		end
+
+		return
+	end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			createESP(player)
+		end
+	end
+
+	State.Connections.ESPPlayerAdded =
+		Players.PlayerAdded:Connect(function(player)
+			player.CharacterAdded:Connect(function()
+				task.wait(0.4)
+				createESP(player)
+			end)
+		end)
+
+	State.Connections.ESPPlayerRemoving =
+		Players.PlayerRemoving:Connect(clearESP)
 end
 
-function ESP:disable()
-    if not self.active then return end
-    self.active = false
-    clearAllESP()
+--==================================================
+-- DROPDOWN DATA
+--==================================================
+
+local function getLootTypes()
+	local result = {}
+
+	for _, tag in ipairs(CONFIG.Loot.Tags) do
+		table.insert(result, tag)
+	end
+
+	return result
 end
 
-track(Players.PlayerAdded:Connect(function(p)
-    if ESP.active then task.wait(0.3); makeESP(p) end
-end))
-track(Players.PlayerRemoving:Connect(function(p)
-    clearESPFor(p)
-end))
+--==================================================
+-- UI SECTIONS
+--==================================================
 
--- ============================================================
--- XÂY DỰNG UI CHI TIẾT
--- ============================================================
-createSection("ĐỒ HỌA")
-local fixLagToggle    = createToggle("Fix Lag (giảm đồ họa)", false, function(v)
-    if v then FixLag:enable(); notify("Fix Lag: BẬT", false)
-    else FixLag:disable(); notify("Fix Lag: TẮT", false) end
-end)
-local fullBrightToggle= createToggle("Full Bright (sáng map)", false, function(v)
-    if v then FullBright:enable(); notify("Full Bright: BẬT", false)
-    else FullBright:disable(); notify("Full Bright: TẮT", false) end
-end)
+createSection("MOVEMENT")
 
-createSection("NHÂN VẬT")
-local speedSlider = createSlider("Walk Speed", CONFIG.WalkSpeed.Min, CONFIG.WalkSpeed.Max, CONFIG.WalkSpeed.Default, function(v)
-    SpeedWalk.value = v
-    if SpeedWalk.active then applySpeed() end
-end)
-local speedToggle = createToggle("Bật Speed Walk", false, function(v)
-    SpeedWalk.active = v
-    if v then SpeedWalk.value = speedSlider.Get(); applySpeed(); notify("Speed Walk: BẬT", false)
-    else applySpeed() -- ngừng áp, để game mặc định
-        local h = getHumanoid(); if h then h.WalkSpeed = CONFIG.WalkSpeed.Default end
-        notify("Speed Walk: TẮT", false)
-    end
-end)
+createToggle("Speed Walk", setSpeed)
 
-local jumpSlider = createSlider("Jump Power / Height", CONFIG.Jump.Min, CONFIG.Jump.Max, CONFIG.Jump.Default, function(v)
-    HighJump.value = v
-    if HighJump.active then applyJump() end
-end)
-local jumpToggle = createToggle("Bật High Jump", false, function(v)
-    HighJump.active = v
-    if v then HighJump.value = jumpSlider.Get(); applyJump(); notify("High Jump: BẬT", false)
-    else
-        local h = getHumanoid()
-        if h then
-            if h.UseJumpPower then h.JumpPower = CONFIG.Jump.Default
-            else h.JumpHeight = CONFIG.Jump.Default end
-        end
-        notify("High Jump: TẮT", false)
-    end
-end)
+createInput(
+	"Walk Speed",
+	State.SpeedValue,
+	function(value, box)
 
-createSection("TỰ ĐỘNG")
-local enemyDropdown = createDropdown("Kẻ địch", false, function(sel)
-    for name in pairs(sel) do AutoFarm.selectedType = name end
-end)
-local farmStatus = Instance.new("TextLabel")
-farmStatus.Size = UDim2.new(1, 0, 0, 18)
-farmStatus.BackgroundTransparency = 1
-farmStatus.Text = "Auto Farm: Tắt"
-farmStatus.TextColor3 = C.Sub; farmStatus.Font = Enum.Font.Gotham; farmStatus.TextSize = 11
-farmStatus.TextXAlignment = Enum.TextXAlignment.Left
-farmStatus.Parent = body
+		value = math.clamp(
+			value,
+			CONFIG.WalkSpeed.Min,
+			CONFIG.WalkSpeed.Max
+		)
 
-local farmToggle = createToggle("Auto Farm", false, function(v)
-    if v then
-        if not AutoFarm:enable() then farmToggle.Set(false) end
-    else
-        AutoFarm:disable()
-    end
+		State.SpeedValue = value
+		box.Text = tostring(value)
+
+		if State.Speed then
+			applySpeed()
+		end
+	end
+)
+
+createToggle("High Jump", setJump)
+
+createInput(
+	"Jump Value",
+	State.JumpValue,
+	function(value, box)
+
+		value = math.clamp(
+			value,
+			CONFIG.Jump.Min,
+			CONFIG.Jump.Max
+		)
+
+		State.JumpValue = value
+		box.Text = tostring(value)
+
+		if State.Jump then
+			applyJump()
+		end
+	end
+)
+
+createToggle("Noclip", function(enabled)
+	State.Noclip = enabled
+	updateNoclip()
 end)
 
-local lootDropdown = createDropdown("Loại loot", true, function(sel)
-    AutoLoot.selectedTags = sel
-end)
-local lootStatus = Instance.new("TextLabel")
-lootStatus.Size = UDim2.new(1, 0, 0, 18)
-lootStatus.BackgroundTransparency = 1
-lootStatus.Text = "Auto Loot: Tắt"
-lootStatus.TextColor3 = C.Sub; lootStatus.Font = Enum.Font.Gotham; lootStatus.TextSize = 11
-lootStatus.TextXAlignment = Enum.TextXAlignment.Left
-lootStatus.Parent = body
+createSection("VISUAL")
 
-local lootToggle = createToggle("Auto Loot", false, function(v)
-    if v then
-        if not AutoLoot:enable() then lootToggle.Set(false) end
-    else
-        AutoLoot:disable()
-    end
+createToggle("Fix Lag", setFixLag)
+createToggle("Full Bright", setFullBright)
+createToggle("Player ESP", setESP)
+
+createSection("AUTO FARM")
+
+createDropdown(
+	"Enemy",
+	getEnemyTypes,
+	function(enemyName)
+		State.SelectedEnemy = enemyName
+		State.CurrentFarmTarget = nil
+		notify("Selected enemy: " .. enemyName)
+	end
+)
+
+createToggle("Auto Farm", setAutoFarm)
+
+createSection("AUTO LOOT")
+
+createDropdown(
+	"Loot Type",
+	getLootTypes,
+	function(lootType)
+		State.SelectedLoot[lootType] =
+			not State.SelectedLoot[lootType]
+
+		notify(
+			lootType ..
+			(State.SelectedLoot[lootType]
+				and " selected"
+				or " deselected")
+		end
+)
+
+createToggle("Auto Loot", setAutoLoot)
+
+--==================================================
+-- BUTTONS
+--==================================================
+
+MinimizeButton.Activated:Connect(function()
+	State.Minimized = not State.Minimized
+
+	Scroll.Visible = not State.Minimized
+
+	if State.Minimized then
+		Main.Size = UDim2.fromOffset(350, 44)
+	else
+		Main.Size = UDim2.fromOffset(350, 500)
+	end
 end)
 
--- Điền dropdown items
-local function refreshEnemyList()
-    local _, types = getEnemySet()
-    local list = {}
-    for k in pairs(types) do table.insert(list, k) end
-    table.sort(list)
-    enemyDropdown.SetItems(list)
+CloseButton.Activated:Connect(function()
+	State.MenuVisible = false
+	Main.Visible = false
+end)
+
+--==================================================
+-- KEYBOARD
+--==================================================
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then
+		return
+	end
+
+	if input.KeyCode == CONFIG.MenuKey then
+		State.MenuVisible = not State.MenuVisible
+		Main.Visible = State.MenuVisible
+	end
+end)
+
+--==================================================
+-- CHARACTER RESPAWN
+--==================================================
+
+State.Connections.CharacterAdded =
+	LocalPlayer.CharacterAdded:Connect(function(character)
+
+	State.OriginalCollision = {}
+
+	local humanoid =
+		character:WaitForChild(
+			"Humanoid",
+			10
+		)
+
+	if not humanoid then
+		return
+	end
+
+	task.wait(0.2)
+
+	if State.Speed then
+		applySpeed()
+	end
+
+	if State.Jump then
+		applyJump()
+	end
+
+	if noclipRequired() then
+		applyNoclip()
+	end
+
+	if State.ESP then
+		task.wait(0.4)
+
+		for _, player in ipairs(
+			Players:GetPlayers()
+		) do
+
+			if player ~= LocalPlayer then
+				createESP(player)
+			end
+		end
+	end
+end)
+
+--==================================================
+-- NOCLIP HEARTBEAT
+--==================================================
+
+State.Connections.Noclip =
+	RunService.Heartbeat:Connect(function()
+
+	if noclipRequired() then
+		applyNoclip()
+	end
+end)
+
+--==================================================
+-- ESP UPDATE
+--==================================================
+
+State.Connections.ESPUpdate =
+	task.spawn(function()
+
+		while Gui.Parent do
+			if State.ESP then
+				updateESP()
+			end
+
+			task.wait(
+				CONFIG.ESP.UpdateInterval
+			)
+		end
+	end)
+
+--==================================================
+-- CLEANUP
+--==================================================
+
+local function cleanup()
+	stopAutoFarm()
+	stopAutoLoot()
+
+	cancelTween()
+
+	State.Noclip = false
+	State.NoclipRequests = {}
+
+	restoreNoclip()
+	restoreVisuals()
+
+	for property, value in pairs(
+		State.OriginalLighting
+	) do
+		Lighting[property] = value
+	end
+
+	State.OriginalLighting = {}
+
+	for _, connection in pairs(
+		State.Connections
+	) do
+
+		if typeof(connection)
+			== "RBXScriptConnection" then
+
+			connection:Disconnect()
+		end
+	end
+
+	for player in pairs(State.ESPObjects) do
+		clearESP(player)
+	end
+
+	State.ESPObjects = {}
 end
-refreshEnemyList()
 
-local lootTagList = {}
-for _, tag in ipairs(CONFIG.LootTags) do table.insert(lootTagList, tag) end
-lootDropdown.SetItems(lootTagList)
+Gui.Destroying:Connect(cleanup)
 
-createSection("KHÁC")
-local noclipToggle = createToggle("Noclip", false, function(v)
-    if v then NoclipManager.request("Manual"); notify("Noclip: BẬT", false)
-    else NoclipManager.release("Manual"); notify("Noclip: TẮT", false) end
-end)
-local espToggle = createToggle("Player ESP", false, function(v)
-    if v then ESP:enable(); notify("ESP: BẬT", false)
-    else ESP:disable(); notify("ESP: TẮT", false) end
-end)
-
--- ============================================================
--- ĐIỀU KHIỂN MENU
--- ============================================================
-local menuVisible = true
-local minimized = false
-
-local function setMenuVisible(v)
-    menuVisible = v
-    main.Visible = v
-    toggleBtn.Visible = not v
-end
-
-local function setMinimized(v)
-    minimized = v
-    body.Visible = not v
-    main.Size = v and UDim2.fromOffset(320, 36) or UDim2.fromOffset(320, 420)
-end
-
-toggleBtn.MouseButton1Click:Connect(function() setMenuVisible(true) end)
-minimizeBtn.MouseButton1Click:Connect(function() setMinimized(not minimized) end)
-closeBtn.MouseButton1Click:Connect(function() setMenuVisible(false) end)
-
--- Phím tắt mở/đóng
-track(UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.KeyCode == CONFIG.MenuToggleKey then
-        setMenuVisible(not menuVisible)
-    end
-end))
-
--- Nút nổi nhỏ trên mobile (hiện khi menu ẩn)
--- (toggleBtn đã được tạo ở trên)
-
--- Khởi tạo: hiện menu
-setMenuVisible(true)
-notify("Utility Menu đã sẵn sàng!", false)
+notify("Utility loaded.")
