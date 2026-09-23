@@ -1,649 +1,139 @@
---// Tnh-VN Auto Steal - SERVER
---// Dùng cho game Roblox của bạn
-
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CollectionService = game:GetService("CollectionService")
-local PathfindingService = game:GetService("PathfindingService")
-
---==================================================
--- REMOTE
---==================================================
-
-local folder = ReplicatedStorage:FindFirstChild("TnhVN_AutoSteal")
-
-if not folder then
-	folder = Instance.new("Folder")
-	folder.Name = "TnhVN_AutoSteal"
-	folder.Parent = ReplicatedStorage
-end
-
-local Remote = folder:FindFirstChild("Remote")
-
-if not Remote then
-	Remote = Instance.new("RemoteEvent")
-	Remote.Name = "Remote"
-	Remote.Parent = folder
-end
-
---==================================================
--- DATA
---==================================================
-
-local PlayerData = {}
-
-local DEFAULT_SPEED = 100
-local MAX_SPEED = 500
-
-local PICKUP_DISTANCE = 14
-local DROP_DISTANCE = 18
-
---==================================================
--- UTILS
---==================================================
-
-local function getCharacter(player)
-	local char = player.Character
-
-	if not char then
-		return nil
-	end
-
-	local humanoid = char:FindFirstChildOfClass("Humanoid")
-	local root = char:FindFirstChild("HumanoidRootPart")
-
-	if not humanoid or not root then
-		return nil
-	end
-
-	return char, humanoid, root
-end
-
-local function getEggRoot(egg)
-	if not egg then
-		return nil
-	end
-
-	if egg:IsA("BasePart") then
-		return egg
-	end
-
-	if egg:IsA("Model") then
-		if egg.PrimaryPart then
-			return egg.PrimaryPart
-		end
-
-		return egg:FindFirstChildWhichIsA("BasePart", true)
-	end
-
-	return nil
-end
-
-local function getEggName(egg)
-	return egg:GetAttribute("EggName")
-		or egg:GetAttribute("Name")
-		or egg.Name
-end
-
-local function isEggAvailable(egg)
-	if not egg or not egg.Parent then
-		return false
-	end
-
-	if egg:GetAttribute("Taken") == true then
-		return false
-	end
-
-	if egg:GetAttribute("Stolen") == true then
-		return false
-	end
-
-	return true
-end
-
-local function getEggs()
-	local result = {}
-
-	for _, egg in ipairs(CollectionService:GetTagged("StealableEgg")) do
-		if isEggAvailable(egg) then
-			table.insert(result, egg)
-		end
-	end
-
-	return result
-end
-
---==================================================
--- PLAYER BASE
---==================================================
-
-local function getPlayerBase(player)
-	for _, base in ipairs(CollectionService:GetTagged("PlayerBase")) do
-
-		local ownerId = base:GetAttribute("OwnerUserId")
-
-		if ownerId == player.UserId then
-			return base
-		end
-
-		local ownerName = base:GetAttribute("Owner")
-
-		if ownerName == player.Name then
-			return base
-		end
-	end
-
-	return nil
-end
-
-local function getBaseRoot(base)
-	if not base then
-		return nil
-	end
-
-	if base:IsA("BasePart") then
-		return base
-	end
-
-	if base:IsA("Model") then
-		if base.PrimaryPart then
-			return base.PrimaryPart
-		end
-
-		return base:FindFirstChild("DropPoint", true)
-			or base:FindFirstChildWhichIsA("BasePart", true)
-	end
-
-	return nil
-end
-
---==================================================
--- TARGET
---==================================================
-
-local function targetAllowed(data, egg)
-	local name = getEggName(egg)
-
-	-- Nếu TargetList rỗng => cho phép tất cả
-	if next(data.Targets) == nil then
-		return true
-	end
-
-	return data.Targets[name] == true
-end
-
-local function chooseEgg(player)
-	local data = PlayerData[player]
-
-	if not data then
-		return nil
-	end
-
-	local char, humanoid, root = getCharacter(player)
-
-	if not root then
-		return nil
-	end
-
-	local candidates = {}
-
-	for _, egg in ipairs(getEggs()) do
-
-		if targetAllowed(data, egg) then
-
-			local eggRoot = getEggRoot(egg)
-
-			if eggRoot then
-				local priority = egg:GetAttribute("Priority") or 999999
-				local value = egg:GetAttribute("StealValue") or 0
-				local distance = (root.Position - eggRoot.Position).Magnitude
-
-				table.insert(candidates, {
-					Object = egg,
-					Priority = priority,
-					Value = value,
-					Distance = distance
-				})
-			end
-		end
-	end
-
-	table.sort(candidates, function(a, b)
-
-		if a.Priority ~= b.Priority then
-			return a.Priority < b.Priority
-		end
-
-		if a.Value ~= b.Value then
-			return a.Value > b.Value
-		end
-
-		return a.Distance < b.Distance
-	end)
-
-	if candidates[1] then
-		return candidates[1].Object
-	end
-
-	return nil
-end
-
---==================================================
--- MOVEMENT
---==================================================
-
-local function moveTo(player, position, speed)
-	local char, humanoid, root = getCharacter(player)
-
-	if not humanoid or not root then
-		return false
-	end
-
-	speed = math.clamp(speed or DEFAULT_SPEED, 1, MAX_SPEED)
-
-	local oldSpeed = humanoid.WalkSpeed
-	humanoid.WalkSpeed = speed
-
-	local reached = false
-
-	local connection
-	connection = humanoid.MoveToFinished:Connect(function(success)
-		reached = success
-	end)
-
-	local path
-
-	local success = pcall(function()
-
-		path = PathfindingService:CreatePath({
-			AgentRadius = 2,
-			AgentHeight = 5,
-			AgentCanJump = true,
-			AgentCanClimb = true
-		})
-
-		path:ComputeAsync(root.Position, position)
-	end)
-
-	if success and path and path.Status == Enum.PathStatus.Success then
-
-		for _, waypoint in ipairs(path:GetWaypoints()) do
-
-			if not PlayerData[player] or not PlayerData[player].Enabled then
-				connection:Disconnect()
-				humanoid.WalkSpeed = oldSpeed
-				return false
-			end
-
-			if waypoint.Action == Enum.PathWaypointAction.Jump then
-				humanoid.Jump = true
-			end
-
-			humanoid:MoveTo(waypoint.Position)
-
-			local start = os.clock()
-
-			while os.clock() - start < 8 do
-
-				if not root.Parent then
-					break
-				end
-
-				if (root.Position - waypoint.Position).Magnitude <= 5 then
-					break
-				end
-
-				if not PlayerData[player] or not PlayerData[player].Enabled then
-					connection:Disconnect()
-					humanoid.WalkSpeed = oldSpeed
-					return false
-				end
-
-				task.wait()
-			end
-		end
-
-	else
-		humanoid:MoveTo(position)
-
-		local start = os.clock()
-
-		while os.clock() - start < 10 do
-
-			if (root.Position - position).Magnitude <= 7 then
-				break
-			end
-
-			if not PlayerData[player] or not PlayerData[player].Enabled then
-				break
-			end
-
-			task.wait()
-		end
-	end
-
-	connection:Disconnect()
-	humanoid.WalkSpeed = oldSpeed
-
-	return true
-end
-
---==================================================
--- PICK UP
---==================================================
-
-local function pickupEgg(player, egg)
-	local data = PlayerData[player]
-
-	if not data then
-		return false
-	end
-
-	if not isEggAvailable(egg) then
-		return false
-	end
-
-	local char, humanoid, root = getCharacter(player)
-	local eggRoot = getEggRoot(egg)
-
-	if not root or not eggRoot then
-		return false
-	end
-
-	if (root.Position - eggRoot.Position).Magnitude > PICKUP_DISTANCE then
-		return false
-	end
-
-	egg:SetAttribute("Taken", true)
-	egg:SetAttribute("Stolen", true)
-
-	data.Carrying = egg
-
-	-- Thông báo client
-	Remote:FireClient(player, "Carrying", true, getEggName(egg))
-
-	-- Tạo Weld để egg đi theo player
-	local oldParent = egg.Parent
-
-	if egg:IsA("Model") then
-		egg.Parent = char
-	elseif egg:IsA("BasePart") then
-		egg.Parent = char
-	end
-
-	eggRoot = getEggRoot(egg)
-
-	if eggRoot then
-
-		eggRoot.CanCollide = false
-		eggRoot.Massless = true
-
-		eggRoot.CFrame =
-			root.CFrame
-			* CFrame.new(0, 2.5, -2)
-
-		local weld = Instance.new("WeldConstraint")
-		weld.Name = "TnhVN_CarryWeld"
-		weld.Part0 = root
-		weld.Part1 = eggRoot
-		weld.Parent = eggRoot
-	end
-
-	return true
-end
-
---==================================================
--- DROP
---==================================================
-
-local function dropEgg(player)
-	local data = PlayerData[player]
-
-	if not data or not data.Carrying then
-		return false
-	end
-
-	local egg = data.Carrying
-	local char, humanoid, root = getCharacter(player)
-
-	if not root then
-		return false
-	end
-
-	local base = getPlayerBase(player)
-	local baseRoot = getBaseRoot(base)
-
-	if not baseRoot then
-		return false
-	end
-
-	if (root.Position - baseRoot.Position).Magnitude > DROP_DISTANCE then
-		return false
-	end
-
-	local eggRoot = getEggRoot(egg)
-
-	if eggRoot then
-
-		local weld = eggRoot:FindFirstChild("TnhVN_CarryWeld")
-
-		if weld then
-			weld:Destroy()
-		end
-
-		eggRoot.CanCollide = true
-		eggRoot.Massless = false
-	end
-
-	-- Đưa egg về base
-	egg.Parent = base or workspace
-
-	egg:SetAttribute("Taken", false)
-	egg:SetAttribute("Stolen", false)
-	egg:SetAttribute("OwnerUserId", player.UserId)
-
-	-- Nếu game của bạn có Inventory thì xử lý tại đây
-	local inventory = player:FindFirstChild("EggInventory")
-
-	if inventory then
-		local eggValue = Instance.new("StringValue")
-		eggValue.Name = getEggName(egg)
-		eggValue.Value = getEggName(egg)
-		eggValue.Parent = inventory
-	end
-
-	data.Carrying = nil
-
-	Remote:FireClient(player, "Carrying", false)
-
-	return true
-end
-
---==================================================
--- AUTO LOOP
---==================================================
-
-local function autoStealLoop(player)
-
-	task.spawn(function()
-
-		while PlayerData[player] do
-
-			local data = PlayerData[player]
-
-			if not data.Enabled then
-				task.wait(0.25)
-				continue
-			end
-
-			if data.Carrying then
-
-				local base = getPlayerBase(player)
-				local baseRoot = getBaseRoot(base)
-
-				if baseRoot then
-
-					Remote:FireClient(player, "State", "Returning")
-
-					moveTo(
-						player,
-						baseRoot.Position,
-						data.Speed
-					)
-
-					if data.Enabled then
-						dropEgg(player)
-					end
-				else
-					Remote:FireClient(player, "Error", "Không tìm thấy Base của bạn.")
-					task.wait(1)
-				end
-
-				continue
-			end
-
-			local egg = chooseEgg(player)
-
-			if egg then
-
-				local eggRoot = getEggRoot(egg)
-
-				if eggRoot then
-
-					Remote:FireClient(
-						player,
-						"Target",
-						getEggName(egg)
-					)
-
-					Remote:FireClient(
-						player,
-						"State",
-						"Going"
-					)
-
-					moveTo(
-						player,
-						eggRoot.Position,
-						data.Speed
-					)
-
-					if not data.Enabled then
-						continue
-					end
-
-					local _, _, root = getCharacter(player)
-
-					if root and
-						eggRoot.Parent and
-						(root.Position - eggRoot.Position).Magnitude <= PICKUP_DISTANCE then
-
-						local success = pickupEgg(player, egg)
-
-						if success then
-							Remote:FireClient(
-								player,
-								"State",
-								"RUN!!"
-							)
-						end
-					end
-				end
-
-				task.wait(0.15)
-
-			else
-				Remote:FireClient(
-					player,
-					"State",
-					"Waiting"
-				)
-
-				task.wait(1)
-			end
-		end
-	end)
-end
-
---==================================================
--- REMOTE COMMANDS
---==================================================
-
-Remote.OnServerEvent:Connect(function(player, command, ...)
-	local data = PlayerData[player]
-
-	if not data then
-		return
-	end
-
-	if command == "Toggle" then
-
-		local enabled = ...
-
-		data.Enabled = enabled == true
-
-		Remote:FireClient(
-			player,
-			"Enabled",
-			data.Enabled
-		)
-
-	elseif command == "Speed" then
-
-		local speed = tonumber(...)
-
-		if speed then
-			data.Speed = math.clamp(speed, 1, MAX_SPEED)
-		end
-
-	elseif command == "Targets" then
-
-		local targets = ...
-
-		if typeof(targets) == "table" then
-
-			data.Targets = {}
-
-			for name, enabled in pairs(targets) do
-				if enabled == true then
-					data.Targets[tostring(name)] = true
-				end
-			end
-		end
-
-	elseif command == "Drop" then
-
-		dropEgg(player)
-
-	elseif command == "Stop" then
-
-		data.Enabled = false
-
-		Remote:FireClient(
-			player,
-			"Enabled",
-			false
-		)
-	end
-end)
-
---==================================================
--- PLAYER
---==================================================
-
-Players.PlayerAdded:Connect(function(player)
-
-	PlayerData[player] = {
-		Enabled = false,
-		Speed = DEFAULT_SPEED,
-		Targets = {},
-		Carrying = nil
-	}
-
-	autoStealLoop(player)
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-
-	PlayerData[player] = nil
-end)
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tnh-VN AI</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:#070d1a;color:#eaf2ff;min-height:100vh;overflow:hidden}
+body:before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 20% 20%,#07366d55,transparent 35%),radial-gradient(circle at 80% 80%,#0059ff22,transparent 35%);pointer-events:none}
+button,input,textarea{font:inherit}.hidden{display:none!important}
+#app{position:fixed;right:24px;top:24px;width:min(1120px,calc(100vw - 48px));height:min(720px,calc(100vh - 48px));border:2px solid #0787ff;border-radius:28px;background:#071123ee;box-shadow:0 0 35px #007bff55,0 20px 80px #0009;backdrop-filter:blur(18px);overflow:hidden}
+header{height:92px;padding:17px 24px;display:flex;align-items:center;border-bottom:1px solid #147cff55;background:#08172bee}
+.logo{width:58px;height:58px;border-radius:16px;background:linear-gradient(145deg,#13b9ff,#0753ff);display:grid;place-items:center;font-size:34px;font-weight:900;box-shadow:0 0 25px #008cff88}
+.title{margin-left:18px}.title b{font-size:29px}.title b span{color:#0799ff}.title small{display:block;color:#8daee0;font-size:14px;margin-top:3px}
+.headBtns{margin-left:auto;display:flex;gap:10px}.iconBtn{width:48px;height:48px;border-radius:13px;border:1px solid #2389ff77;background:#0b1a33;color:#bcd8ff;font-size:25px;cursor:pointer}
+.main{height:calc(100% - 92px);display:flex;gap:12px;padding:16px}
+.notes{width:250px;min-width:210px;border:1px solid #1781ff66;border-radius:20px;background:#07152bee;padding:12px;overflow:auto}
+.notes h3{margin:5px 10px 12px;color:#dbeaff}.note{display:flex;gap:10px;align-items:center;padding:10px;border-radius:13px;color:#9ebde8;cursor:pointer}.note:hover,.note.active{background:#0869d955;color:#fff}.num{width:29px;height:29px;border-radius:50%;border:1px solid #168aff;display:grid;place-items:center;color:#d8ecff;font-size:13px}
+.chat{flex:1;border:1px solid #1781ff66;border-radius:22px;background:#07152bee;padding:16px;display:flex;flex-direction:column;min-width:0}
+.models{display:flex;gap:9px;overflow:auto;padding-bottom:12px}.model{white-space:nowrap;padding:12px 17px;border-radius:22px;border:1px solid #147bff77;background:#091a36;color:#b5cff4;cursor:pointer}.model.active{background:#067dff;color:#fff;box-shadow:0 0 20px #007bff66}
+#messages{flex:1;overflow:auto;padding:8px 4px}.msg{max-width:82%;padding:13px 16px;border-radius:17px;margin:10px 0;line-height:1.45;white-space:pre-wrap}.user{margin-left:auto;background:#096ee8;color:white}.ai{background:#0d203c;border:1px solid #1b78db66;color:#d7e7ff}
+.composer{border:1px solid #1386ff99;border-radius:18px;background:#06142ce8;padding:12px}.composer textarea{width:100%;height:82px;resize:none;background:transparent;border:0;outline:0;color:white;font-size:16px}.actions{display:flex;gap:8px;align-items:center;border-top:1px solid #1a5caa55;padding-top:10px}.action{border:1px solid #2379d888;background:#091c38;color:#bcd8ff;border-radius:11px;padding:9px 13px;cursor:pointer}.send{margin-left:auto;background:linear-gradient(135deg,#09b8ff,#0965ff);color:#fff;border:0;border-radius:11px;padding:11px 23px;font-weight:700;cursor:pointer}
+#bubble{position:fixed;right:25px;bottom:25px;width:66px;height:66px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#0db9ff,#0754ff);border:2px solid #168dff;box-shadow:0 0 28px #007bff99;color:#fff;font-size:35px;font-weight:900;cursor:pointer;z-index:20}
+#keyModal{position:fixed;inset:0;background:#020714aa;backdrop-filter:blur(7px);display:grid;place-items:center;z-index:30}.modal{width:min(520px,calc(100vw - 30px));border:2px solid #0787ff;border-radius:25px;background:#071326f5;box-shadow:0 0 45px #007bff66;padding:22px}.modalTop{display:flex;align-items:center;gap:14px}.modal h2{margin:0;font-size:27px}.modal h2 span{color:#078eff}.modal p{color:#8facdc}.key{width:100%;padding:17px;border-radius:15px;border:2px solid #087fff;background:#07162d;color:white;outline:0;font-size:17px}.confirm{width:100%;margin-top:14px;padding:16px;border:0;border-radius:15px;background:linear-gradient(135deg,#10bfff,#0759ff);color:white;font-size:18px;font-weight:800;cursor:pointer}.error{color:#ff7f9c;min-height:20px}
+@media(max-width:800px){#app{left:8px;right:8px;top:8px;width:auto;height:calc(100vh - 16px)}.notes{display:none}.main{padding:9px}.title b{font-size:22px}}
+</style>
+</head>
+<body>
+
+<div id="bubble" class="hidden" title="Mở Tnh-VN AI">T</div>
+
+<div id="keyModal">
+  <div class="modal">
+    <div class="modalTop"><div class="logo">T</div><div><h2>Tnh-VN <span>AI</span></h2><p>Nhập Key để tiếp tục</p></div></div>
+    <input id="keyInput" class="key" placeholder="Dán Key vào đây..." autocomplete="off">
+    <button id="confirmKey" class="confirm">🛡 XÁC NHẬN</button>
+    <div id="keyError" class="error"></div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+<header>
+  <div class="logo">T</div>
+  <div class="title"><b>Tnh-VN <span>AI</span></b><small>Trợ lý AI đa năng · Hỗ trợ học tập, làm việc, sáng tạo</small></div>
+  <div class="headBtns"><button id="minBtn" class="iconBtn">−</button><button id="closeBtn" class="iconBtn">×</button></div>
+</header>
+<div class="main">
+  <aside class="notes">
+    <h3>📝 Note</h3>
+    <div id="notes"></div>
+  </aside>
+  <section class="chat">
+    <div class="models" id="models">
+      <button class="model active" data-model="ChatGPT">◉ ChatGPT</button>
+      <button class="model" data-model="Gemini">✦ Gemini</button>
+      <button class="model" data-model="Claude">✹ Claude</button>
+      <button class="model" data-model="DeepSeek">◉ DeepSeek</button>
+      <button class="model" data-model="Kết hợp">🔗 Kết hợp</button>
+    </div>
+    <div id="messages">
+      <div class="msg ai">Xin chào! Đây là giao diện Tnh-VN AI. Hãy nhập câu hỏi bên dưới.</div>
+    </div>
+    <div class="composer">
+      <textarea id="prompt" placeholder="Hỏi AI bất kỳ điều gì..."></textarea>
+      <div class="actions">
+        <button class="action" id="copyInput">📋 Copy</button>
+        <button class="action" id="editInput">✎ Chỉnh sửa</button>
+        <button class="action" id="copyChat">⧉ Copy AI</button>
+        <button class="send" id="send">➤ Gửi</button>
+      </div>
+    </div>
+  </section>
+</div>
+</div>
+
+<script>
+const ACCESS_KEY="Tnh-VN";
+const modal=document.getElementById("keyModal"), app=document.getElementById("app"), bubble=document.getElementById("bubble");
+const input=document.getElementById("keyInput"), err=document.getElementById("keyError");
+
+const noteTexts=["Ý tưởng hôm nay...","Kế hoạch công việc...","Học tập & kiến thức...","Dự án cá nhân...","Ghi chú nhanh...","Tài liệu tham khảo...","Mục tiêu phát triển...","Ý tưởng sáng tạo...","Danh sách cần làm...","Ghi chú khác..."];
+document.getElementById("notes").innerHTML=noteTexts.map((x,i)=>`<div class="note ${i===0?"active":""}" data-note="${i}"><span class="num">${i+1}</span><span>${x}</span></div>`).join("");
+
+function unlock(){
+  if(input.value.trim()===ACCESS_KEY){
+    modal.classList.add("hidden"); app.classList.remove("hidden");
+    localStorage.setItem("tnhUnlocked","1");
+  }else err.textContent="Key không đúng.";
+}
+document.getElementById("confirmKey").onclick=unlock;
+input.addEventListener("keydown",e=>{if(e.key==="Enter")unlock()});
+
+document.getElementById("minBtn").onclick=()=>{app.classList.add("hidden");bubble.classList.remove("hidden")};
+bubble.onclick=()=>{bubble.classList.add("hidden");app.classList.remove("hidden")};
+document.getElementById("closeBtn").onclick=()=>{app.classList.add("hidden");bubble.classList.add("hidden")};
+
+document.querySelectorAll(".model").forEach(b=>b.onclick=()=>{
+ document.querySelectorAll(".model").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+});
+
+const prompt=document.getElementById("prompt"), messages=document.getElementById("messages");
+let lastAI="";
+function addMsg(text,type){const d=document.createElement("div");d.className="msg "+type;d.textContent=text;messages.appendChild(d);messages.scrollTop=messages.scrollHeight;return d}
+
+document.getElementById("send").onclick=async()=>{
+ const q=prompt.value.trim(); if(!q)return;
+ addMsg(q,"user"); prompt.value="";
+ const active=document.querySelector(".model.active").dataset.model;
+ const ai=addMsg("Đang xử lý với "+active+"…","ai");
+ /*
+  * KẾT NỐI AI THẬT:
+  * Thay phần bên dưới bằng backend của bạn.
+  * Không đặt API key của OpenAI/Gemini/Claude/DeepSeek trực tiếp trong
+  * JavaScript phía trình duyệt; hãy gọi server của bạn.
+  *
+  * Ví dụ:
+  * const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
+  * body:JSON.stringify({model:active,message:q})});
+  * const data=await r.json(); ai.textContent=data.reply;
+  */
+ setTimeout(()=>{
+   lastAI="Demo Tnh-VN AI: Bạn vừa hỏi: "+q+"\\n\\nGiao diện đã sẵn sàng. Hãy nối endpoint /api/chat ở server để dùng mô hình AI thật.";
+   ai.textContent=lastAI;
+ },500);
+};
+
+document.getElementById("copyInput").onclick=()=>navigator.clipboard.writeText(prompt.value);
+document.getElementById("copyChat").onclick=()=>navigator.clipboard.writeText(lastAI||"");
+document.getElementById("editInput").onclick=()=>{prompt.focus();prompt.select()};
+
+document.querySelectorAll(".note").forEach(n=>n.onclick=()=>{
+ document.querySelectorAll(".note").forEach(x=>x.classList.remove("active"));n.classList.add("active");
+ prompt.value=n.innerText.replace(/^\\d+/,"").trim();
+});
+
+if(localStorage.getItem("tnhUnlocked")==="1"){modal.classList.add("hidden");app.classList.remove("hidden")}
+</script>
+</body>
+</html>
