@@ -1,10 +1,12 @@
--- Tnh-VN MENU - Bản Fix Lag Mạnh + Steal Egg Hoạt Động
+-- ============================================================
+-- Tnh-VN MENU - BẢN HOÀN CHỈNH (Fix ESP Egg + Auto Steal)
+-- Key: Tnh-VN
+-- ============================================================
 local Players=game:GetService("Players")
 local UIS=game:GetService("UserInputService")
 local RS=game:GetService("RunService")
 local Lighting=game:GetService("Lighting")
 local WS=game:GetService("Workspace")
-local TS=game:GetService("TweenService")
 local LP=Players.LocalPlayer
 
 local S={
@@ -172,7 +174,7 @@ local XB=SBtn("FixLag","FixLag","⚡")
 local EB=SBtn("Steal",T("steal"),"🥚")
 local LB=SBtn("Language",T("lang"),"⚙")
 
-function OpenPg(n)
+local function OpenPg(n)
 for x,p in pairs(Pages) do p.Visible=(x==n) end
 for x,b in pairs(Btns) do
 b.BackgroundColor3=x==n and Color3.fromRGB(0,150,215) or Color3.fromRGB(29,36,40)
@@ -283,7 +285,7 @@ b.MouseButton1Click:Connect(function() on=not on;R();cb(on) end)
 R();return {Row=r,Title=tl,Description=dl}
 end
 
--- Egg helpers
+-- ============ EGG HELPERS ============
 local function PI(s)
 if not s then return 0 end
 local n=tonumber((s:gsub("[^%d%.]",""))) or 0
@@ -312,84 +314,102 @@ end
 return nil
 end
 
--- ============= SCAN CACHE + OPTIMIZATION =============
+local function RCol(r)
+r=(r or ""):lower()
+if r=="secret" then return Color3.fromRGB(255,30,30) end
+if r=="divine" or r=="eternal" then return Color3.fromRGB(255,120,255) end
+if r=="cosmic" then return Color3.fromRGB(200,80,255) end
+if r=="mythic" then return Color3.fromRGB(255,60,60) end
+if r=="legendary" then return Color3.fromRGB(255,200,50) end
+if r=="epic" then return Color3.fromRGB(200,100,255) end
+if r=="rare" then return Color3.fromRGB(80,180,255) end
+if r=="uncommon" then return Color3.fromRGB(80,255,120) end
+return Color3.fromRGB(220,220,220)
+end
+
+-- ============ SCAN (PROXIMITYPROMPT-BASED) ============
 local ScanCache={t=0,data={},radius=0}
-local RGNCache=setmetatable({},{__mode="k"})
+local DECOR_KEYWORDS={"treadmill","machine","batch","fuse","conveyor","belt","decoration","floor","wall","untitled","cylinder","plane"}
 
-local function RGN(p)
-if not p then return nil,nil end
-if RGNCache[p] then return RGNCache[p][1],RGNCache[p][2] end
-for depth=1,3 do
-if not p then break end
-for _,d in ipairs(p:GetChildren()) do
-if d:IsA("BillboardGui") and d.Name~="TnhVN_EggESP" then
-for _,t in ipairs(d:GetChildren()) do
-if t:IsA("TextLabel") and t.Text~="" then
-local n,pr=t.Text:match("^(.-)%s*[—%-–]%s*(%$[%d%.,]+[KMB]?/?s?)$")
-if n and pr then
-local a=n:gsub("^%s+",""):gsub("%s+$","")
-RGNCache[p]={a,pr};return a,pr
+local function isDecor(name)
+local n=name:lower()
+for _,kw in ipairs(DECOR_KEYWORDS) do
+if n:find(kw,1,true) then return true end
 end
-local pn=t.Text:match("^(.-)%s*[—%-–]")
-if pn and #pn>1 and #pn<40 then
-local a=pn:gsub("^%s+",""):gsub("%s+$","")
-RGNCache[p]={a,t.Text};return a,t.Text
-end
-end
-end
-end
-end
-p=p.Parent
-end
-return nil,nil
+return false
 end
 
-local function RAN(p)
-for depth=1,3 do
-if not p then break end
-for _,an in ipairs({"EggName","PetName","EggType","PetType","Name","Type","Pet"}) do
-local ok,v=pcall(function() return p:GetAttribute(an) end)
-if ok and typeof(v)=="string" and #v>1 and #v<40 then return v end
+local function ReadPetFromBB(bbGui)
+if not bbGui then return nil,nil end
+local petName,income
+for _,desc in ipairs(bbGui:GetDescendants()) do
+if desc:IsA("TextLabel") and desc.Text~="" then
+local inc=desc.Text:match("(%$[%d%.,]+[KMB]?%s*/%s*s?)")
+if inc then income=inc end
+if not desc.Text:find("%$") and #desc.Text>=2 and #desc.Text<=30 then
+petName=desc.Text:gsub("^%s+",""):gsub("%s+$","")
 end
-for _,c in ipairs(p:GetChildren()) do
-if c:IsA("StringValue") and #c.Value>1 and #c.Value<40 then return c.Value end
 end
-p=p.Parent
 end
-return nil
+return petName,income
 end
 
 local function Scan(radius)
-radius=radius or 250
+radius=radius or 400
 if tick()-ScanCache.t<1.0 and ScanCache.radius>=radius then
 return ScanCache.data
 end
-local eggs,seen={},{}
+local eggs={}
 local c=LP.Character
 local r=c and c:FindFirstChild("HumanoidRootPart")
-local pos=r and r.Position
-if not pos then return eggs end
+if not r then return eggs end
+local center=r.Position
 local params=OverlapParams.new()
 params.FilterType=Enum.RaycastFilterType.Exclude
-params.FilterDescendantsInstances=c and {c} or {}
-local ok,cands=pcall(function() return WS:GetPartBoundsInRadius(pos,radius,params) end)
-if not ok or not cands then return eggs end
-for _,o in ipairs(cands) do
-if o:IsA("BasePart") and not seen[o] then
-local n=o.Name:lower()
-if n:find("egg") or n:find("trứng") then
-local a,ic=o.Parent,false
-for _=1,4 do
-if not a or a==WS then break end
-if a:FindFirstChildOfClass("Humanoid") then ic=true;break end
-a=a.Parent
+params.FilterDescendantsInstances={c}
+local ok,parts=pcall(function()
+return WS:GetPartBoundsInRadius(center,radius,params)
+end)
+if not ok or not parts then return eggs end
+local seenHost={}
+for _,part in ipairs(parts) do
+if part:IsA("BasePart") then
+local prompt,host=nil,nil
+local p1=part:FindFirstChildOfClass("ProximityPrompt")
+if p1 then prompt=p1;host=part end
+if not prompt and part.Parent and part.Parent~=WS then
+local p2=part.Parent:FindFirstChildOfClass("ProximityPrompt")
+if p2 then prompt=p2;host=part.Parent end
 end
-if not ic then
-seen[o]=true
-local rn,gt=RGN(o)
-if not rn then rn=RAN(o) end
-if not rn or rn=="" then rn=o.Name end
-table.insert(eggs,{name=o.Name,real=rn,part=o,info=GI(rn),gameText=gt})
+if not prompt then
+for _,d in ipairs(part:GetDescendants()) do
+if d:IsA("ProximityPrompt") then prompt=d;host=part;break end
+end
+end
+if prompt and host and not seenHost[host] then
+local hostName=host.Name or ""
+if not isDecor(hostName) then
+seenHost[host]=true
+local bb=host:FindFirstChildOfClass("BillboardGui")
+if not bb then bb=part:FindFirstChildOfClass("BillboardGui") end
+if not bb and host.Parent then bb=host.Parent:FindFirstChildOfClass("BillboardGui") end
+local petName,income=ReadPetFromBB(bb)
+if not petName then
+local searchHost=host.Parent or host
+for _,attr in ipairs({"EggName","PetName","Pet","Name","EggType","Type"}) do
+local ok2,v=pcall(function() return searchHost:GetAttribute(attr) end)
+if ok2 and type(v)=="string" and #v>=2 and #v<=30 then petName=v;break end
+end
+end
+if not petName and host.Parent then
+for _,ch in ipairs(host.Parent:GetChildren()) do
+if ch:IsA("StringValue") and #ch.Value>=2 and #ch.Value<=30 then petName=ch.Value;break end
+end
+end
+if not petName then petName=hostName end
+local mainPart=part
+if host:IsA("BasePart") then mainPart=host end
+table.insert(eggs,{name=hostName,real=petName,part=mainPart,prompt=prompt,info=GI(petName),income=income})
 end
 end
 end
@@ -400,10 +420,10 @@ ScanCache.radius=radius
 return eggs
 end
 
--- MAIN PAGE
+-- ============ MAIN PAGE ============
 local MH=PgHdr(MainP,T("main"),T("mainD"))
 
--- ESP BOX
+-- ESP PLAYER
 local ESD={}
 local function AddESP(p)
 if p==LP or ESD[p] then return end
@@ -429,7 +449,6 @@ for _,p in ipairs(Players:GetPlayers()) do if p~=LP then AddESP(p) end end
 Players.PlayerAdded:Connect(AddESP)
 Players.PlayerRemoving:Connect(RemESP)
 
--- ESP throttle 30fps
 local ESPAcc=0
 RS.RenderStepped:Connect(function(dt)
 if not S.ESP then
@@ -588,7 +607,7 @@ if v then S.AimbotHead=false;StartAB()
 elseif not S.AimbotHead and ABC then ABC:Disconnect();ABC=nil end
 end)
 
--- POV SLIDER
+-- POV
 local PR=Row(MainP,95)
 local PT=Lbl(PR,T("pov"),15,UDim2.new(0,18,0,11))
 local PV=Lbl(PR,tostring(S.POV),13,UDim2.new(1,-80,0,11))
@@ -628,11 +647,6 @@ SetPOV(i.Position.X)
 end
 end)
 UIS.InputEnded:Connect(function() PD=false end)
-task.spawn(function()
-task.wait(1)
-local cam=WS.CurrentCamera
-if cam then cam.FieldOfView=S.POV end
-end)
 
 -- ANTI HIT
 local NST={
@@ -641,7 +655,7 @@ Enum.HumanoidStateType.FallingDown,
 Enum.HumanoidStateType.Physics,
 Enum.HumanoidStateType.PlatformStanding
 }
-local AHF,AHL
+local AHF
 local function ApplyAH()
 local c=LP.Character
 local h=c and c:FindFirstChildOfClass("Humanoid")
@@ -653,7 +667,6 @@ AHF=Instance.new("ForceField");AHF.Name="TnhVN_AH";AHF.Visible=false;AHF.Parent=
 end
 end
 local function StopAH()
-if AHL then AHL:Disconnect();AHL=nil end
 if AHF then AHF:Destroy();AHF=nil end
 local c=LP.Character
 local h=c and c:FindFirstChildOfClass("Humanoid")
@@ -663,58 +676,51 @@ local AHT=Tog(MainP,T("antiHit"),T("antiHitD"),function(v)
 if v then StopAH();S.AntiHit=true;ApplyAH() else S.AntiHit=false;StopAH() end
 end)
 
--- ANTIBAN
-local ABT=Tog(MainP,T("antiban"),T("antibanD"),function(v)
-S.Antiban=v
-end)
+local ABT=Tog(MainP,T("antiban"),T("antibanD"),function(v) S.Antiban=v end)
 
--- ESP EGG
+-- ============ ESP EGG (đã fix) ============
 local ETags={}
-local function RCol(r)
-r=(r or ""):lower()
-if r=="secret" then return Color3.fromRGB(255,30,30) end
-if r=="divine" or r=="eternal" then return Color3.fromRGB(255,120,255) end
-if r=="cosmic" then return Color3.fromRGB(200,80,255) end
-if r=="mythic" then return Color3.fromRGB(255,60,60) end
-if r=="legendary" then return Color3.fromRGB(255,200,50) end
-if r=="epic" then return Color3.fromRGB(200,100,255) end
-if r=="rare" then return Color3.fromRGB(80,180,255) end
-if r=="uncommon" then return Color3.fromRGB(80,255,120) end
-return Color3.fromRGB(255,255,255)
-end
-local function CEtag(part,nm,info,gt)
+
+local function CEtag(part,petName,income,info)
 local txt,col
-if info and info.pet then txt=info.pet.." — "..(info.income or "?")
-elseif gt and gt~="" then txt=gt
-else txt=nm.." — ?" end
+if petName and petName~="" then
+local inc=income or (info and info.income) or "?"
+txt=petName.." — "..inc
 col=RCol(info and info.rarity)
+else
+txt="Egg — ?"
+col=Color3.fromRGB(200,200,200)
+end
 if ETags[part] and ETags[part].Parent then
-local l=ETags[part]:FindFirstChild("L")
+local l=ETags[part]:FindFirstChild("L",true)
 if l then l.Text=txt;l.TextColor3=col end
 return
 end
 local bb=Instance.new("BillboardGui")
 bb.Name="TnhVN_EggESP";bb.Adornee=part
-bb.Size=UDim2.new(0,220,0,36);bb.StudsOffset=Vector3.new(0,3.5,0)
-bb.AlwaysOnTop=true;bb.MaxDistance=300;bb.LightInfluence=0;bb.Parent=part
+bb.Size=UDim2.new(0,180,0,22);bb.StudsOffset=Vector3.new(0,5,0)
+bb.AlwaysOnTop=true;bb.MaxDistance=250;bb.LightInfluence=0;bb.Parent=part
 local l=Instance.new("TextLabel")
-l.Name="L";l.BackgroundTransparency=1;l.Size=UDim2.new(1,0,1,0)
-l.Font=Enum.Font.GothamBold;l.TextSize=15;l.TextStrokeTransparency=0
-l.TextStrokeColor3=Color3.new(0,0,0);l.TextXAlignment=Enum.TextXAlignment.Center
-l.TextYAlignment=Enum.TextYAlignment.Center
+l.Name="L";l.BackgroundTransparency=1
+l.Size=UDim2.new(1,0,1,0);l.Font=Enum.Font.GothamBold;l.TextSize=14
+l.TextStrokeTransparency=0;l.TextStrokeColor3=Color3.new(0,0,0)
+l.TextXAlignment=Enum.TextXAlignment.Center;l.TextYAlignment=Enum.TextYAlignment.Center
 l.Text=txt;l.TextColor3=col;l.Parent=bb
 ETags[part]=bb
 end
+
 local function CEr()
 for _,t in pairs(ETags) do if t then t:Destroy() end end
 ETags={}
 end
+
 local function UEE()
 if not S.ESPEgg then CEr();return end
 local eggs=Scan(300)
 local st={}
 for _,e in ipairs(eggs) do
-st[e.part]=true;CEtag(e.part,e.real,e.info,e.gameText)
+st[e.part]=true
+CEtag(e.part,e.real,e.income,e.info)
 end
 for p,t in pairs(ETags) do
 if not st[p] or not p.Parent then
@@ -723,16 +729,17 @@ ETags[p]=nil
 end
 end
 end
+
 task.spawn(function()
-while task.wait(2) do if S.ESPEgg then pcall(UEE) end end
+while task.wait(1.5) do if S.ESPEgg then pcall(UEE) end end
 end)
-local EET=Tog(MainP,"ESP Egg","Hiện tên + giá trên đầu trứng",function(v)
+
+local EET=Tog(MainP,"ESP Egg","Hiện pet + giá trên đầu trứng",function(v)
 S.ESPEgg=v
 if v then task.spawn(UEE) else CEr() end
 end)
 
--- FLY
-local FH=PgHdr(FlyP,"Fly","Movement")
+-- ============ FLY ============
 local FC
 local function SFL()
 S.Fly=false
@@ -874,33 +881,27 @@ end
 end)
 UIS.InputEnded:Connect(function() SD=false end)
 
--- ============= FIX LAG CỰC MẠNH =============
-local XH=PgHdr(FixP,"FixLag","Performance Boost")
+-- ============ FIX LAG (cực mạnh) ============
 local Saved={}
 local XC
 local function DE(o)
--- Hiệu ứng hạt/sáng
 if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam") or o:IsA("Smoke")
 or o:IsA("Fire") or o:IsA("Sparkles") then
 if Saved[o]==nil then Saved[o]={T="bool",V=o.Enabled} end
 pcall(function() o.Enabled=false end)
 end
--- Đèn
 if o:IsA("PointLight") or o:IsA("SpotLight") or o:IsA("SurfaceLight") then
 if Saved[o]==nil then Saved[o]={T="bool",V=o.Enabled} end
 pcall(function() o.Enabled=false end)
 end
--- Texture/Decal
 if o:IsA("Texture") or o:IsA("Decal") then
 if Saved[o]==nil then Saved[o]={T="num",V=o.Transparency} end
 pcall(function() o.Transparency=1 end)
 end
--- Mesh render
-if o:IsA("SpecialMesh") or o:IsA("BlockMesh") or o:IsA("CylinderMesh") or o:IsA("FileMesh") then
-if Saved[o]==nil then Saved[o]={T="num",V=o.Scale} end
+if o:IsA("SpecialMesh") or o:IsA("BlockMesh") or o:IsA("CylinderMesh") then
+if Saved[o]==nil then Saved[o]={T="mesh",V=o.Scale} end
 pcall(function() o.Scale=Vector3.new(0,0,0) end)
 end
--- Part
 if o:IsA("BasePart") then
 if Saved[o]==nil then Saved[o]={T="part",CS=o.CastShadow,MT=o.Material,R=o.Reflectance} end
 pcall(function()
@@ -909,19 +910,15 @@ o.Reflectance=0
 if o.Material~=Enum.Material.Water then o.Material=Enum.Material.Plastic end
 end)
 end
--- Sound
 if o:IsA("Sound") then
 if Saved[o]==nil then Saved[o]={T="bool",V=o.Playing} end
 pcall(function() o.Playing=false end)
 end
--- ForceField / Explosion (không)
 end
 
 local function SXF()
 S.FixLag=true
--- Quét lần đầu
 for _,o in ipairs(WS:GetDescendants()) do DE(o) end
--- Lighting
 pcall(function()
 Saved.GS=Lighting.GlobalShadows;Lighting.GlobalShadows=false
 Saved.EDS=Lighting.EnvironmentDiffuseScale;Lighting.EnvironmentDiffuseScale=0
@@ -930,23 +927,18 @@ Saved.BR=Lighting.Brightness;Lighting.Brightness=0
 Saved.FogE=Lighting.FogEnd;Lighting.FogEnd=100000
 Saved.FogS=Lighting.FogStart;Lighting.FogStart=100000
 end)
--- Terrain
 if WS.Terrain then
 pcall(function()
 Saved.WWS=WS.Terrain.WaterWaveSize;WS.Terrain.WaterWaveSize=0
 Saved.WWP=WS.Terrain.WaterWaveSpeed;WS.Terrain.WaterWaveSpeed=0
 Saved.WR=WS.Terrain.WaterReflectance;WS.Terrain.WaterReflectance=0
 Saved.WT=WS.Terrain.WaterTransparency;WS.Terrain.WaterTransparency=1
-Saved.Decals=WS.Terrain.Decoration;WS.Terrain.Decoration=false
 end)
 end
--- Giảm render
-pcall(function()
-Settings().Rendering.QualityLevel=Enum.QualityLevel.Level01
-end)
--- Theo dõi object mới
+pcall(function() Settings().Rendering.QualityLevel=Enum.QualityLevel.Level01 end)
 XC=WS.DescendantAdded:Connect(function(o) if S.FixLag then DE(o) end end)
 end
+
 local function SPF()
 S.FixLag=false
 if XC then XC:Disconnect();XC=nil end
@@ -959,8 +951,9 @@ if v.CS~=nil then o.CastShadow=v.CS end
 if v.MT~=nil then o.Material=v.MT end
 if v.R~=nil then o.Reflectance=v.R end
 elseif v.T=="num" then
-if o:IsA("Texture") or o:IsA("Decal") then o.Transparency=v.V
-elseif o:IsA("SpecialMesh") or o:IsA("BlockMesh") or o:IsA("CylinderMesh") or o:IsA("FileMesh") then o.Scale=v.V end
+if o:IsA("Texture") or o:IsA("Decal") then o.Transparency=v.V end
+elseif v.T=="mesh" then
+o.Scale=v.V
 elseif v.T=="bool" then
 o.Enabled=v.V
 end
@@ -982,19 +975,19 @@ if Saved.WWS~=nil then WS.Terrain.WaterWaveSize=Saved.WWS end
 if Saved.WWP~=nil then WS.Terrain.WaterWaveSpeed=Saved.WWP end
 if Saved.WR~=nil then WS.Terrain.WaterReflectance=Saved.WR end
 if Saved.WT~=nil then WS.Terrain.WaterTransparency=Saved.WT end
-if Saved.Decals~=nil then WS.Terrain.Decoration=Saved.Decals end
 end
 end)
 Saved={}
 end
+
 local XT=Tog(FixP,T("fix"),T("fixD"),function(v)
 if v then SXF() else SPF() end
 end)
--- Thêm toggle FixLag cực mạnh
-local XH2=Lbl(FixP,"FixLag đã tối ưu: tắt texture, mesh, sound, shadow, water wave, giảm render quality.",11,UDim2.new(0,5,0,0))
-XH2.Size=UDim2.new(1,-10,0,30);XH2.TextColor3=Color3.fromRGB(140,150,155);XH2.TextWrapped=true
 
--- STEAL
+local XInfo=Lbl(FixP,"Tắt texture, mesh, sound, shadow, water wave, render quality → giảm lag mạnh. Tắt đi để khôi phục.",11,UDim2.new(0,5,0,0))
+XInfo.Size=UDim2.new(1,-10,0,40);XInfo.TextColor3=Color3.fromRGB(140,150,155);XInfo.TextWrapped=true
+
+-- ============ STEAL ============
 local EH=PgHdr(StealP,T("steal"),"Steal An Egg")
 local StatR=Row(StealP,48)
 local StatL=Lbl(StatR,T("stat")..": "..T("off"),14,UDim2.new(0,18,0,12))
@@ -1007,90 +1000,43 @@ ELTx.TextColor3=Color3.fromRGB(140,150,155)
 ELTx.Size=UDim2.new(1,-36,1,-50);ELTx.TextWrapped=true
 ELTx.TextYAlignment=Enum.TextYAlignment.Top;ELTx.Font=Enum.Font.Code
 
--- ============= INTERACT EGG (FIX) =============
-local function GetPrompt(part)
-if not part then return nil end
-local pr=part:FindFirstChildOfClass("ProximityPrompt")
-if pr then return pr end
-if part.Parent then
-pr=part.Parent:FindFirstChildOfClass("ProximityPrompt")
-if pr then return pr end
-end
-for _,d in ipairs(part:GetDescendants()) do
-if d:IsA("ProximityPrompt") then return d end
-end
-return nil
-end
-
-local function GetClick(part)
-if not part then return nil end
-local cd=part:FindFirstChildOfClass("ClickDetector")
-if cd then return cd end
-if part.Parent then
-cd=part.Parent:FindFirstChildOfClass("ClickDetector")
-if cd then return cd end
-end
-for _,d in ipairs(part:GetDescendants()) do
-if d:IsA("ClickDetector") then return d end
-end
-return nil
-end
-
-local function GetTouchPart(part)
-if not part then return nil end
-for _,d in ipairs(part:GetDescendants()) do
-if d:IsA("BasePart") and d~=part then return d end
-end
-if part.Parent then
-for _,d in ipairs(part.Parent:GetChildren()) do
-if d:IsA("BasePart") and d~=part then return d end
-end
-end
-return part
-end
-
-local function InteractEgg(part)
-if not part or not part.Parent then return false end
+-- Interact Egg
+local function InteractEgg(egg)
+if not egg or not egg.part or not egg.part.Parent then return false end
 local ok=false
--- 1. ProximityPrompt
-local pr=GetPrompt(part)
-if pr then
+if egg.prompt then
 pcall(function()
 if fireproximityprompt then
-fireproximityprompt(pr)
+fireproximityprompt(egg.prompt)
 ok=true
 end
 end)
 end
--- 2. ClickDetector
-local cd=GetClick(part)
-if cd then
-pcall(function()
-if fireclickdetector then
-fireclickdetector(cd)
+if not ok then
+local cd=egg.part:FindFirstChildOfClass("ClickDetector")
+if not cd and egg.part.Parent then cd=egg.part.Parent:FindFirstChildOfClass("ClickDetector") end
+if cd and fireclickdetector then
+pcall(fireclickdetector,cd)
 ok=true
 end
-end)
 end
--- 3. TouchInterest
+if not ok then
 local c=LP.Character
 local r=c and c:FindFirstChild("HumanoidRootPart")
-if r then
-local tp=GetTouchPart(part)
-if tp and firetouchinterest then
+if r and firetouchinterest then
 pcall(function()
-firetouchinterest(r,tp,0)
-task.wait(0.03)
-firetouchinterest(r,tp,1)
-ok=true
+firetouchinterest(r,egg.part,0)
+task.wait(0.05)
+firetouchinterest(r,egg.part,1)
 end)
+ok=true
 end
 end
 return ok
 end
 
 local function UEL()
-local eggs=Scan(400)
+local eggs=Scan(500)
 if #eggs==0 then ELTx.Text=T("noEgg");return end
 local c=LP.Character
 local r=c and c:FindFirstChild("HumanoidRootPart")
@@ -1100,7 +1046,7 @@ for i,e in ipairs(eggs) do
 if i>15 then txt=txt.."\n... +"..(#eggs-15).." egg khác";break end
 local inf=e.info or {}
 local d=r and math.floor((e.part.Position-r.Position).Magnitude) or 0
-txt=txt.."• "..(e.real or e.name).."\n   "..(inf.income or "?").." | "..(inf.rarity or "?").." | "..d.."m\n"
+txt=txt.."• "..(e.real or e.name).."\n   "..(e.income or inf.income or "?").." | "..(inf.rarity or "?").." | "..d.."m\n"
 end
 ELTx.Text=txt
 end
@@ -1116,7 +1062,7 @@ SB2.MouseButton1Click:Connect(function()
 SB2.Text="⏳ Đang quét...";task.wait(.05);pcall(UEL);SB2.Text=T("eggScan")
 end)
 
--- Nút Steal 1 Egg (thủ công)
+-- Steal 1 Egg thủ công
 local SR3=Row(StealP,55)
 local SB3=Instance.new("TextButton")
 SB3.Size=UDim2.new(1,-36,0,36);SB3.Position=UDim2.new(0,18,.5,-18)
@@ -1125,19 +1071,20 @@ SB3.Text="🥚 Steal 1 Egg gần nhất";SB3.TextColor3=Color3.new(1,1,1)
 SB3.TextSize=13;SB3.Font=Enum.Font.GothamBold;SB3.ZIndex=15;SB3.Parent=SR3
 Corner(SB3,9)
 SB3.MouseButton1Click:Connect(function()
-local eggs=Scan(400)
-if #eggs==0 then SB3.Text="❌ Không có Egg";task.wait(1);SB3.Text="🥚 Steal 1 Egg gần nhất";return end
+local eggs=Scan(500)
+if #eggs==0 then
+SB3.Text="❌ Không có Egg";task.wait(1);SB3.Text="🥚 Steal 1 Egg gần nhất";return
+end
 local c=LP.Character
 local r=c and c:FindFirstChild("HumanoidRootPart")
 if not r then return end
 table.sort(eggs,function(a,b) return (a.part.Position-r.Position).Magnitude<(b.part.Position-r.Position).Magnitude end)
 local target=eggs[1]
--- Teleport đến gần
 local pos=target.part.Position+Vector3.new(0,3,0)
 r.CFrame=CFrame.new(pos)
 r.AssemblyLinearVelocity=Vector3.zero
 task.wait(0.15)
-InteractEgg(target.part)
+InteractEgg(target)
 SB3.Text="✅ Đã thử: "..(target.real or target.name)
 task.wait(1.5)
 SB3.Text="🥚 Steal 1 Egg gần nhất"
@@ -1145,7 +1092,7 @@ end)
 
 local PTog=Tog(StealP,T("prio"),T("prioD"),function(v) S.PrioritySecret=v end)
 
--- BASE FINDER (tối ưu: cache + giới hạn)
+-- BASE FINDER
 local CBase=nil
 local BaseCacheT=0
 local function FB()
@@ -1210,7 +1157,6 @@ end
 return false
 end
 
--- ============= AUTO STEAL FIX =============
 local LPA=0
 local CIF=nil
 local function ECI()
@@ -1229,6 +1175,7 @@ local c=LP.Character
 local h=c and c:FindFirstChildOfClass("Humanoid")
 if h and not S.AntiHit then for _,st in ipairs(NST) do pcall(function() h:SetStateEnabled(st,true) end) end end
 end
+
 local function FNE()
 local c=LP.Character
 local r=c and c:FindFirstChild("HumanoidRootPart")
@@ -1237,7 +1184,7 @@ local all=Scan(500)
 if #all==0 then return nil end
 local best,bs=nil,-math.huge
 for _,e in ipairs(all) do
-if e.part and e.part.Parent and EMP(e) then
+if e.part and e.part.Parent and e.prompt and EMP(e) then
 local d=(e.part.Position-r.Position).Magnitude
 local inf=e.info or {}
 local sc=-d
@@ -1251,6 +1198,7 @@ end
 end
 return best
 end
+
 local function SAS()
 S.AutoSteal=true
 StatL.Text=T("stat")..": "..T("on");StatL.TextColor3=Color3.fromRGB(0,220,100)
@@ -1265,7 +1213,7 @@ local AST=Tog(StealP,T("autoSteal"),T("autoStealD"),function(v)
 if v then SAS() else SASstop() end
 end)
 
--- PRIORITY LIST (fix scan radius)
+-- PRIORITY LIST
 local PLR=Row(StealP,340)
 local PLT=Lbl(PLR,"Danh mục trứng ưu tiên",15,UDim2.new(0,18,0,10))
 PLT.Font=Enum.Font.GothamMedium
@@ -1364,45 +1312,6 @@ end
 DTs={}
 end
 end)
-
--- SCRIPT CARD
-local function ScriptCard(parent,title,desc,url)
-local r=Row(parent,90)
-local t=Lbl(r,title,16,UDim2.new(0,18,0,10))
-t.Font=Enum.Font.GothamMedium
-local d=Lbl(r,desc,12,UDim2.new(0,18,0,40))
-d.TextColor3=Color3.fromRGB(145,155,160)
-d.Size=UDim2.new(1,-185,0,42)
-local b=Instance.new("TextButton")
-b.Size=UDim2.new(0,135,0,36);b.Position=UDim2.new(1,-153,.5,-18)
-b.BackgroundColor3=Color3.fromRGB(0,150,215);b.BorderSizePixel=0
-b.Text="EXECUTE";b.TextColor3=Color3.new(1,1,1)
-b.TextSize=13;b.Font=Enum.Font.GothamBold
-b.Active=true;b.ZIndex=15;b.Parent=r
-Corner(b,9)
-b.MouseButton1Click:Connect(function()
-b.Text="LOADING..."
-task.spawn(function()
-local ok,err=pcall(function()
-local code=game:HttpGet(url)
-local fn=loadstring(code)
-if fn then fn() else error("loadstring failed") end
-end)
-if ok then
-b.Text="EXECUTED";task.wait(1);b.Text="EXECUTE"
-else
-b.Text="ERROR";warn("[Tnh-VN] "..tostring(err))
-task.wait(1.5);b.Text="EXECUTE"
-end
-end)
-end)
-return r
-end
-
-ScriptCard(StealP,"Anti Chase","StealEggOnly",
-"https://raw.githubusercontent.com/WhiteX1208/Scripts/refs/heads/main/StealEggOnly.luau")
-ScriptCard(StealP,"Sena","Sena V3",
-"https://raw.githubusercontent.com/senarblx/sena/refs/heads/main/senav3go")
 
 -- LANGUAGE PAGE
 local LH=PgHdr(LangP,T("lang"),T("langD"))
@@ -1508,7 +1417,7 @@ if cam then cam.FieldOfView=70 end
 Gui:Destroy();ESPGui:Destroy()
 end)
 
--- ============= UNIFIED HEARTBEAT (thay 4 vòng lặp riêng) =============
+-- ============ UNIFIED HEARTBEAT ============
 RS.Heartbeat:Connect(function()
 local c=LP.Character
 if not c then return end
@@ -1516,7 +1425,6 @@ local h=c:FindFirstChildOfClass("Humanoid")
 local r=c:FindFirstChild("HumanoidRootPart")
 if not h or not r then return end
 
--- AntiHit
 if S.AntiHit and not S.AutoSteal and not S.Fly then
 if h.Health<h.MaxHealth then h.Health=h.MaxHealth end
 h.PlatformStand=false;h.Sit=false
@@ -1530,16 +1438,13 @@ r.AssemblyLinearVelocity=Vector3.new(0,vel.Y,0)
 r.AssemblyAngularVelocity=Vector3.zero
 end
 
--- Antiban
 if S.Antiban then
 if not S.Speed and h.WalkSpeed>25 then h.WalkSpeed=16 end
 if h.JumpPower and h.JumpPower>100 then h.JumpPower=50 end
 end
 
--- Speed
 if S.Speed then h.WalkSpeed=S.SpeedValue end
 
--- AutoSteal
 if S.AutoSteal then
 if ICE() then
 ECI()
@@ -1564,12 +1469,12 @@ else
 local pos=t.part.Position
 local d=(pos-r.Position).Magnitude
 local inf=t.info or {}
-StatL.Text=T("stat")..": → "..(t.real or t.name).." ("..(inf.income or "?")..") "..math.floor(d).."m"
+StatL.Text=T("stat")..": → "..(t.real or t.name).." ("..(t.income or inf.income or "?")..") "..math.floor(d).."m"
 StatL.TextColor3=Color3.fromRGB(0,200,255)
 if d<=12 then
 if tick()-LPA>0.2 then
 LPA=tick()
-InteractEgg(t.part)
+InteractEgg(t)
 end
 r.AssemblyLinearVelocity=Vector3.zero
 else
@@ -1583,4 +1488,4 @@ end
 end
 end)
 
-print("[Tnh-VN] MENU Loaded — Key: Tnh-VN — FixLag mạnh + Steal Egg đã fix")
+print("[Tnh-VN] MENU Loaded — Key: Tnh-VN")
