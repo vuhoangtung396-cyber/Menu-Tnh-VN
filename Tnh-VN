@@ -1,398 +1,484 @@
---// Tnh-VN AI v2 - Delta / Roblox Luau
---// Key: Tnh-VN
---// Bản GUI tối giản, ưu tiên tương thích executor.
+-- Tnh-VN AI Script
+-- Dành cho Roblox Executor
 
 local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local LP = Players.LocalPlayer
 
-local P = Players.LocalPlayer
-local parent = (gethui and gethui()) or CoreGui
+-- ================= CONFIG =================
+local API_KEYS = {
+    ChatGPT = "", -- Dán API Key OpenAI vào đây
+    Gemini = "",  -- Dán API Key Gemini vào đây
+    Claude = "",  -- Dán API Key Claude vào đây
+    DeepSeek = "" -- Dán API Key DeepSeek vào đây
+}
+local CORRECT_KEY = "Tnh-VN"
+-- ==========================================
 
-local old = parent:FindFirstChild("TnhVN_AI_V2")
-if old then old:Destroy() end
-
-local KEY = "Tnh-VN"
-
-local function New(class, props)
-    local x = Instance.new(class)
-    for k,v in pairs(props or {}) do
-        x[k] = v
-    end
-    return x
+-- Xóa GUI cũ nếu có
+if LP.PlayerGui:FindFirstChild("TnhVN_AI") then
+    LP.PlayerGui.TnhVN_AI:Destroy()
 end
 
-local gui = New("ScreenGui", {
-    Name = "TnhVN_AI_V2",
-    ResetOnSpawn = false,
-    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    Parent = parent
-})
-
-local function Round(obj, n)
-    local c = New("UICorner", {CornerRadius = UDim.new(0,n or 10)})
-    c.Parent = obj
+-- ================= UTILS =================
+local function Corner(o, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r)
+    c.Parent = o
 end
 
-local function Border(obj)
-    local s = New("UIStroke", {
-        Color = Color3.fromRGB(0,145,255),
-        Thickness = 1.5,
-        Transparency = .15
-    })
-    s.Parent = obj
+local function Stroke(o, c, t)
+    local s = Instance.new("UIStroke")
+    s.Color = c
+    s.Thickness = t or 1
+    s.Transparency = 0.3
+    s.Parent = o
 end
 
--- KEY WINDOW
-local key = New("Frame", {
-    Parent = gui,
-    Size = UDim2.new(0,390,0,245),
-    Position = UDim2.new(.5,-195,.5,-122),
-    BackgroundColor3 = Color3.fromRGB(7,15,31),
-    BorderSizePixel = 0
-})
-Round(key,18); Border(key)
-
-New("TextLabel", {
-    Parent=key, BackgroundTransparency=1,
-    Position=UDim2.new(0,22,0,20), Size=UDim2.new(1,-44,0,35),
-    Text="Tnh-VN AI", TextColor3=Color3.fromRGB(240,248,255),
-    Font=Enum.Font.GothamBold, TextSize=27,
-    TextXAlignment=Enum.TextXAlignment.Left
-})
-
-New("TextLabel", {
-    Parent=key, BackgroundTransparency=1,
-    Position=UDim2.new(0,22,0,58), Size=UDim2.new(1,-44,0,25),
-    Text="Nhập Key để mở menu", TextColor3=Color3.fromRGB(135,165,210),
-    Font=Enum.Font.Gotham, TextSize=14,
-    TextXAlignment=Enum.TextXAlignment.Left
-})
-
-local keyBox = New("TextBox", {
-    Parent=key,
-    Position=UDim2.new(0,22,0,96), Size=UDim2.new(1,-44,0,48),
-    BackgroundColor3=Color3.fromRGB(4,23,46),
-    TextColor3=Color3.fromRGB(255,255,255),
-    PlaceholderText="Nhập Tnh-VN",
-    PlaceholderColor3=Color3.fromRGB(100,130,170),
-    Text="", ClearTextOnFocus=false,
-    Font=Enum.Font.Gotham, TextSize=16,
-    BorderSizePixel=0
-})
-Round(keyBox,10); Border(keyBox)
-
-local open = New("TextButton", {
-    Parent=key,
-    Position=UDim2.new(0,22,0,158), Size=UDim2.new(1,-44,0,45),
-    BackgroundColor3=Color3.fromRGB(0,105,235),
-    Text="XÁC NHẬN",
-    TextColor3=Color3.new(1,1,1),
-    Font=Enum.Font.GothamBold, TextSize=16,
-    BorderSizePixel=0
-})
-Round(open,10)
-
-local errorText = New("TextLabel", {
-    Parent=key, BackgroundTransparency=1,
-    Position=UDim2.new(0,22,1,-31), Size=UDim2.new(1,-44,0,20),
-    Text="", TextColor3=Color3.fromRGB(255,90,110),
-    Font=Enum.Font.Gotham, TextSize=12
-})
-
--- MAIN MENU
-local main = New("Frame", {
-    Parent=gui, Visible=false,
-    Size=UDim2.new(.82,0,.76,0),
-    Position=UDim2.new(.09,0,.12,0),
-    BackgroundColor3=Color3.fromRGB(6,14,30),
-    BorderSizePixel=0
-})
-Round(main,20); Border(main)
-
-local top = New("Frame", {
-    Parent=main, Size=UDim2.new(1,0,0,68),
-    BackgroundColor3=Color3.fromRGB(7,24,48),
-    BorderSizePixel=0
-})
-Round(top,20)
-
-New("TextLabel", {
-    Parent=top, BackgroundTransparency=1,
-    Position=UDim2.new(0,18,0,10), Size=UDim2.new(1,-150,0,30),
-    Text="Tnh-VN AI", TextColor3=Color3.fromRGB(245,250,255),
-    Font=Enum.Font.GothamBold, TextSize=25,
-    TextXAlignment=Enum.TextXAlignment.Left
-})
-
-New("TextLabel", {
-    Parent=top, BackgroundTransparency=1,
-    Position=UDim2.new(0,19,0,39), Size=UDim2.new(1,-150,0,20),
-    Text="AI Assistant", TextColor3=Color3.fromRGB(110,155,215),
-    Font=Enum.Font.Gotham, TextSize=11,
-    TextXAlignment=Enum.TextXAlignment.Left
-})
-
-local mini = New("TextButton", {
-    Parent=top, Position=UDim2.new(1,-88,0,14),
-    Size=UDim2.new(0,35,0,35),
-    BackgroundColor3=Color3.fromRGB(12,35,65),
-    Text="−", TextColor3=Color3.new(1,1,1),
-    Font=Enum.Font.GothamBold, TextSize=23,
-    BorderSizePixel=0
-})
-Round(mini,9)
-
-local close = New("TextButton", {
-    Parent=top, Position=UDim2.new(1,-47,0,14),
-    Size=UDim2.new(0,35,0,35),
-    BackgroundColor3=Color3.fromRGB(12,35,65),
-    Text="×", TextColor3=Color3.new(1,1,1),
-    Font=Enum.Font.GothamBold, TextSize=23,
-    BorderSizePixel=0
-})
-Round(close,9)
-
--- NOTES
-local notes = New("ScrollingFrame", {
-    Parent=main, Position=UDim2.new(0,12,0,80),
-    Size=UDim2.new(.25,-15,1,-92),
-    BackgroundColor3=Color3.fromRGB(5,21,42),
-    BorderSizePixel=0,
-    ScrollBarThickness=3,
-    CanvasSize=UDim2.new(0,0,0,0),
-    AutomaticCanvasSize=Enum.AutomaticSize.Y
-})
-Round(notes,13); Border(notes)
-
-New("TextLabel", {
-    Parent=notes, BackgroundTransparency=1,
-    Position=UDim2.new(0,12,0,10), Size=UDim2.new(1,-24,0,30),
-    Text="📝 NOTE", TextColor3=Color3.fromRGB(225,240,255),
-    Font=Enum.Font.GothamBold, TextSize=16,
-    TextXAlignment=Enum.TextXAlignment.Left
-})
-
-local nl = New("UIListLayout", {Parent=notes, Padding=UDim.new(0,5)})
-nl.SortOrder = Enum.SortOrder.LayoutOrder
-New("UIPadding", {Parent=notes, PaddingTop=UDim.new(0,45), PaddingLeft=UDim.new(0,7), PaddingRight=UDim.new(0,7)})
-
-local chat = New("Frame", {
-    Parent=main, Position=UDim2.new(.25,2,0,80),
-    Size=UDim2.new(.75,-14,1,-92),
-    BackgroundColor3=Color3.fromRGB(5,21,42),
-    BorderSizePixel=0
-})
-Round(chat,13); Border(chat)
-
-for i=1,30 do
-    local b=New("TextButton", {
-        Parent=notes, Size=UDim2.new(1,0,0,35),
-        BackgroundColor3=Color3.fromRGB(8,31,59),
-        Text=tostring(i).."    Ghi chú "..i,
-        TextColor3=Color3.fromRGB(180,210,245),
-        Font=Enum.Font.Gotham, TextSize=12,
-        BorderSizePixel=0,
-        TextXAlignment=Enum.TextXAlignment.Left
-    })
-    Round(b,8)
-end
-
--- MODEL BUTTONS
-local models=New("Frame",{
-    Parent=chat,Position=UDim2.new(0,10,0,10),
-    Size=UDim2.new(1,-20,0,42),
-    BackgroundTransparency=1
-})
-local ml=New("UIListLayout",{Parent=models,FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,5)})
-
-local currentModel="ChatGPT"
-for _,name in ipairs({"ChatGPT","Gemini","Claude","DeepSeek","Kết hợp"}) do
-    local b=New("TextButton",{
-        Parent=models,Size=UDim2.new(0,88,0,38),
-        BackgroundColor3=Color3.fromRGB(8,34,65),
-        Text=name,TextColor3=Color3.fromRGB(190,220,255),
-        Font=Enum.Font.GothamSemibold,TextSize=11,
-        BorderSizePixel=0
-    })
-    Round(b,9)
-    b.MouseButton1Click:Connect(function()
-        currentModel=name
-        for _,x in ipairs(models:GetChildren()) do
-            if x:IsA("TextButton") then
-                x.BackgroundColor3=Color3.fromRGB(8,34,65)
-            end
+local function Drag(frame, handle)
+    local dragging, dragInput, dragStart, startPos
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
-        b.BackgroundColor3=Color3.fromRGB(0,110,240)
+    end)
+    handle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
     end)
 end
 
-local messages=New("ScrollingFrame",{
-    Parent=chat,Position=UDim2.new(0,10,0,58),
-    Size=UDim2.new(1,-20,1,-165),
-    BackgroundTransparency=1,
-    ScrollBarThickness=4,
-    AutomaticCanvasSize=Enum.AutomaticSize.Y
-})
-local msgLayout=New("UIListLayout",{Parent=messages,Padding=UDim.new(0,7)})
+-- ================= KEY SYSTEM =================
+local KeyGui = Instance.new("ScreenGui")
+KeyGui.Name = "TnhVN_AI"
+KeyGui.ResetOnSpawn = false
+KeyGui.Parent = LP:WaitForChild("PlayerGui")
 
-local function message(text,user)
-    local m=New("TextLabel",{
-        Parent=messages,
-        Size=UDim2.new(.86,0,0,0),
-        AutomaticSize=Enum.AutomaticSize.Y,
-        BackgroundColor3=user and Color3.fromRGB(0,91,190) or Color3.fromRGB(9,35,65),
-        Text=text,TextColor3=Color3.fromRGB(235,245,255),
-        Font=Enum.Font.Gotham,TextSize=13,
-        TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,
-        TextYAlignment=Enum.TextYAlignment.Top,
-        BorderSizePixel=0
-    })
-    Round(m,11)
-    return m
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.new(0, 550, 0, 200)
+KeyFrame.Position = UDim2.new(0.5, -275, 0.5, -100)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(17, 22, 25)
+KeyFrame.BorderSizePixel = 0
+KeyFrame.Parent = KeyGui
+Corner(KeyFrame, 16)
+Stroke(KeyFrame, Color3.fromRGB(0, 150, 215), 2)
+
+local KeyTitle = Instance.new("TextLabel")
+KeyTitle.Size = UDim2.new(1, -40, 0, 40)
+KeyTitle.Position = UDim2.new(0, 20, 0, 15)
+KeyTitle.BackgroundTransparency = 1
+KeyTitle.Text = "Tnh-VN AI"
+KeyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyTitle.TextSize = 24
+KeyTitle.Font = Enum.Font.GothamBold
+KeyTitle.TextXAlignment = Enum.TextXAlignment.Left
+KeyTitle.Parent = KeyFrame
+
+local KeySub = Instance.new("TextLabel")
+KeySub.Size = UDim2.new(1, -40, 0, 20)
+KeySub.Position = UDim2.new(0, 20, 0, 50)
+KeySub.BackgroundTransparency = 1
+KeySub.Text = "Nhập Key để tiếp tục"
+KeySub.TextColor3 = Color3.fromRGB(150, 160, 165)
+KeySub.TextSize = 14
+KeySub.Font = Enum.Font.Gotham
+KeySub.TextXAlignment = Enum.TextXAlignment.Left
+KeySub.Parent = KeyFrame
+
+local KeyInput = Instance.new("TextBox")
+KeyInput.Size = UDim2.new(1, -40, 0, 45)
+KeyInput.Position = UDim2.new(0, 20, 0, 80)
+KeyInput.BackgroundColor3 = Color3.fromRGB(27, 34, 38)
+KeyInput.BorderSizePixel = 0
+KeyInput.PlaceholderText = "Dán Key vào đây..."
+KeyInput.Text = ""
+KeyInput.TextColor3 = Color3.fromRGB(240, 240, 240)
+KeyInput.TextSize = 15
+KeyInput.Font = Enum.Font.Gotham
+KeyInput.Parent = KeyFrame
+Corner(KeyInput, 10)
+Stroke(KeyInput, Color3.fromRGB(55, 65, 70), 1)
+
+local KeyBtn = Instance.new("TextButton")
+KeyBtn.Size = UDim2.new(1, -40, 0, 45)
+KeyBtn.Position = UDim2.new(0, 20, 0, 140)
+KeyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 215)
+KeyBtn.BorderSizePixel = 0
+KeyBtn.Text = "XÁC NHẬN"
+KeyBtn.TextColor3 = Color3.new(1, 1, 1)
+KeyBtn.TextSize = 15
+KeyBtn.Font = Enum.Font.GothamBold
+KeyBtn.Parent = KeyFrame
+Corner(KeyBtn, 10)
+
+-- ================= MAIN GUI =================
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "TnhVN_AI_Main"
+MainGui.ResetOnSpawn = false
+MainGui.Parent = LP:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 850, 0, 500)
+MainFrame.Position = UDim2.new(0.5, -425, 0.5, -250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(17, 22, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.Parent = MainGui
+Corner(MainFrame, 16)
+Stroke(MainFrame, Color3.fromRGB(0, 150, 215), 2)
+
+-- Top Bar
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 60)
+TopBar.BackgroundColor3 = Color3.fromRGB(20, 26, 29)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+Corner(TopBar, 16)
+
+local TitleIcon = Instance.new("TextLabel")
+TitleIcon.Size = UDim2.new(0, 40, 0, 40)
+TitleIcon.Position = UDim2.new(0, 15, 0, 10)
+TitleIcon.BackgroundColor3 = Color3.fromRGB(0, 150, 215)
+TitleIcon.Text = "T"
+TitleIcon.TextColor3 = Color3.new(1, 1, 1)
+TitleIcon.TextSize = 24
+TitleIcon.Font = Enum.Font.GothamBold
+TitleIcon.Parent = TopBar
+Corner(TitleIcon, 8)
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(0, 300, 0, 25)
+TitleText.Position = UDim2.new(0, 65, 0, 8)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "Tnh-VN AI"
+TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleText.TextSize = 20
+TitleText.Font = Enum.Font.GothamBold
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Parent = TopBar
+
+local SubText = Instance.new("TextLabel")
+SubText.Size = UDim2.new(0, 400, 0, 20)
+SubText.Position = UDim2.new(0, 65, 0, 32)
+SubText.BackgroundTransparency = 1
+SubText.Text = "Trợ lý AI đa năng • Hỗ trợ học tập, làm việc, sáng tạo"
+SubText.TextColor3 = Color3.fromRGB(150, 160, 165)
+SubText.TextSize = 12
+SubText.Font = Enum.Font.Gotham
+SubText.TextXAlignment = Enum.TextXAlignment.Left
+SubText.Parent = TopBar
+
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 40, 0, 40)
+MinBtn.Position = UDim2.new(1, -90, 0, 10)
+MinBtn.BackgroundColor3 = Color3.fromRGB(30, 38, 42)
+MinBtn.Text = "−"
+MinBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+MinBtn.TextSize = 24
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.Parent = TopBar
+Corner(MinBtn, 8)
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 40, 0, 40)
+CloseBtn.Position = UDim2.new(1, -45, 0, 10)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(30, 38, 42)
+CloseBtn.Text = "×"
+CloseBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+CloseBtn.TextSize = 24
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Parent = TopBar
+Corner(CloseBtn, 8)
+
+Drag(MainFrame, TopBar)
+
+-- Sidebar (Notes)
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 200, 1, -75)
+Sidebar.Position = UDim2.new(0, 10, 0, 65)
+Sidebar.BackgroundColor3 = Color3.fromRGB(21, 27, 30)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+Corner(Sidebar, 12)
+
+local SidebarTitle = Instance.new("TextLabel")
+SidebarTitle.Size = UDim2.new(1, -20, 0, 30)
+SidebarTitle.Position = UDim2.new(0, 10, 0, 5)
+SidebarTitle.BackgroundTransparency = 1
+SidebarTitle.Text = "📝 Note"
+SidebarTitle.TextColor3 = Color3.fromRGB(200, 210, 215)
+SidebarTitle.TextSize = 16
+SidebarTitle.Font = Enum.Font.GothamBold
+SidebarTitle.TextXAlignment = Enum.TextXAlignment.Left
+SidebarTitle.Parent = Sidebar
+
+local NoteScroll = Instance.new("ScrollingFrame")
+NoteScroll.Size = UDim2.new(1, -10, 1, -45)
+NoteScroll.Position = UDim2.new(0, 5, 0, 40)
+NoteScroll.BackgroundTransparency = 1
+NoteScroll.ScrollBarThickness = 4
+NoteScroll.ScrollBarImageColor3 = Color3.fromRGB(0, 150, 215)
+NoteScroll.Parent = Sidebar
+
+local NoteLayout = Instance.new("UIListLayout")
+NoteLayout.Padding = UDim.new(0, 5)
+NoteLayout.Parent = NoteScroll
+
+local notes = {"Ý tưởng hôm nay...", "Kế hoạch công việc...", "Học tập & kiến thức...", "Dự án cá nhân...", "Ghi chú nhanh...", "Tài liệu tham khảo...", "Mục tiêu phát triển...", "Ý tưởng sáng tạo...", "Danh sách cần làm...", "Ghi chú khác..."}
+for i, note in ipairs(notes) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 38, 42)
+    btn.BorderSizePixel = 0
+    btn.Text = "  " .. i .. "  " .. note
+    btn.TextColor3 = Color3.fromRGB(200, 210, 215)
+    btn.TextSize = 12
+    btn.Font = Enum.Font.Gotham
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Parent = NoteScroll
+    Corner(btn, 8)
+    btn.MouseButton1Click:Connect(function()
+        -- Giả lập load note
+        InputBox.Text = "Ghi chú: " .. note
+    end)
 end
 
-message("Xin chào! Nhập câu hỏi bên dưới để bắt đầu.",false)
+-- Main Chat Area
+local ChatArea = Instance.new("Frame")
+ChatArea.Size = UDim2.new(1, -230, 1, -75)
+ChatArea.Position = UDim2.new(0, 220, 0, 65)
+ChatArea.BackgroundColor3 = Color3.fromRGB(21, 27, 30)
+ChatArea.BorderSizePixel = 0
+ChatArea.Parent = MainFrame
+Corner(ChatArea, 12)
 
-local inputFrame=New("Frame",{
-    Parent=chat,Position=UDim2.new(0,10,1,-98),
-    Size=UDim2.new(1,-20,0,88),
-    BackgroundColor3=Color3.fromRGB(3,17,35),
-    BorderSizePixel=0
-})
-Round(inputFrame,12);Border(inputFrame)
+-- AI Model Selection
+local ModelBar = Instance.new("Frame")
+ModelBar.Size = UDim2.new(1, -20, 0, 40)
+ModelBar.Position = UDim2.new(0, 10, 0, 10)
+ModelBar.BackgroundTransparency = 1
+ModelBar.Parent = ChatArea
 
-local prompt=New("TextBox",{
-    Parent=inputFrame,Position=UDim2.new(0,10,0,7),
-    Size=UDim2.new(1,-20,0,42),
-    BackgroundTransparency=1,
-    Text="",PlaceholderText="Hỏi AI bất kỳ điều gì...",
-    PlaceholderColor3=Color3.fromRGB(100,135,175),
-    TextColor3=Color3.fromRGB(240,248,255),
-    Font=Enum.Font.Gotham,TextSize=13,
-    ClearTextOnFocus=false,TextWrapped=true,
-    TextXAlignment=Enum.TextXAlignment.Left,
-    BorderSizePixel=0
-})
+local ModelLayout = Instance.new("UIListLayout")
+ModelLayout.FillDirection = Enum.FillDirection.Horizontal
+ModelLayout.Padding = UDim.new(0, 8)
+ModelLayout.Parent = ModelBar
 
-local copy=New("TextButton",{
-    Parent=inputFrame,Position=UDim2.new(0,8,1,-34),
-    Size=UDim2.new(0,80,0,27),
-    BackgroundColor3=Color3.fromRGB(8,35,65),
-    Text="📋 Copy",TextColor3=Color3.fromRGB(190,220,255),
-    Font=Enum.Font.Gotham,TextSize=11,BorderSizePixel=0
-})
-Round(copy,7)
+local models = {"ChatGPT", "Gemini", "Claude", "DeepSeek", "Kết hợp"}
+local modelButtons = {}
+local selectedModel = "ChatGPT"
 
-local edit=New("TextButton",{
-    Parent=inputFrame,Position=UDim2.new(0,94,1,-34),
-    Size=UDim2.new(0,80,0,27),
-    BackgroundColor3=Color3.fromRGB(8,35,65),
-    Text="✎ Sửa",TextColor3=Color3.fromRGB(190,220,255),
-    Font=Enum.Font.Gotham,TextSize=11,BorderSizePixel=0
-})
-Round(edit,7)
+for _, m in ipairs(models) do
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(0, 100, 0, 35)
+    b.BackgroundColor3 = Color3.fromRGB(30, 38, 42)
+    b.BorderSizePixel = 0
+    b.Text = m
+    b.TextColor3 = Color3.fromRGB(200, 210, 215)
+    b.TextSize = 12
+    b.Font = Enum.Font.GothamBold
+    b.Parent = ModelBar
+    Corner(b, 8)
+    modelButtons[m] = b
+    b.MouseButton1Click:Connect(function()
+        selectedModel = m
+        for name, btn in pairs(modelButtons) do
+            if name == m then
+                btn.BackgroundColor3 = Color3.fromRGB(0, 150, 215)
+                btn.TextColor3 = Color3.new(1, 1, 1)
+            else
+                btn.BackgroundColor3 = Color3.fromRGB(30, 38, 42)
+                btn.TextColor3 = Color3.fromRGB(200, 210, 215)
+            end
+        end
+    end)
+end
+modelButtons["ChatGPT"].BackgroundColor3 = Color3.fromRGB(0, 150, 215)
+modelButtons["ChatGPT"].TextColor3 = Color3.new(1, 1, 1)
 
-local send=New("TextButton",{
-    Parent=inputFrame,Position=UDim2.new(1,-88,1,-34),
-    Size=UDim2.new(0,80,0,27),
-    BackgroundColor3=Color3.fromRGB(0,105,235),
-    Text="➤ Gửi",TextColor3=Color3.new(1,1,1),
-    Font=Enum.Font.GothamBold,TextSize=11,BorderSizePixel=0
-})
-Round(send,7)
+-- Chat History
+local ChatScroll = Instance.new("ScrollingFrame")
+ChatScroll.Size = UDim2.new(1, -20, 1, -150)
+ChatScroll.Position = UDim2.new(0, 10, 0, 60)
+ChatScroll.BackgroundColor3 = Color3.fromRGB(15, 20, 23)
+ChatScroll.BorderSizePixel = 0
+ChatScroll.ScrollBarThickness = 4
+ChatScroll.ScrollBarImageColor3 = Color3.fromRGB(0, 150, 215)
+ChatScroll.Parent = ChatArea
+Corner(ChatScroll, 8)
 
-local bubble=New("TextButton",{
-    Parent=gui,Visible=false,
-    Size=UDim2.new(0,60,0,60),
-    Position=UDim2.new(1,-75,1,-75),
-    BackgroundColor3=Color3.fromRGB(0,105,235),
-    Text="T",TextColor3=Color3.new(1,1,1),
-    Font=Enum.Font.GothamBold,TextSize=30,BorderSizePixel=0
-})
-Round(bubble,30);Border(bubble)
+local ChatLayout = Instance.new("UIListLayout")
+ChatLayout.Padding = UDim.new(0, 10)
+ChatLayout.Parent = ChatScroll
 
-local lastAI=""
-
-local function clip(text)
-    if setclipboard then
-        pcall(setclipboard,text or "")
-    end
+local function AddMessage(sender, text, isUser)
+    local msgFrame = Instance.new("Frame")
+    msgFrame.Size = UDim2.new(1, -10, 0, 0)
+    msgFrame.AutomaticSize = Enum.AutomaticSize.Y
+    msgFrame.BackgroundTransparency = 1
+    msgFrame.Parent = ChatScroll
+    
+    local senderLbl = Instance.new("TextLabel")
+    senderLbl.Size = UDim2.new(1, 0, 0, 20)
+    senderLbl.BackgroundTransparency = 1
+    senderLbl.Text = sender
+    senderLbl.TextColor3 = isUser and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(0, 255, 150)
+    senderLbl.TextSize = 12
+    senderLbl.Font = Enum.Font.GothamBold
+    senderLbl.TextXAlignment = Enum.TextXAlignment.Left
+    senderLbl.Parent = msgFrame
+    
+    local msgLbl = Instance.new("TextLabel")
+    msgLbl.Size = UDim2.new(1, 0, 0, 0)
+    msgLbl.AutomaticSize = Enum.AutomaticSize.Y
+    msgLbl.BackgroundTransparency = 1
+    msgLbl.Text = text
+    msgLbl.TextColor3 = Color3.fromRGB(220, 230, 235)
+    msgLbl.TextSize = 14
+    msgLbl.Font = Enum.Font.Gotham
+    msgLbl.TextWrapped = true
+    msgLbl.TextXAlignment = Enum.TextXAlignment.Left
+    msgLbl.TextYAlignment = Enum.TextYAlignment.Top
+    msgLbl.Position = UDim2.new(0, 0, 0, 22)
+    msgLbl.Parent = msgFrame
+    
+    task.wait(0.05)
+    ChatScroll.CanvasSize = UDim2.new(0, 0, 0, ChatLayout.AbsoluteContentSize.Y + 20)
+    ChatScroll.CanvasPosition = Vector2.new(0, ChatScroll.CanvasSize.Y.Offset)
 end
 
-copy.MouseButton1Click:Connect(function()
-    clip(prompt.Text)
+-- Input Area
+local InputFrame = Instance.new("Frame")
+InputFrame.Size = UDim2.new(1, -20, 0, 80)
+InputFrame.Position = UDim2.new(0, 10, 1, -90)
+InputFrame.BackgroundTransparency = 1
+InputFrame.Parent = ChatArea
+
+local InputBox = Instance.new("TextBox")
+InputBox.Size = UDim2.new(1, -110, 0, 50)
+InputBox.Position = UDim2.new(0, 0, 0, 0)
+InputBox.BackgroundColor3 = Color3.fromRGB(30, 38, 42)
+InputBox.BorderSizePixel = 0
+InputBox.PlaceholderText = "Hỏi AI bất kỳ điều gì..."
+InputBox.Text = ""
+InputBox.TextColor3 = Color3.fromRGB(240, 240, 240)
+InputBox.TextSize = 14
+InputBox.Font = Enum.Font.Gotham
+InputBox.TextXAlignment = Enum.TextXAlignment.Left
+InputBox.TextWrapped = true
+InputBox.Parent = InputFrame
+Corner(InputBox, 10)
+Stroke(InputBox, Color3.fromRGB(55, 65, 70), 1)
+
+local SendBtn = Instance.new("TextButton")
+SendBtn.Size = UDim2.new(0, 100, 0, 50)
+SendBtn.Position = UDim2.new(1, -100, 0, 0)
+SendBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 215)
+SendBtn.BorderSizePixel = 0
+SendBtn.Text = "✈ Gửi"
+SendBtn.TextColor3 = Color3.new(1, 1, 1)
+SendBtn.TextSize = 14
+SendBtn.Font = Enum.Font.GothamBold
+SendBtn.Parent = InputFrame
+Corner(SendBtn, 10)
+
+-- Logic gửi tin nhắn
+local function SendMessage()
+    local text = InputBox.Text
+    if text == "" then return end
+    InputBox.Text = ""
+    AddMessage("Bạn", text, true)
+    
+    -- Giả lập phản hồi AI (Bạn có thể thay bằng HTTP Request thật)
+    task.spawn(function()
+        task.wait(1)
+        local response = ""
+        if selectedModel == "ChatGPT" then
+            response = "[ChatGPT] Đây là câu trả lời giả lập cho: " .. text .. "\n\nĐể dùng thật, hãy dán API Key vào phần CONFIG ở đầu script."
+        elseif selectedModel == "Gemini" then
+            response = "[Gemini] Phản hồi giả lập: " .. text
+        else
+            response = "[" .. selectedModel .. "] Phản hồi giả lập: " .. text
+        end
+        AddMessage("Tnh-VN AI", response, false)
+    end)
+end
+
+SendBtn.MouseButton1Click:Connect(SendMessage)
+InputBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then SendMessage() end
 end)
 
-edit.MouseButton1Click:Connect(function()
-    prompt:CaptureFocus()
+-- ================= FLOATING BUTTON =================
+local FloatBtn = Instance.new("TextButton")
+FloatBtn.Size = UDim2.new(0, 60, 0, 60)
+FloatBtn.Position = UDim2.new(1, -80, 0.5, -30)
+FloatBtn.BackgroundColor3 = Color3.fromRGB(17, 22, 25)
+FloatBtn.Text = "T"
+FloatBtn.TextColor3 = Color3.fromRGB(0, 150, 215)
+FloatBtn.TextSize = 30
+FloatBtn.Font = Enum.Font.GothamBold
+FloatBtn.Visible = false
+FloatBtn.Parent = MainGui
+Corner(FloatBtn, 30)
+Stroke(FloatBtn, Color3.fromRGB(0, 150, 215), 3)
+
+Drag(FloatBtn, FloatBtn)
+
+FloatBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    FloatBtn.Visible = false
 end)
 
-send.MouseButton1Click:Connect(function()
-    local q=prompt.Text
-    if q:gsub("%s","")=="" then return end
-    message(q,true)
-    prompt.Text=""
-    local a=message("Đang xử lý với "..currentModel.."...",false)
-
-    task.wait(.4)
-    lastAI="Tnh-VN AI demo\n\nBạn vừa hỏi: "..q..
-        "\n\nGiao diện đã nhận câu hỏi. Để kết nối AI thật, cần thêm backend/API."
-    a.Text=lastAI
+MinBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    FloatBtn.Visible = true
 end)
 
-mini.MouseButton1Click:Connect(function()
-    main.Visible=false
-    bubble.Visible=true
+CloseBtn.MouseButton1Click:Connect(function()
+    MainGui:Destroy()
+    KeyGui:Destroy()
 end)
 
-bubble.MouseButton1Click:Connect(function()
-    bubble.Visible=false
-    main.Visible=true
-end)
-
-close.MouseButton1Click:Connect(function()
-    main.Visible=false
-    bubble.Visible=false
-end)
-
-open.MouseButton1Click:Connect(function()
-    if keyBox.Text==KEY then
-        key.Visible=false
-        main.Visible=true
+-- ================= KEY CHECK =================
+KeyBtn.MouseButton1Click:Connect(function()
+    if KeyInput.Text == CORRECT_KEY then
+        KeyGui.Enabled = false
+        MainFrame.Visible = true
+        AddMessage("Hệ thống", "Chào mừng bạn đến với Tnh-VN AI! Hãy chọn model và đặt câu hỏi.", false)
     else
-        errorText.Text="Key không đúng!"
+        KeyInput.Text = ""
+        KeyInput.PlaceholderText = "Key sai! Nhập lại..."
     end
 end)
 
-keyBox.FocusLost:Connect(function(enter)
-    if enter then open:Activate() end
-end)
-
--- Kéo menu
-local dragging=false
-local dragStart
-local startPos
-
-top.InputBegan:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-        dragging=true
-        dragStart=i.Position
-        startPos=main.Position
+KeyInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        KeyBtn:GetPropertyChangedSignal("Text"):Wait() -- trigger click
+        if KeyInput.Text == CORRECT_KEY then
+            KeyGui.Enabled = false
+            MainFrame.Visible = true
+            AddMessage("Hệ thống", "Chào mừng bạn đến với Tnh-VN AI! Hãy chọn model và đặt câu hỏi.", false)
+        else
+            KeyInput.Text = ""
+            KeyInput.PlaceholderText = "Key sai! Nhập lại..."
+        end
     end
 end)
 
-UIS.InputChanged:Connect(function(i)
-    if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
-        local d=i.Position-dragStart
-        main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
-    end
-end)
-
-UIS.InputEnded:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-        dragging=false
-    end
-end)
-
-print("[Tnh-VN AI v2] Loaded successfully.")
+print("[Tnh-VN AI] Script loaded. Key: Tnh-VN")
